@@ -94,12 +94,20 @@ export function MainHeader() {
             </div>
           </div>
 
+          {/* Catalog Card */}
+          <Link
+            href="/catalog"
+            className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground border border-border/40 hover:border-accent/40 bg-card/40 hover:bg-accent/5 transition-all duration-150 backdrop-blur-sm"
+          >
+            Catalog
+          </Link>
+
           {/* Docs Card */}
           <Link
             href="/documentation"
             className="px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground border border-border/40 hover:border-accent/40 bg-card/40 hover:bg-accent/5 transition-all duration-150 backdrop-blur-sm"
           >
-            Documentations
+            Documentation
           </Link>
         </div>
 
