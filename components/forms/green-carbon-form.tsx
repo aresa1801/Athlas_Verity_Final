@@ -6,7 +6,7 @@ import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Upload, AlertCircle, CheckCircle2, HelpCircle, MapPin, CheckCircle2 as CheckIcon } from "lucide-react"
+import { Upload, AlertCircle, CheckCircle2, HelpCircle, MapPin } from "lucide-react"
 import { EnhancedMapInterface } from "@/components/geospatial/enhanced-map-interface"
 import { GeospatialAnalysisSection } from "@/components/verification/geospatial-analysis-section"
 
