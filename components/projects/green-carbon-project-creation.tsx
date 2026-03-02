@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -266,8 +266,40 @@ export function GreenCarbonProjectCreation() {
 
   const { isLoading, progress, error, setError, setProgress } = useLoadingState()
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
-
   const [countrySearch, setCountrySearch] = useState('')
+
+  // Load satellite analysis data if coming from satellite analysis page
+  useEffect(() => {
+    try {
+      const satelliteData = sessionStorage.getItem('satelliteAnalysisData')
+      if (satelliteData) {
+        const data = JSON.parse(satelliteData)
+        
+        if (data.polygon && data.polygon.length > 0) {
+          setFormData((prev) => ({
+            ...prev,
+            polygon: data.polygon,
+            totalArea: data.area?.hectares || 0,
+            coordinates: {
+              minLat: Math.min(...data.polygon.map((p: [number, number]) => p[0])),
+              minLng: Math.min(...data.polygon.map((p: [number, number]) => p[1])),
+              maxLat: Math.max(...data.polygon.map((p: [number, number]) => p[0])),
+              maxLng: Math.max(...data.polygon.map((p: [number, number]) => p[1])),
+            },
+            dominantSpecies: data.analysis?.vegetationClassification?.dominantSpecies || '',
+            ndvi: data.analysis?.vegetationClassification?.ndvi?.toString() || '',
+            averageCanopyHeight: '38.5',
+            biomassEstimate: data.analysis?.carbonEstimation?.agb?.toString() || '',
+            carbonStock: (data.analysis?.carbonEstimation?.agb * 0.5)?.toString() || '',
+          }))
+        }
+        // Clear the session data after loading
+        sessionStorage.removeItem('satelliteAnalysisData')
+      }
+    } catch (err) {
+      console.error('[v0] Error loading satellite data:', err)
+    }
+  }, [])
   
   const methodologies = [
     { id: 'verra', name: 'Verra VCS', description: 'Verified Carbon Standard' },

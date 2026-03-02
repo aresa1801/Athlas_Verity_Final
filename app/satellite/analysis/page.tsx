@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { MapInterface } from '@/components/satellite/map-interface'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -12,8 +13,10 @@ import {
   BarChart3, Leaf, Droplet
 } from 'lucide-react'
 import { calculateAndFormatArea } from '@/lib/polygon-area-calculator'
+import { generateSatellitePDF, generateSatelliteDataZIP, downloadBlob } from '@/lib/satellite-data-exporter'
 
 export default function SatelliteAnalysisPage() {
+  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [polygon, setPolygon] = useState<Array<[number, number]>>([])
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
@@ -31,21 +34,22 @@ export default function SatelliteAnalysisPage() {
     setLoading(true)
     setUploadedFile(file)
     
-    // Simulate file parsing and area calculation
     try {
-      // Extract coordinates from file (simplified)
+      // Simulate file parsing and area calculation
+      // In production, would parse actual shapefile/geojson
       const mockCoordinates = [
         { latitude: -2.5, longitude: 118.0 },
-        { latitude: -2.5, longitude: 118.1 },
-        { latitude: -2.4, longitude: 118.1 },
-        { latitude: -2.4, longitude: 118.0 },
+        { latitude: -2.5, longitude: 118.25 },
+        { latitude: -2.25, longitude: 118.25 },
+        { latitude: -2.25, longitude: 118.0 },
       ]
       
       const result = calculateAndFormatArea(mockCoordinates)
       setAreaData(result)
       
-      // Update polygon
-      setPolygon(mockCoordinates.map(c => [c.latitude, c.longitude]))
+      // Update polygon with actual coordinates
+      const newPolygon = mockCoordinates.map(c => [c.latitude, c.longitude] as [number, number])
+      setPolygon(newPolygon)
     } finally {
       setLoading(false)
     }
@@ -78,6 +82,92 @@ export default function SatelliteAnalysisPage() {
       })
       setAnalysisRunning(false)
     }, 2000)
+  }
+
+  const handleDownloadCarbonPDF = async () => {
+    if (!analysisResults || !areaData) return
+    
+    const data = {
+      projectName: 'Satellite Analysis Project',
+      area: { hectares: areaData.hectares, km2: areaData.km2 },
+      forestType: analysisResults.vegetationClassification.forestType,
+      polygonCoordinates: polygon,
+      satellite: {
+        ndvi: analysisResults.vegetationClassification.ndvi,
+        cloudCover: 15,
+        vegetationClass: analysisResults.vegetationClassification.dominantSpecies,
+        biomass: analysisResults.carbonEstimation.agb,
+        carbonEstimate: analysisResults.carbonEstimation.agb * 0.5
+      },
+      timestamp: new Date().toISOString()
+    }
+    
+    const blob = await generateSatellitePDF(data)
+    downloadBlob(blob, `carbon-estimation-${Date.now()}.pdf`)
+  }
+
+  const handleDownloadVegetationPDF = async () => {
+    if (!analysisResults || !areaData) return
+    
+    const data = {
+      projectName: 'Satellite Analysis Project',
+      area: { hectares: areaData.hectares, km2: areaData.km2 },
+      forestType: analysisResults.vegetationClassification.forestType,
+      polygonCoordinates: polygon,
+      satellite: {
+        ndvi: analysisResults.vegetationClassification.ndvi,
+        cloudCover: 15,
+        vegetationClass: analysisResults.vegetationClassification.dominantSpecies,
+        biomass: analysisResults.carbonEstimation.agb,
+        carbonEstimate: analysisResults.carbonEstimation.agb * 0.5
+      },
+      timestamp: new Date().toISOString()
+    }
+    
+    const blob = await generateSatellitePDF(data)
+    downloadBlob(blob, `vegetation-classification-${Date.now()}.pdf`)
+  }
+
+  const handleDownloadDataPackage = async () => {
+    if (!analysisResults || !areaData) return
+    
+    const data = {
+      projectName: 'Satellite Analysis Project',
+      area: { hectares: areaData.hectares, km2: areaData.km2 },
+      forestType: analysisResults.vegetationClassification.forestType,
+      polygonCoordinates: polygon,
+      satellite: {
+        ndvi: analysisResults.vegetationClassification.ndvi,
+        cloudCover: 15,
+        vegetationClass: analysisResults.vegetationClassification.dominantSpecies,
+        biomass: analysisResults.carbonEstimation.agb,
+        carbonEstimate: analysisResults.carbonEstimation.agb * 0.5
+      },
+      timestamp: new Date().toISOString()
+    }
+    
+    const blob = await generateSatelliteDataZIP(data)
+    downloadBlob(blob, `satellite-data-${Date.now()}.zip`)
+  }
+
+  const handleProceedToGreenCarbon = () => {
+    const satelliteData = {
+      polygon,
+      area: areaData,
+      analysis: analysisResults
+    }
+    sessionStorage.setItem('satelliteAnalysisData', JSON.stringify(satelliteData))
+    router.push('/verification/green-carbon/create')
+  }
+
+  const handleProceedToBlueCarbon = () => {
+    const satelliteData = {
+      polygon,
+      area: areaData,
+      analysis: analysisResults
+    }
+    sessionStorage.setItem('satelliteAnalysisData', JSON.stringify(satelliteData))
+    router.push('/verification/blue-carbon/create')
   }
 
   return (
@@ -297,7 +387,7 @@ export default function SatelliteAnalysisPage() {
                       <Leaf className="w-5 h-5 text-emerald-600" />
                       Carbon Estimation (AI)
                     </h3>
-                    <Button size="sm" variant="ghost" className="gap-1 text-xs">
+                    <Button size="sm" variant="ghost" className="gap-1 text-xs" onClick={handleDownloadCarbonPDF}>
                       <Download className="w-3 h-3" />
                       PDF
                     </Button>
@@ -325,7 +415,7 @@ export default function SatelliteAnalysisPage() {
                       <BarChart3 className="w-5 h-5 text-blue-600" />
                       Vegetation Classification (AI)
                     </h3>
-                    <Button size="sm" variant="ghost" className="gap-1 text-xs">
+                    <Button size="sm" variant="ghost" className="gap-1 text-xs" onClick={handleDownloadVegetationPDF}>
                       <Download className="w-3 h-3" />
                       PDF
                     </Button>
@@ -354,27 +444,23 @@ export default function SatelliteAnalysisPage() {
               </div>
 
               {/* Download Data Package */}
-              <Button className="w-full h-11 gap-2 bg-gradient-to-r from-cyan-600 to-blue-600">
+              <Button onClick={handleDownloadDataPackage} className="w-full h-11 gap-2 bg-gradient-to-r from-cyan-600 to-blue-600">
                 <Download className="w-4 h-4" />
                 Download Satellite Data Package (ZIP)
               </Button>
 
               {/* Proceed Buttons */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                <Link href="/verification/green-carbon/create" className="w-full">
-                  <Button className="w-full gap-2">
-                    <Leaf className="w-4 h-4" />
-                    Proceed to Green Carbon Verification
-                    <ArrowRight className="w-4 h-4 ml-auto" />
-                  </Button>
-                </Link>
-                <Link href="/verification/blue-carbon/create" className="w-full">
-                  <Button className="w-full gap-2 variant-outline" variant="outline">
-                    <Droplet className="w-4 h-4" />
-                    Proceed to Blue Carbon Verification
-                    <ArrowRight className="w-4 h-4 ml-auto" />
-                  </Button>
-                </Link>
+                <Button onClick={handleProceedToGreenCarbon} className="w-full gap-2">
+                  <Leaf className="w-4 h-4" />
+                  Proceed to Green Carbon Verification
+                  <ArrowRight className="w-4 h-4 ml-auto" />
+                </Button>
+                <Button onClick={handleProceedToBlueCarbon} className="w-full gap-2" variant="outline">
+                  <Droplet className="w-4 h-4" />
+                  Proceed to Blue Carbon Verification
+                  <ArrowRight className="w-4 h-4 ml-auto" />
+                </Button>
               </div>
             </div>
           </div>
