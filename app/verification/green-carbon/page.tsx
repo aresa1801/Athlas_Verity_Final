@@ -136,10 +136,18 @@ export default function GreenCarbonPage() {
               <p className="text-muted-foreground mt-1">Upload your project location and satellite imagery for verification</p>
             </div>
             {!showMap && (
-              <Button onClick={() => setShowMap(true)} size="lg" className="gap-2">
-                <MapPin className="w-4 h-4" />
-                Open Map
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={() => setShowMap(true)} size="lg" className="gap-2" variant="outline">
+                  <MapPin className="w-4 h-4" />
+                  Open Map
+                </Button>
+                <Link href="/satellite/analysis">
+                  <Button size="lg" className="gap-2">
+                    <Gauge className="w-4 h-4" />
+                    Satellite Analysis
+                  </Button>
+                </Link>
+              </div>
             )}
           </div>
           
