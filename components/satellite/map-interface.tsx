@@ -44,6 +44,9 @@ export function MapInterface({ polygon, setPolygon, location, onAreaCalculated }
     if (typeof window === "undefined" || !mapContainerRef.current || mapRef.current) return
 
     import("leaflet").then((L) => {
+      // Check if map already exists
+      if (mapRef.current) return
+
       delete (L.Icon.Default.prototype as any)._getIconUrl
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",

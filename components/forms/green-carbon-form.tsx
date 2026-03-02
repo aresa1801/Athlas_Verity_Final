@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Upload, AlertCircle, CheckCircle2, HelpCircle, MapPin } from "lucide-react"
 import { EnhancedMapInterface } from "@/components/geospatial/enhanced-map-interface"
+import { GeospatialAnalysisSection } from "@/components/verification/geospatial-analysis-section"
 
 interface GreenCarbonFormData {
   // Section A
@@ -235,40 +236,84 @@ export function GreenCarbonForm() {
         </div>
       </section>
 
-      {/* Section B: Geospatial Data */}
+      {/* Section B: Geospatial Data with Satellite Analysis */}
       <section className="space-y-4">
         <div className="flex items-center gap-2 mb-6">
-          <h2 className="text-2xl font-bold">Section B: Geospatial Data</h2>
+          <h2 className="text-2xl font-bold">Section B: Geospatial Data & Satellite Analysis</h2>
           <Badge variant="outline" className="ml-auto">2/5</Badge>
         </div>
 
-        {!showMap ? (
-          <Button onClick={() => setShowMap(true)} className="w-full gap-2" variant="outline">
-            <MapPin className="w-4 h-4" />
-            Draw Project Boundary
-          </Button>
-        ) : (
-          <Card className="border-border/50 bg-card/50 p-6 overflow-hidden">
-            <EnhancedMapInterface
-              polygon={formData.polygon}
-              setPolygon={(poly) => {
-                setFormData((prev) => ({ ...prev, polygon: poly }))
-              }}
-              location={{ latitude: "-2.5", longitude: "118.0", radius: "5" }}
-            />
-            <Button onClick={() => setShowMap(false)} variant="outline" className="mt-4 w-full">
-              Close Map
-            </Button>
-          </Card>
-        )}
+        <GeospatialAnalysisSection
+          onDataUpdate={(data) => {
+            setFormData((prev) => ({
+              ...prev,
+              polygon: data.polygon,
+              totalArea: data.area,
+              forestType: data.forestType,
+              protectionRestorationType: data.protectionType,
+            }))
+          }}
+        />
 
-        {formData.polygon.length >= 3 && (
-          <div className="p-4 bg-emerald-500/5 border border-emerald-500/30 rounded-lg">
-            <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Polygon valid ({formData.polygon.length} points, ~{(formData.polygon.length * 50).toLocaleString()} hectares estimated)</span>
+        {/* Forest Type and Protection Type Details */}
+        <Card className="border-border/50 bg-card/50 p-6 space-y-4">
+          <h3 className="text-lg font-semibold">Additional Geospatial Details</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="flex items-center text-sm font-medium mb-2">
+                Dominant Tree Species
+                <Tooltip text={FIELD_TOOLTIPS.dominantSpecies} />
+              </label>
+              <input
+                type="text"
+                value={formData.dominantSpecies}
+                onChange={(e) => setFormData((prev) => ({ ...prev, dominantSpecies: e.target.value }))}
+                placeholder="e.g., Shorea spp., Dipterocarpus spp."
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center text-sm font-medium mb-2">
+                Average Tree Height (m)
+                <Tooltip text={FIELD_TOOLTIPS.averageTreeHeight} />
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={formData.averageTreeHeight}
+                onChange={(e) => setFormData((prev) => ({ ...prev, averageTreeHeight: e.target.value }))}
+                placeholder="e.g., 35"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center text-sm font-medium mb-2">
+                Field Plot Data (CSV)
+                <Tooltip text="Vegetation inventory data from ground surveys" />
+              </label>
+              <input
+                type="file"
+                accept=".csv,.xls,.xlsx"
+                onChange={(e) => handleFileUpload(e, "fieldPlotData")}
+                className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+              />
+              {formData.fieldPlotData && <p className="text-xs text-emerald-600 mt-1">{formData.fieldPlotData.name}</p>}
             </div>
           </div>
+        </Card>
+        
+        {formData.polygon.length >= 3 && (
+          <Card className="border-emerald-500/20 bg-emerald-500/5 p-4 flex gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-emerald-600">Geospatial Data Complete</p>
+              <p className="text-xs text-emerald-600/80">Polygon defined with {formData.polygon.length} points, ready for analysis</p>
+            </div>
+          </Card>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
