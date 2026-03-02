@@ -315,19 +315,6 @@ export function GreenCarbonForm() {
             </div>
           </Card>
         )}
-              Close Map
-            </Button>
-          </Card>
-        )}
-
-        {formData.polygon.length >= 3 && (
-          <div className="p-4 bg-emerald-500/5 border border-emerald-500/30 rounded-lg">
-            <div className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Polygon valid ({formData.polygon.length} points, ~{(formData.polygon.length * 50).toLocaleString()} hectares estimated)</span>
-            </div>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
