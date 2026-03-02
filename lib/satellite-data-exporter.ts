@@ -1,0 +1,119 @@
+/**
+ * Satellite data exporter for geospatial verification
+ * Generates PDF reports and ZIP packages with satellite analysis data
+ */
+
+export interface SatelliteExportData {
+  projectName: string
+  area: { hectares: number; km2: number }
+  forestType: string
+  polygonCoordinates: Array<[number, number]>
+  satellite: {
+    ndvi: number
+    cloudCover: number
+    vegetationClass: string
+    biomass: number
+    carbonEstimate: number
+  }
+  timestamp: string
+}
+
+/**
+ * Generate PDF report (mock implementation - would use pdfmake in production)
+ */
+export async function generateSatellitePDF(data: SatelliteExportData): Promise<Blob> {
+  const pdfContent = `
+SATELLITE ANALYSIS REPORT
+=========================
+
+Project: ${data.projectName}
+Generated: ${data.timestamp}
+
+AREA CALCULATION
+----------------
+Hectares: ${data.area.hectares.toFixed(2)} ha
+Km²: ${data.area.km2.toFixed(4)} km²
+
+FOREST CHARACTERISTICS
+---------------------
+Forest Type: ${data.forestType}
+Vegetation Class: ${data.satellite.vegetationClass}
+Canopy Height: Classified
+
+SPECTRAL ANALYSIS
+-----------------
+NDVI (Vegetation Index): ${data.satellite.ndvi.toFixed(3)}
+Cloud Cover: ${data.satellite.cloudCover.toFixed(1)}%
+Biomass (AGB): ${data.satellite.biomass.toFixed(2)} Mg/ha
+
+CARBON ANALYSIS
+---------------
+Estimated Carbon Stock: ${data.satellite.carbonEstimate.toFixed(2)} tCO2e/ha
+Total Project Carbon: ${(data.satellite.carbonEstimate * data.area.hectares).toFixed(2)} tCO2e
+
+POLYGON COORDINATES
+------------------
+${data.polygonCoordinates.map(([lat, lng]) => `${lat.toFixed(6)}, ${lng.toFixed(6)}`).join("\n")}
+  `
+
+  return new Blob([pdfContent], { type: "application/pdf" })
+}
+
+/**
+ * Generate ZIP package with satellite data
+ */
+export async function generateSatelliteDataZIP(data: SatelliteExportData): Promise<Blob> {
+  // Mock ZIP generation - would use JSZip in production
+  const csvContent = generateCSV(data)
+  const jsonContent = JSON.stringify(data, null, 2)
+
+  const zipContent = `
+SATELLITE_DATA_PACKAGE
+=====================
+
+FILES INCLUDED:
+- satellite_data.csv (Area, vegetation, spectral data)
+- satellite_data.json (Complete analysis results)
+- coordinates.txt (Polygon boundary points)
+
+CSV Data:
+${csvContent}
+
+JSON Data:
+${jsonContent}
+  `
+
+  return new Blob([zipContent], { type: "application/zip" })
+}
+
+/**
+ * Generate CSV format data
+ */
+function generateCSV(data: SatelliteExportData): string {
+  const headers = ["Project", "Area (Ha)", "Forest Type", "NDVI", "Cloud Cover %", "Biomass (Mg/ha)", "Carbon (tCO2e/ha)"]
+  const values = [
+    data.projectName,
+    data.area.hectares.toFixed(2),
+    data.forestType,
+    data.satellite.ndvi.toFixed(3),
+    data.satellite.cloudCover.toFixed(1),
+    data.satellite.biomass.toFixed(2),
+    data.satellite.carbonEstimate.toFixed(2),
+  ]
+
+  return `${headers.join(",")}\n${values.join(",")}`
+}
+
+/**
+ * Download blob as file
+ */
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
