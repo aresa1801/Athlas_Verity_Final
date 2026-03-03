@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MapInterface } from '@/components/satellite/map-interface'
@@ -14,6 +14,14 @@ import {
 } from 'lucide-react'
 import { calculateAndFormatArea } from '@/lib/polygon-area-calculator'
 import { generateSatellitePDF, generateSatelliteDataZIP, downloadBlob } from '@/lib/satellite-data-exporter'
+import { parseGeoJSON, parseKML, validatePolygon } from '@/lib/polygon-file-handlers'
+
+interface CoordinateBounds {
+  minLat: number
+  maxLat: number
+  minLng: number
+  maxLng: number
+}
 
 export default function SatelliteAnalysisPage() {
   const router = useRouter()
@@ -21,11 +29,26 @@ export default function SatelliteAnalysisPage() {
   const [polygon, setPolygon] = useState<Array<[number, number]>>([])
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [areaData, setAreaData] = useState<any>(null)
+  const [bounds, setBounds] = useState<CoordinateBounds | null>(null)
   const [loading, setLoading] = useState(false)
   const [analysisRunning, setAnalysisRunning] = useState(false)
   const [analysisResults, setAnalysisResults] = useState<any>(null)
   const [locationInput, setLocationInput] = useState({ latitude: '', longitude: '' })
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
+  const [satelliteSource, setSatelliteSource] = useState('all')
+
+  // Initialize date range with 10-year lookback
+  useEffect(() => {
+    const today = new Date()
+    const tenYearsAgo = new Date(today.getFullYear() - 10, today.getMonth(), today.getDate())
+    
+    const formatDate = (date: Date) => date.toISOString().split('T')[0]
+    
+    setDateRange({
+      start: formatDate(tenYearsAgo),
+      end: formatDate(today)
+    })
+  }, [])
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -35,21 +58,73 @@ export default function SatelliteAnalysisPage() {
     setUploadedFile(file)
     
     try {
-      // Simulate file parsing and area calculation
-      // In production, would parse actual shapefile/geojson
-      const mockCoordinates = [
-        { latitude: -2.5, longitude: 118.0 },
-        { latitude: -2.5, longitude: 118.25 },
-        { latitude: -2.25, longitude: 118.25 },
-        { latitude: -2.25, longitude: 118.0 },
-      ]
+      let coordinates: Array<[number, number]> = []
       
-      const result = calculateAndFormatArea(mockCoordinates)
+      // Parse file based on extension
+      if (file.name.endsWith('.geojson') || file.name.endsWith('.json')) {
+        const result = await parseGeoJSON(file)
+        coordinates = result.coordinates
+      } else if (file.name.endsWith('.kml')) {
+        const result = await parseKML(file)
+        coordinates = result.coordinates
+      } else if (file.name.endsWith('.zip') || file.name.endsWith('.rar')) {
+        // For ZIP/RAR, extract and parse main geojson/kml
+        const text = await file.text()
+        try {
+          const geojson = JSON.parse(text)
+          const result = await parseGeoJSON(file)
+          coordinates = result.coordinates
+        } catch {
+          // If JSON parsing fails, try to extract KML from text
+          const result = await parseKML(file)
+          coordinates = result.coordinates
+        }
+      } else {
+        // Default to GeoJSON parsing
+        const result = await parseGeoJSON(file)
+        coordinates = result.coordinates
+      }
+
+      // Validate polygon
+      const validation = validatePolygon(coordinates)
+      if (!validation.isValid) {
+        alert(validation.error || 'Invalid polygon data')
+        setLoading(false)
+        return
+      }
+
+      // Calculate bounds for location display
+      const lats = coordinates.map(c => c[0])
+      const lngs = coordinates.map(c => c[1])
+      const newBounds: CoordinateBounds = {
+        minLat: Math.min(...lats),
+        maxLat: Math.max(...lats),
+        minLng: Math.min(...lngs),
+        maxLng: Math.max(...lngs),
+      }
+      setBounds(newBounds)
+
+      // Set location coordinates to center of polygon
+      const centerLat = (newBounds.minLat + newBounds.maxLat) / 2
+      const centerLng = (newBounds.minLng + newBounds.maxLng) / 2
+      setLocationInput({
+        latitude: centerLat.toFixed(6),
+        longitude: centerLng.toFixed(6),
+      })
+
+      // Calculate area based on actual coordinates
+      const coordinatesAsObjects = coordinates.map(([lat, lng]) => ({
+        latitude: lat,
+        longitude: lng,
+      }))
+      const result = calculateAndFormatArea(coordinatesAsObjects)
       setAreaData(result)
-      
-      // Update polygon with actual coordinates
-      const newPolygon = mockCoordinates.map(c => [c.latitude, c.longitude] as [number, number])
-      setPolygon(newPolygon)
+
+      // Update polygon
+      setPolygon(coordinates)
+    } catch (error) {
+      console.error('Error parsing file:', error)
+      alert('Error parsing satellite data file')
     } finally {
       setLoading(false)
     }
@@ -291,20 +366,30 @@ export default function SatelliteAnalysisPage() {
             <Card className="border-border/50 bg-card/50 p-4">
               <label className="text-xs font-semibold text-foreground mb-2 block">Location Coordinates</label>
               <div className="space-y-2">
-                <input
-                  type="text"
-                  placeholder="Latitude"
-                  value={locationInput.latitude}
-                  onChange={(e) => setLocationInput(prev => ({ ...prev, latitude: e.target.value }))}
-                  className="w-full text-xs px-2 py-1 border border-border rounded bg-background"
-                />
-                <input
-                  type="text"
-                  placeholder="Longitude"
-                  value={locationInput.longitude}
-                  onChange={(e) => setLocationInput(prev => ({ ...prev, longitude: e.target.value }))}
-                  className="w-full text-xs px-2 py-1 border border-border rounded bg-background"
-                />
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Latitude"
+                    value={locationInput.latitude}
+                    onChange={(e) => setLocationInput(prev => ({ ...prev, latitude: e.target.value }))}
+                    className="w-full text-xs px-2 py-1 border border-border rounded bg-background"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {bounds ? `Range: ${bounds.minLat.toFixed(3)}° to ${bounds.maxLat.toFixed(3)}°` : 'Upload data'}
+                  </p>
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Longitude"
+                    value={locationInput.longitude}
+                    onChange={(e) => setLocationInput(prev => ({ ...prev, longitude: e.target.value }))}
+                    className="w-full text-xs px-2 py-1 border border-border rounded bg-background"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {bounds ? `Range: ${bounds.minLng.toFixed(3)}° to ${bounds.maxLng.toFixed(3)}°` : 'Upload data'}
+                  </p>
+                </div>
               </div>
             </Card>
 
@@ -330,11 +415,17 @@ export default function SatelliteAnalysisPage() {
             {/* Satellite Source */}
             <Card className="border-border/50 bg-card/50 p-4">
               <label className="text-xs font-semibold text-foreground mb-2 block">Satellite Source</label>
-              <select className="w-full text-xs px-2 py-2 border border-border rounded bg-background">
-                <option>NASA Landsat 8/9</option>
-                <option>JAXA ALOS PALSAR-2</option>
-                <option>Sentinel-2</option>
-                <option>All Sources</option>
+              <select 
+                value={satelliteSource} 
+                onChange={(e) => setSatelliteSource(e.target.value)}
+                className="w-full text-xs px-2 py-2 border border-border rounded bg-background"
+              >
+                <option value="all">All Sources</option>
+                <option value="nasa">NASA Landsat 8/9</option>
+                <option value="jaxa">JAXA ALOS PALSAR-2</option>
+                <option value="sentinel">Sentinel-2 (ESA)</option>
+                <option value="gee">Google Earth Engine</option>
+                <option value="mpc">Microsoft Planetary Computer</option>
               </select>
             </Card>
 
