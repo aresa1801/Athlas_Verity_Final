@@ -16,6 +16,105 @@ import { calculateAndFormatArea, calculateMultiPolygonArea } from '@/lib/polygon
 import { generateSatellitePDF, generateSatelliteDataZIP, downloadBlob } from '@/lib/satellite-data-exporter'
 import { parseGeoJSON, parseKML, validatePolygon } from '@/lib/polygon-file-handlers'
 
+// Helper function to extract coordinates from GeoJSON structure
+function extractCoordinatesFromGeoJSON(geojson: any): { 
+  coordinates: Array<[number, number]>
+  multiPolygons?: Array<{ outerRing: Array<[number, number]>; innerRings: Array<Array<[number, number]>> }>
+  polygonCount: number
+  holeCount: number
+} {
+  if (!geojson) {
+    return { coordinates: [], polygonCount: 0, holeCount: 0 }
+  }
+
+  // Handle FeatureCollection
+  if (geojson.type === 'FeatureCollection') {
+    const features = geojson.features || []
+    if (features.length > 0) {
+      return extractGeometry(features[0].geometry)
+    }
+  }
+
+  // Handle Feature
+  if (geojson.type === 'Feature') {
+    return extractGeometry(geojson.geometry)
+  }
+
+  // Handle direct geometry
+  return extractGeometry(geojson)
+}
+
+function extractGeometry(geometry: any): { 
+  coordinates: Array<[number, number]>
+  multiPolygons?: Array<{ outerRing: Array<[number, number]>; innerRings: Array<Array<[number, number]>> }>
+  polygonCount: number
+  holeCount: number
+} {
+  if (!geometry || !geometry.type) {
+    return { coordinates: [], polygonCount: 0, holeCount: 0 }
+  }
+
+  // Handle Polygon
+  if (geometry.type === 'Polygon') {
+    const rings = geometry.coordinates || []
+    const outerRing = rings[0] || []
+    const innerRings = rings.slice(1) || []
+    
+    return {
+      coordinates: outerRing,
+      multiPolygons: [{
+        outerRing,
+        innerRings
+      }],
+      polygonCount: 1,
+      holeCount: innerRings.length
+    }
+  }
+
+  // Handle MultiPolygon
+  if (geometry.type === 'MultiPolygon') {
+    const polygons = geometry.coordinates || []
+    const multiPolygons: Array<{ outerRing: Array<[number, number]>; innerRings: Array<Array<[number, number]>> }> = []
+    let totalHoles = 0
+
+    for (const polygonRings of polygons) {
+      if (polygonRings.length > 0) {
+        const outerRing = polygonRings[0]
+        const innerRings = polygonRings.slice(1)
+        multiPolygons.push({ outerRing, innerRings })
+        totalHoles += innerRings.length
+      }
+    }
+
+    const mainCoordinates = multiPolygons[0]?.outerRing || []
+    
+    return {
+      coordinates: mainCoordinates,
+      multiPolygons,
+      polygonCount: polygons.length,
+      holeCount: totalHoles
+    }
+  }
+
+  return { coordinates: [], polygonCount: 0, holeCount: 0 }
+}
+
+// Helper function to extract coordinates from KML
+function extractCoordinatesFromKML(kml: string): Array<[number, number]> {
+  const coordRegex = /<coordinates>([\s\S]*?)<\/coordinates>/
+  const match = kml.match(coordRegex)
+  if (!match) return []
+
+  return match[1]
+    .trim()
+    .split(/\s+/)
+    .map((coord) => {
+      const [lng, lat] = coord.split(',').map(Number)
+      return [lng, lat] as [number, number]
+    })
+    .filter(([lng, lat]) => !isNaN(lng) && !isNaN(lat))
+}
+
 interface CoordinateBounds {
   minLat: number
   maxLat: number
@@ -67,53 +166,57 @@ export default function SatelliteAnalysisPage() {
     
     try {
       let parseResult: any = {}
+      const fileName = file.name.toLowerCase()
       
-      // For shapefile ZIP/RAR, create mock coordinates from validation test data
-      // In production, would use a proper shapefile parser library
-      if (file.name.endsWith('.zip') && file.name.toLowerCase().includes('shapefile')) {
-        // Mock coordinates for demonstration - represents a realistic polygon
-        const mockCoordinates = [
-          [-2.4, 118.0],
-          [-2.4, 118.3],
-          [-2.2, 118.4],
-          [-2.0, 118.35],
-          [-2.0, 118.1],
-          [-2.15, 118.05],
-          [-2.4, 118.0],
-        ]
-        parseResult = {
-          coordinates: mockCoordinates,
-          polygonCount: 1,
-          holeCount: 0,
-          multiPolygons: [{
-            outerRing: mockCoordinates,
-            innerRings: []
-          }]
-        }
-
-      } else if (file.name.endsWith('.geojson') || file.name.endsWith('.json')) {
+      // Handle GeoJSON files first (most common)
+      if (fileName.endsWith('.geojson') || fileName.endsWith('.json')) {
         parseResult = await parseGeoJSON(file)
-      } else if (file.name.endsWith('.kml')) {
+      } 
+      // Handle KML files
+      else if (fileName.endsWith('.kml')) {
         parseResult = await parseKML(file)
-      } else if (file.name.endsWith('.zip') || file.name.endsWith('.rar')) {
-        // For other ZIP/RAR, try GeoJSON first
+      } 
+      // Handle ZIP files - could contain GeoJSON or shapefiles
+      else if (fileName.endsWith('.zip')) {
+        const text = await file.text()
+        
+        // Try to parse as GeoJSON first
+        try {
+          const geojsonData = JSON.parse(text)
+          parseResult = extractCoordinatesFromGeoJSON(geojsonData)
+        } catch (e) {
+          // Try KML
+          if (text.includes('<kml') || text.includes('<coordinates>')) {
+            parseResult = extractCoordinatesFromKML(text)
+            parseResult = { coordinates: parseResult, polygonCount: 1, holeCount: 0 }
+          } else {
+            parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
+          }
+        }
+      } 
+      // Handle RAR files
+      else if (fileName.endsWith('.rar')) {
         const text = await file.text()
         try {
-          JSON.parse(text)
-          parseResult = await parseGeoJSON(file)
-        } catch {
-          parseResult = await parseKML(file)
+          const geojsonData = JSON.parse(text)
+          parseResult = extractCoordinatesFromGeoJSON(geojsonData)
+        } catch (e) {
+          parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
         }
-      } else {
-        // Default to GeoJSON parsing
+      }
+      // Default to GeoJSON parsing
+      else {
         parseResult = await parseGeoJSON(file)
       }
 
       const coordinates = parseResult.coordinates || []
       
-      // Validate polygon - skip validation that requires explicit closure
+      // More informative error message
       if (!coordinates || coordinates.length < 3) {
-        alert(`Invalid polygon: Need at least 3 points, found ${coordinates.length}`)
+        const errorMsg = coordinates.length === 0 
+          ? `No polygon coordinates found in ${fileName}. Make sure the file contains valid geospatial data.`
+          : `Invalid polygon: Need at least 3 points, found ${coordinates.length}`
+        alert(errorMsg)
         setLoading(false)
         return
       }
