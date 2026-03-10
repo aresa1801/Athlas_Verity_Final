@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { 
   Upload, Download, MapPin, Calendar, Gauge, Zap, 
   AlertCircle, CheckCircle2, Loader2, ArrowRight,
-  BarChart3, Leaf, Droplet
+  BarChart3, Leaf, Droplet, Layers
 } from 'lucide-react'
 import { calculateAndFormatArea, calculateMultiPolygonArea } from '@/lib/polygon-area-calculator'
 import { generateSatellitePDF, generateSatelliteDataZIP, downloadBlob } from '@/lib/satellite-data-exporter'
@@ -184,22 +184,33 @@ export default function SatelliteAnalysisPage() {
       else if (fileName.endsWith('.kml')) {
         parseResult = await parseKML(file)
       } 
-      // Handle ZIP files - could contain GeoJSON or shapefiles
+      // Handle ZIP files - could contain GeoJSON, KML, or shapefile
       else if (fileName.endsWith('.zip')) {
-        const text = await file.text()
-        
-        // Try to parse as GeoJSON first
         try {
-          const geojsonData = JSON.parse(text)
-          parseResult = extractCoordinatesFromGeoJSON(geojsonData)
-        } catch (e) {
-          // Try KML
-          if (text.includes('<kml') || text.includes('<coordinates>')) {
-            parseResult = extractCoordinatesFromKML(text)
-            parseResult = { coordinates: parseResult, polygonCount: 1, holeCount: 0 }
-          } else {
-            parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
+          const arrayBuffer = await file.arrayBuffer()
+          const text = await file.text()
+          
+          // Try to parse as GeoJSON first
+          try {
+            const geojsonData = JSON.parse(text)
+            parseResult = extractCoordinatesFromGeoJSON(geojsonData)
+          } catch (e) {
+            // Try KML
+            if (text.includes('<kml') || text.includes('<coordinates>')) {
+              parseResult = extractCoordinatesFromKML(text)
+              parseResult = { coordinates: parseResult, polygonCount: 1, holeCount: 0 }
+            } 
+            // Check if it's a shapefile by looking for common shapefile indicators
+            else if (fileName.toLowerCase().includes('shp') || file.name.toLowerCase().includes('shapefile')) {
+              // For now, return empty - user should provide GeoJSON export of shapefile
+              parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
+            }
+            else {
+              parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
+            }
           }
+        } catch (e) {
+          parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
         }
       } 
       // Handle RAR files
@@ -452,14 +463,23 @@ export default function SatelliteAnalysisPage() {
                 <MapInterface
                   polygon={polygon}
                   setPolygon={setPolygon}
-                  location={{ latitude: '-2.5', longitude: '118.0', radius: '5' }}
+                  multiPolygons={multiPolygons || undefined}
+                  location={{ latitude: locationInput.latitude, longitude: locationInput.longitude, radius: '5' }}
                 />
               </div>
               {polygon.length > 0 && (
-                <p className="text-xs text-emerald-600 mt-3 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Polygon plotted with {polygon.length} points
-                </p>
+                <div className="text-xs text-emerald-600 mt-3 space-y-1">
+                  <p className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Polygon plotted with {polygon.length} points
+                  </p>
+                  {polygonInfo.holes > 0 && (
+                    <p className="flex items-center gap-2 text-blue-600">
+                      <Layers className="w-4 h-4" />
+                      {polygonInfo.count} polygon(s), {polygonInfo.holes} hole(s)
+                    </p>
+                  )}
+                </div>
               )}
             </Card>
           </div>

@@ -6,9 +6,15 @@ import { Button } from "@/components/ui/button"
 import { MapPin, Trash2, Download, Layers } from "lucide-react"
 import { calculateAndFormatArea } from "@/lib/polygon-area-calculator"
 
+interface MultiPolygonData {
+  outerRing: Array<[number, number]>
+  innerRings: Array<Array<[number, number]>>
+}
+
 interface MapInterfaceProps {
   polygon: Array<[number, number]>
   setPolygon: (polygon: Array<[number, number]>) => void
+  multiPolygons?: MultiPolygonData[]
   location: { latitude: string; longitude: string; radius: string }
   onAreaCalculated?: (areaResult: any) => void
 }
@@ -26,7 +32,7 @@ interface AreaResult {
   geometryHash?: string
 }
 
-export function MapInterface({ polygon, setPolygon, location, onAreaCalculated }: MapInterfaceProps) {
+export function MapInterface({ polygon, setPolygon, multiPolygons, location, onAreaCalculated }: MapInterfaceProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const polygonLayerRef = useRef<any>(null)
@@ -162,7 +168,36 @@ export function MapInterface({ polygon, setPolygon, location, onAreaCalculated }
         mapRef.current.removeLayer(polygonLayerRef.current)
       }
 
-      if (polygon.length > 0) {
+      const layerGroup = L.layerGroup()
+
+      // Render multi-polygon with holes if available
+      if (multiPolygons && multiPolygons.length > 0) {
+        multiPolygons.forEach((polygonData) => {
+          // Create polygon with outer ring and holes
+          const outerRing = polygonData.outerRing.map(([lat, lng]) => [lat, lng] as [number, number])
+          const latlngs: any[] = [outerRing]
+          
+          // Add inner rings (holes)
+          if (polygonData.innerRings && polygonData.innerRings.length > 0) {
+            polygonData.innerRings.forEach((innerRing) => {
+              latlngs.push(innerRing.map(([lat, lng]) => [lat, lng] as [number, number]))
+            })
+          }
+          
+          const poly = L.polygon(latlngs, {
+            color: "#3DD68C",
+            fillColor: "#3DD68C",
+            fillOpacity: 0.2,
+            weight: 3,
+          }).addTo(layerGroup)
+        })
+
+        layerGroup.addTo(mapRef.current)
+        polygonLayerRef.current = layerGroup
+        mapRef.current.fitBounds(layerGroup.getBounds())
+      }
+      // Fallback to single polygon from prop
+      else if (polygon.length > 0) {
         const latLngs = polygon.map(([lat, lng]) => [lat, lng] as [number, number])
         const polygonLayer = L.polygon(latLngs, {
           color: "#3DD68C",
@@ -194,7 +229,7 @@ export function MapInterface({ polygon, setPolygon, location, onAreaCalculated }
         }
       }
     })
-  }, [polygon, tempPoints, isDrawing, mapReady])
+  }, [polygon, multiPolygons, tempPoints, isDrawing, mapReady])
 
   const handleStartDrawing = () => {
     if (!mapRef.current) return
