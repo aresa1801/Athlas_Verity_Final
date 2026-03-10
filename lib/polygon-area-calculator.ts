@@ -94,10 +94,11 @@ export function calculateAndFormatArea(coordinates: Coordinate[]): { hectares: n
 /**
  * Calculate multi-polygon area with hole subtraction
  * Properly handles Polygon with holes and MultiPolygon structures
+ * Accepts coordinates as either {latitude, longitude} objects or [lat, lng] arrays
  */
 export function calculateMultiPolygonArea(multiPolygons: Array<{
-  outerRing: Array<[number, number]>
-  innerRings: Array<Array<[number, number]>>
+  outerRing: Array<Coordinate | [number, number]>
+  innerRings: Array<Array<Coordinate | [number, number]>>
 }>): { 
   hectares: number
   km2: number
@@ -116,21 +117,25 @@ export function calculateMultiPolygonArea(multiPolygons: Array<{
   for (let i = 0; i < multiPolygons.length; i++) {
     const polygon = multiPolygons[i]
     
-    // Calculate outer ring area
-    const outerCoords = polygon.outerRing.map(([lat, lng]) => ({
-      latitude: lat,
-      longitude: lng
-    }))
+    // Calculate outer ring area - normalize to object format
+    const outerCoords = polygon.outerRing.map((coord) => {
+      if (Array.isArray(coord)) {
+        return { latitude: coord[0], longitude: coord[1] }
+      }
+      return coord
+    })
     const outerArea = calculatePolygonAreaHectares(outerCoords)
     totalOuterArea += outerArea
 
-    // Calculate all holes area
+    // Calculate all holes area - normalize to object format
     let polygonHoleArea = 0
     for (const innerRing of polygon.innerRings) {
-      const innerCoords = innerRing.map(([lat, lng]) => ({
-        latitude: lat,
-        longitude: lng
-      }))
+      const innerCoords = innerRing.map((coord) => {
+        if (Array.isArray(coord)) {
+          return { latitude: coord[0], longitude: coord[1] }
+        }
+        return coord
+      })
       const holeArea = calculatePolygonAreaHectares(innerCoords)
       polygonHoleArea += holeArea
       totalHoleArea += holeArea

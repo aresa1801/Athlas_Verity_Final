@@ -70,8 +70,11 @@ function extractCoordinatesFromGeometry(geometry: any): {
   // Handle single Polygon
   if (geometry.type === 'Polygon') {
     const rings = geometry.coordinates || []
-    const outerRing = rings[0] || []
-    const innerRings = rings.slice(1) || []
+    // GeoJSON uses [lng, lat], convert to [lat, lng]
+    const outerRing = rings[0]?.map((coord: [number, number]) => [coord[1], coord[0]] as [number, number]) || []
+    const innerRings = rings.slice(1)?.map((ring: Array<[number, number]>) =>
+      ring.map((coord: [number, number]) => [coord[1], coord[0]] as [number, number])
+    ) || []
     
     return {
       coordinates: outerRing,
@@ -93,8 +96,11 @@ function extractCoordinatesFromGeometry(geometry: any): {
     // Extract all polygons and track holes
     for (const polygonRings of polygons) {
       if (polygonRings.length > 0) {
-        const outerRing = polygonRings[0]
-        const innerRings = polygonRings.slice(1)
+        // Convert from GeoJSON [lng, lat] to [lat, lng]
+        const outerRing = polygonRings[0].map((coord: [number, number]) => [coord[1], coord[0]] as [number, number])
+        const innerRings = polygonRings.slice(1).map((ring: Array<[number, number]>) =>
+          ring.map((coord: [number, number]) => [coord[1], coord[0]] as [number, number])
+        )
         multiPolygons.push({ outerRing, innerRings })
         totalHoles += innerRings.length
       }
@@ -138,9 +144,10 @@ function extractCoordinatesFromKML(kml: string): Array<[number, number]> {
     .split(/\s+/)
     .map((coord) => {
       const [lng, lat] = coord.split(',').map(Number)
-      return [lng, lat] as [number, number]
+      // KML uses [lng, lat], convert to [lat, lng]
+      return [lat, lng] as [number, number]
     })
-    .filter(([lng, lat]) => !isNaN(lng) && !isNaN(lat))
+    .filter(([lat, lng]) => !isNaN(lng) && !isNaN(lat) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)
 }
 
 /**

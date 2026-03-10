@@ -17,6 +17,7 @@ import { generateSatellitePDF, generateSatelliteDataZIP, downloadBlob } from '@/
 import { parseGeoJSON, parseKML, validatePolygon } from '@/lib/polygon-file-handlers'
 
 // Helper function to extract coordinates from GeoJSON structure
+// GeoJSON coordinates are [lng, lat] but we convert to [lat, lng] for our system
 function extractCoordinatesFromGeoJSON(geojson: any): { 
   coordinates: Array<[number, number]>
   multiPolygons?: Array<{ outerRing: Array<[number, number]>; innerRings: Array<Array<[number, number]>> }>
@@ -57,8 +58,11 @@ function extractGeometry(geometry: any): {
   // Handle Polygon
   if (geometry.type === 'Polygon') {
     const rings = geometry.coordinates || []
-    const outerRing = rings[0] || []
-    const innerRings = rings.slice(1) || []
+    // GeoJSON uses [lng, lat], we need to swap to [lat, lng]
+    const outerRing = rings[0]?.map((coord: [number, number]) => [coord[1], coord[0]] as [number, number]) || []
+    const innerRings = rings.slice(1)?.map((ring: Array<[number, number]>) => 
+      ring.map((coord: [number, number]) => [coord[1], coord[0]] as [number, number])
+    ) || []
     
     return {
       coordinates: outerRing,
@@ -79,8 +83,11 @@ function extractGeometry(geometry: any): {
 
     for (const polygonRings of polygons) {
       if (polygonRings.length > 0) {
-        const outerRing = polygonRings[0]
-        const innerRings = polygonRings.slice(1)
+        // Convert from GeoJSON [lng, lat] to [lat, lng]
+        const outerRing = polygonRings[0].map((coord: [number, number]) => [coord[1], coord[0]] as [number, number])
+        const innerRings = polygonRings.slice(1).map((ring: Array<[number, number]>) =>
+          ring.map((coord: [number, number]) => [coord[1], coord[0]] as [number, number])
+        )
         multiPolygons.push({ outerRing, innerRings })
         totalHoles += innerRings.length
       }
@@ -110,9 +117,10 @@ function extractCoordinatesFromKML(kml: string): Array<[number, number]> {
     .split(/\s+/)
     .map((coord) => {
       const [lng, lat] = coord.split(',').map(Number)
-      return [lng, lat] as [number, number]
+      // KML uses [lng, lat], convert to [lat, lng]
+      return [lat, lng] as [number, number]
     })
-    .filter(([lng, lat]) => !isNaN(lng) && !isNaN(lat))
+    .filter(([lat, lng]) => !isNaN(lng) && !isNaN(lat) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)
 }
 
 interface CoordinateBounds {
@@ -248,8 +256,22 @@ export default function SatelliteAnalysisPage() {
           holes: parseResult.holeCount || 0
         })
         
+        // Convert array format to object format for area calculation
+        const convertedMultiPolygons = parseResult.multiPolygons.map(polygon => ({
+          outerRing: polygon.outerRing.map(([lat, lng]: [number, number]) => ({
+            latitude: lat,
+            longitude: lng
+          })),
+          innerRings: polygon.innerRings.map((ring: Array<[number, number]>) =>
+            ring.map(([lat, lng]: [number, number]) => ({
+              latitude: lat,
+              longitude: lng
+            }))
+          )
+        }))
+        
         // Calculate area using multi-polygon method
-        const multiResult = calculateMultiPolygonArea(parseResult.multiPolygons)
+        const multiResult = calculateMultiPolygonArea(convertedMultiPolygons)
         setMultiPolygonAreaData(multiResult)
       } else {
         // Fall back to single polygon calculation
