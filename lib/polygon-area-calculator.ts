@@ -90,3 +90,76 @@ export function calculateAndFormatArea(coordinates: Coordinate[]): { hectares: n
   const display = hectares > 0 ? `${hectares.toFixed(2)} ha (${km2.toFixed(4)} km²)` : "0 ha"
   return { hectares, km2, display }
 }
+
+/**
+ * Calculate multi-polygon area with hole subtraction
+ * Properly handles Polygon with holes and MultiPolygon structures
+ */
+export function calculateMultiPolygonArea(multiPolygons: Array<{
+  outerRing: Array<[number, number]>
+  innerRings: Array<Array<[number, number]>>
+}>): { 
+  hectares: number
+  km2: number
+  netArea: number
+  totalOuterArea: number
+  totalHoleArea: number
+  polygonCount: number
+  holeCount: number
+  display: string
+  breakdown: Array<{ polygonIndex: number; outerArea: number; holesArea: number; netArea: number }>
+} {
+  let totalOuterArea = 0
+  let totalHoleArea = 0
+  const breakdown: Array<{ polygonIndex: number; outerArea: number; holesArea: number; netArea: number }> = []
+
+  for (let i = 0; i < multiPolygons.length; i++) {
+    const polygon = multiPolygons[i]
+    
+    // Calculate outer ring area
+    const outerCoords = polygon.outerRing.map(([lat, lng]) => ({
+      latitude: lat,
+      longitude: lng
+    }))
+    const outerArea = calculatePolygonAreaHectares(outerCoords)
+    totalOuterArea += outerArea
+
+    // Calculate all holes area
+    let polygonHoleArea = 0
+    for (const innerRing of polygon.innerRings) {
+      const innerCoords = innerRing.map(([lat, lng]) => ({
+        latitude: lat,
+        longitude: lng
+      }))
+      const holeArea = calculatePolygonAreaHectares(innerCoords)
+      polygonHoleArea += holeArea
+      totalHoleArea += holeArea
+    }
+
+    const netArea = outerArea - polygonHoleArea
+    breakdown.push({
+      polygonIndex: i + 1,
+      outerArea,
+      holesArea: polygonHoleArea,
+      netArea
+    })
+  }
+
+  const netHectares = totalOuterArea - totalHoleArea
+  const km2 = netHectares / 100
+  const display = netHectares > 0 
+    ? `${netHectares.toFixed(2)} ha (${km2.toFixed(4)} km²)` 
+    : "0 ha"
+
+  return {
+    hectares: netHectares,
+    km2,
+    netArea: netHectares,
+    totalOuterArea,
+    totalHoleArea,
+    polygonCount: multiPolygons.length,
+    holeCount: multiPolygons.reduce((sum, p) => sum + p.innerRings.length, 0),
+    display,
+    breakdown
+  }
+}

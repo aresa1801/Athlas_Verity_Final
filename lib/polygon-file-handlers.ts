@@ -1,10 +1,17 @@
 /**
  * Multi-format polygon file handler for geospatial verification
- * Supports: GeoJSON, KML, Shapefile (.shp), ZIP, and RAR formats
+ * Supports: GeoJSON (Polygon & MultiPolygon), KML, Shapefile (.shp), ZIP, and RAR formats
+ * Handles outer boundaries and inner rings (holes) for accurate area calculation
  */
 
 export interface ParsedPolygon {
   coordinates: Array<[number, number]>
+  multiPolygons?: Array<{
+    outerRing: Array<[number, number]>
+    innerRings: Array<Array<[number, number]>>
+  }>
+  polygonCount: number
+  holeCount: number
   area: number
   format: string
   isValid: boolean
@@ -12,14 +19,17 @@ export interface ParsedPolygon {
 }
 
 /**
- * Parse GeoJSON file
+ * Parse GeoJSON file with multi-polygon and hole support
  */
 export async function parseGeoJSON(file: File): Promise<ParsedPolygon> {
   const text = await file.text()
   const geojson = JSON.parse(text)
-  const coordinates = extractCoordinatesFromGeoJSON(geojson)
+  const { coordinates, multiPolygons, polygonCount, holeCount } = extractCoordinatesFromGeoJSON(geojson)
   return {
     coordinates,
+    multiPolygons,
+    polygonCount,
+    holeCount,
     area: 0,
     format: 'GeoJSON',
     isValid: coordinates.length >= 3,
@@ -27,9 +37,14 @@ export async function parseGeoJSON(file: File): Promise<ParsedPolygon> {
 }
 
 /**
- * Extract coordinates from GeoJSON
+ * Extract coordinates from GeoJSON with multi-polygon and hole support
  */
-function extractCoordinatesFromGeoJSON(geojson: any): Array<[number, number]> {
+function extractCoordinatesFromGeoJSON(geojson: any): { 
+  coordinates: Array<[number, number]>
+  multiPolygons?: Array<{ outerRing: Array<[number, number]>; innerRings: Array<Array<[number, number]>> }>
+  polygonCount: number
+  holeCount: number
+} {
   if (geojson.type === 'FeatureCollection') {
     const features = geojson.features || []
     if (features.length > 0) {
@@ -42,15 +57,61 @@ function extractCoordinatesFromGeoJSON(geojson: any): Array<[number, number]> {
   return extractCoordinatesFromGeometry(geojson)
 }
 
-function extractCoordinatesFromGeometry(geometry: any): Array<[number, number]> {
-  if (!geometry) return []
+function extractCoordinatesFromGeometry(geometry: any): { 
+  coordinates: Array<[number, number]>
+  multiPolygons?: Array<{ outerRing: Array<[number, number]>; innerRings: Array<Array<[number, number]>> }>
+  polygonCount: number
+  holeCount: number
+} {
+  if (!geometry) {
+    return { coordinates: [], polygonCount: 0, holeCount: 0 }
+  }
+
+  // Handle single Polygon
   if (geometry.type === 'Polygon') {
-    return geometry.coordinates[0] || []
+    const rings = geometry.coordinates || []
+    const outerRing = rings[0] || []
+    const innerRings = rings.slice(1) || []
+    
+    return {
+      coordinates: outerRing,
+      multiPolygons: [{
+        outerRing,
+        innerRings
+      }],
+      polygonCount: 1,
+      holeCount: innerRings.length
+    }
   }
+
+  // Handle MultiPolygon
   if (geometry.type === 'MultiPolygon') {
-    return geometry.coordinates[0]?.[0] || []
+    const polygons = geometry.coordinates || []
+    const multiPolygons: Array<{ outerRing: Array<[number, number]>; innerRings: Array<Array<[number, number]>> }> = []
+    let totalHoles = 0
+
+    // Extract all polygons and track holes
+    for (const polygonRings of polygons) {
+      if (polygonRings.length > 0) {
+        const outerRing = polygonRings[0]
+        const innerRings = polygonRings.slice(1)
+        multiPolygons.push({ outerRing, innerRings })
+        totalHoles += innerRings.length
+      }
+    }
+
+    // Return first polygon as main coordinates, but include all in multiPolygons
+    const mainCoordinates = multiPolygons[0]?.outerRing || []
+    
+    return {
+      coordinates: mainCoordinates,
+      multiPolygons,
+      polygonCount: polygons.length,
+      holeCount: totalHoles
+    }
   }
-  return []
+
+  return { coordinates: [], polygonCount: 0, holeCount: 0 }
 }
 
 /**
