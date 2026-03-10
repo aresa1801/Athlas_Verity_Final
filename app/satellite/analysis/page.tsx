@@ -10,11 +10,118 @@ import { Badge } from '@/components/ui/badge'
 import { 
   Upload, Download, MapPin, Calendar, Gauge, Zap, 
   AlertCircle, CheckCircle2, Loader2, ArrowRight,
-  BarChart3, Leaf, Droplet
+  BarChart3, Leaf, Droplet, Layers
 } from 'lucide-react'
-import { calculateAndFormatArea } from '@/lib/polygon-area-calculator'
+import { calculateAndFormatArea, calculateMultiPolygonArea } from '@/lib/polygon-area-calculator'
 import { generateSatellitePDF, generateSatelliteDataZIP, downloadBlob } from '@/lib/satellite-data-exporter'
 import { parseGeoJSON, parseKML, validatePolygon } from '@/lib/polygon-file-handlers'
+
+// Helper function to extract coordinates from GeoJSON structure
+// GeoJSON coordinates are [lng, lat] but we convert to [lat, lng] for our system
+function extractCoordinatesFromGeoJSON(geojson: any): { 
+  coordinates: Array<[number, number]>
+  multiPolygons?: Array<{ outerRing: Array<[number, number]>; innerRings: Array<Array<[number, number]>> }>
+  polygonCount: number
+  holeCount: number
+} {
+  if (!geojson) {
+    return { coordinates: [], polygonCount: 0, holeCount: 0 }
+  }
+
+  // Handle FeatureCollection
+  if (geojson.type === 'FeatureCollection') {
+    const features = geojson.features || []
+    if (features.length > 0) {
+      return extractGeometry(features[0].geometry)
+    }
+  }
+
+  // Handle Feature
+  if (geojson.type === 'Feature') {
+    return extractGeometry(geojson.geometry)
+  }
+
+  // Handle direct geometry
+  return extractGeometry(geojson)
+}
+
+function extractGeometry(geometry: any): { 
+  coordinates: Array<[number, number]>
+  multiPolygons?: Array<{ outerRing: Array<[number, number]>; innerRings: Array<Array<[number, number]>> }>
+  polygonCount: number
+  holeCount: number
+} {
+  if (!geometry || !geometry.type) {
+    return { coordinates: [], polygonCount: 0, holeCount: 0 }
+  }
+
+  // Handle Polygon
+  if (geometry.type === 'Polygon') {
+    const rings = geometry.coordinates || []
+    // GeoJSON uses [lng, lat], we need to swap to [lat, lng]
+    const outerRing = rings[0]?.map((coord: [number, number]) => [coord[1], coord[0]] as [number, number]) || []
+    const innerRings = rings.slice(1)?.map((ring: Array<[number, number]>) => 
+      ring.map((coord: [number, number]) => [coord[1], coord[0]] as [number, number])
+    ) || []
+    
+    return {
+      coordinates: outerRing,
+      multiPolygons: [{
+        outerRing,
+        innerRings
+      }],
+      polygonCount: 1,
+      holeCount: innerRings.length
+    }
+  }
+
+  // Handle MultiPolygon
+  if (geometry.type === 'MultiPolygon') {
+    const polygons = geometry.coordinates || []
+    const multiPolygons: Array<{ outerRing: Array<[number, number]>; innerRings: Array<Array<[number, number]>> }> = []
+    let totalHoles = 0
+
+    for (const polygonRings of polygons) {
+      if (polygonRings.length > 0) {
+        // Convert from GeoJSON [lng, lat] to [lat, lng]
+        const outerRing = polygonRings[0].map((coord: [number, number]) => [coord[1], coord[0]] as [number, number])
+        const innerRings = polygonRings.slice(1).map((ring: Array<[number, number]>) =>
+          ring.map((coord: [number, number]) => [coord[1], coord[0]] as [number, number])
+        )
+        multiPolygons.push({ outerRing, innerRings })
+        totalHoles += innerRings.length
+      }
+    }
+
+    const mainCoordinates = multiPolygons[0]?.outerRing || []
+    
+    return {
+      coordinates: mainCoordinates,
+      multiPolygons,
+      polygonCount: polygons.length,
+      holeCount: totalHoles
+    }
+  }
+
+  return { coordinates: [], polygonCount: 0, holeCount: 0 }
+}
+
+// Helper function to extract coordinates from KML
+function extractCoordinatesFromKML(kml: string): Array<[number, number]> {
+  const coordRegex = /<coordinates>([\s\S]*?)<\/coordinates>/
+  const match = kml.match(coordRegex)
+  if (!match) return []
+
+  return match[1]
+    .trim()
+    .split(/\s+/)
+    .map((coord) => {
+      const [lng, lat] = coord.split(',').map(Number)
+      // KML uses [lng, lat], convert to [lat, lng]
+      return [lat, lng] as [number, number]
+    })
+    .filter(([lat, lng]) => !isNaN(lng) && !isNaN(lat) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)
+}
 
 interface CoordinateBounds {
   minLat: number
@@ -23,12 +130,19 @@ interface CoordinateBounds {
   maxLng: number
 }
 
+interface MultiPolygonData {
+  outerRing: Array<[number, number]>
+  innerRings: Array<Array<[number, number]>>
+}
+
 export default function SatelliteAnalysisPage() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [polygon, setPolygon] = useState<Array<[number, number]>>([])
+  const [multiPolygons, setMultiPolygons] = useState<MultiPolygonData[] | null>(null)
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [areaData, setAreaData] = useState<any>(null)
+  const [multiPolygonAreaData, setMultiPolygonAreaData] = useState<any>(null)
   const [bounds, setBounds] = useState<CoordinateBounds | null>(null)
   const [loading, setLoading] = useState(false)
   const [analysisRunning, setAnalysisRunning] = useState(false)
@@ -36,6 +150,7 @@ export default function SatelliteAnalysisPage() {
   const [locationInput, setLocationInput] = useState({ latitude: '', longitude: '' })
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [satelliteSource, setSatelliteSource] = useState('all')
+  const [polygonInfo, setPolygonInfo] = useState<{ count: number; holes: number }>({ count: 0, holes: 0 })
 
   // Initialize date range with 10-year lookback
   useEffect(() => {
@@ -58,44 +173,76 @@ export default function SatelliteAnalysisPage() {
     setUploadedFile(file)
     
     try {
-      let coordinates: Array<[number, number]> = []
+      let parseResult: any = {}
+      const fileName = file.name.toLowerCase()
       
-      // Parse file based on extension
-      if (file.name.endsWith('.geojson') || file.name.endsWith('.json')) {
-        const result = await parseGeoJSON(file)
-        coordinates = result.coordinates
-      } else if (file.name.endsWith('.kml')) {
-        const result = await parseKML(file)
-        coordinates = result.coordinates
-      } else if (file.name.endsWith('.zip') || file.name.endsWith('.rar')) {
-        // For ZIP/RAR, extract and parse main geojson/kml
+      // Handle GeoJSON files first (most common)
+      if (fileName.endsWith('.geojson') || fileName.endsWith('.json')) {
+        parseResult = await parseGeoJSON(file)
+      } 
+      // Handle KML files
+      else if (fileName.endsWith('.kml')) {
+        parseResult = await parseKML(file)
+      } 
+      // Handle ZIP files - could contain GeoJSON, KML, or shapefile
+      else if (fileName.endsWith('.zip')) {
+        try {
+          const arrayBuffer = await file.arrayBuffer()
+          const text = await file.text()
+          
+          // Try to parse as GeoJSON first
+          try {
+            const geojsonData = JSON.parse(text)
+            parseResult = extractCoordinatesFromGeoJSON(geojsonData)
+          } catch (e) {
+            // Try KML
+            if (text.includes('<kml') || text.includes('<coordinates>')) {
+              parseResult = extractCoordinatesFromKML(text)
+              parseResult = { coordinates: parseResult, polygonCount: 1, holeCount: 0 }
+            } 
+            // Check if it's a shapefile by looking for common shapefile indicators
+            else if (fileName.toLowerCase().includes('shp') || file.name.toLowerCase().includes('shapefile')) {
+              // For now, return empty - user should provide GeoJSON export of shapefile
+              parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
+            }
+            else {
+              parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
+            }
+          }
+        } catch (e) {
+          parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
+        }
+      } 
+      // Handle RAR files
+      else if (fileName.endsWith('.rar')) {
         const text = await file.text()
         try {
-          const geojson = JSON.parse(text)
-          const result = await parseGeoJSON(file)
-          coordinates = result.coordinates
-        } catch {
-          // If JSON parsing fails, try to extract KML from text
-          const result = await parseKML(file)
-          coordinates = result.coordinates
+          const geojsonData = JSON.parse(text)
+          parseResult = extractCoordinatesFromGeoJSON(geojsonData)
+        } catch (e) {
+          parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
         }
-      } else {
-        // Default to GeoJSON parsing
-        const result = await parseGeoJSON(file)
-        coordinates = result.coordinates
+      }
+      // Default to GeoJSON parsing
+      else {
+        parseResult = await parseGeoJSON(file)
       }
 
-      // Validate polygon
-      const validation = validatePolygon(coordinates)
-      if (!validation.isValid) {
-        alert(validation.error || 'Invalid polygon data')
+      const coordinates = parseResult.coordinates || []
+      
+      // More informative error message
+      if (!coordinates || coordinates.length < 3) {
+        const errorMsg = coordinates.length === 0 
+          ? `No polygon coordinates found in ${fileName}. Make sure the file contains valid geospatial data.`
+          : `Invalid polygon: Need at least 3 points, found ${coordinates.length}`
+        alert(errorMsg)
         setLoading(false)
         return
       }
 
       // Calculate bounds for location display
-      const lats = coordinates.map(c => c[0])
-      const lngs = coordinates.map(c => c[1])
+      const lats = coordinates.map((c: [number, number]) => c[0])
+      const lngs = coordinates.map((c: [number, number]) => c[1])
       const newBounds: CoordinateBounds = {
         minLat: Math.min(...lats),
         maxLat: Math.max(...lats),
@@ -112,19 +259,47 @@ export default function SatelliteAnalysisPage() {
         longitude: centerLng.toFixed(6),
       })
 
-      // Calculate area based on actual coordinates
-      const coordinatesAsObjects = coordinates.map(([lat, lng]) => ({
-        latitude: lat,
-        longitude: lng,
-      }))
-      const result = calculateAndFormatArea(coordinatesAsObjects)
-      setAreaData(result)
+      // Handle multi-polygon calculation if available
+      if (parseResult.multiPolygons && parseResult.multiPolygons.length > 0) {
+        setMultiPolygons(parseResult.multiPolygons)
+        setPolygonInfo({
+          count: parseResult.polygonCount || 1,
+          holes: parseResult.holeCount || 0
+        })
+        
+        // Convert array format to object format for area calculation
+        const convertedMultiPolygons = parseResult.multiPolygons.map(polygon => ({
+          outerRing: polygon.outerRing.map(([lat, lng]: [number, number]) => ({
+            latitude: lat,
+            longitude: lng
+          })),
+          innerRings: polygon.innerRings.map((ring: Array<[number, number]>) =>
+            ring.map(([lat, lng]: [number, number]) => ({
+              latitude: lat,
+              longitude: lng
+            }))
+          )
+        }))
+        
+        // Calculate area using multi-polygon method
+        const multiResult = calculateMultiPolygonArea(convertedMultiPolygons)
+        setMultiPolygonAreaData(multiResult)
+      } else {
+        // Fall back to single polygon calculation
+        const coordinatesAsObjects = coordinates.map(([lat, lng]: [number, number]) => ({
+          latitude: lat,
+          longitude: lng,
+        }))
+        const result = calculateAndFormatArea(coordinatesAsObjects)
+        setAreaData(result)
+        setPolygonInfo({ count: 1, holes: 0 })
+      }
 
-      // Update polygon
+      // Update polygon for map display
       setPolygon(coordinates)
     } catch (error) {
-      console.error('Error parsing file:', error)
-      alert('Error parsing satellite data file')
+      console.error('[v0] Error parsing file:', error)
+      alert('Error parsing satellite data file: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setLoading(false)
     }
@@ -288,14 +463,23 @@ export default function SatelliteAnalysisPage() {
                 <MapInterface
                   polygon={polygon}
                   setPolygon={setPolygon}
-                  location={{ latitude: '-2.5', longitude: '118.0', radius: '5' }}
+                  multiPolygons={multiPolygons || undefined}
+                  location={{ latitude: locationInput.latitude, longitude: locationInput.longitude, radius: '5' }}
                 />
               </div>
               {polygon.length > 0 && (
-                <p className="text-xs text-emerald-600 mt-3 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Polygon plotted with {polygon.length} points
-                </p>
+                <div className="text-xs text-emerald-600 mt-3 space-y-1">
+                  <p className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Polygon plotted with {polygon.length} points
+                  </p>
+                  {polygonInfo.holes > 0 && (
+                    <p className="flex items-center gap-2 text-blue-600">
+                      <Layers className="w-4 h-4" />
+                      {polygonInfo.count} polygon(s), {polygonInfo.holes} hole(s)
+                    </p>
+                  )}
+                </div>
               )}
             </Card>
           </div>
@@ -333,8 +517,44 @@ export default function SatelliteAnalysisPage() {
               </div>
             </Card>
 
-            {/* Area Calculation Results */}
-            {areaData && (
+            {/* Area Calculation Results - Multi-Polygon */}
+            {multiPolygonAreaData && (
+              <Card className="border-blue-500/20 bg-blue-500/5 p-6">
+                <h4 className="text-sm font-semibold text-foreground mb-3">Area Calculation</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">Hectares (Net)</span>
+                    <span className="text-lg font-bold text-blue-600">
+                      {multiPolygonAreaData.hectares.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">Km²</span>
+                    <span className="text-lg font-bold text-blue-600">
+                      {multiPolygonAreaData.km2.toFixed(4)}
+                    </span>
+                  </div>
+                  {polygonInfo.count > 1 && (
+                    <>
+                      <div className="flex justify-between items-center text-xs pt-2 border-t border-blue-500/20">
+                        <span className="text-muted-foreground">Polygons</span>
+                        <span className="font-medium">{polygonInfo.count}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-muted-foreground">Holes</span>
+                        <span className="font-medium">{polygonInfo.holes}</span>
+                      </div>
+                    </>
+                  )}
+                  <p className="text-xs text-muted-foreground pt-2 border-t border-blue-500/20">
+                    Vincenty Geodesic (99.97% accurate)
+                  </p>
+                </div>
+              </Card>
+            )}
+
+            {/* Area Calculation Results - Single Polygon */}
+            {areaData && !multiPolygonAreaData && (
               <Card className="border-blue-500/20 bg-blue-500/5 p-6">
                 <h4 className="text-sm font-semibold text-foreground mb-3">Area Calculation</h4>
                 <div className="space-y-2">
