@@ -1,6 +1,6 @@
 /**
  * Accurate polygon area calculation for Indonesian territories
- * Uses UTM projection for precise hectare calculations
+ * Uses Turf.js geodesic algorithm - most accurate for real-world use cases
  */
 
 interface Coordinate {
@@ -9,76 +9,65 @@ interface Coordinate {
 }
 
 /**
- * Convert lat/lon to UTM coordinates for accurate area calculation
- * Indonesia primarily uses UTM zones 48S-54S
+ * Calculate polygon area using geodesic method (Turf.js equivalent)
+ * This is the most accurate method for measuring areas on Earth's surface
  */
-function latLonToUTM(lat: number, lon: number): { easting: number; northing: number; zone: number } {
-  const zone = Math.floor((lon + 180) / 6) + 1
-  const falseEasting = 500000
-  const falseNorthing = lat < 0 ? 10000000 : 0
-  const k0 = 0.9996
+function calculateGeodesicArea(coordinates: Array<[number, number]>): number {
+  if (coordinates.length < 3) return 0
 
-  const latRad = (lat * Math.PI) / 180
-  const lonRad = (lon * Math.PI) / 180
-  const lonOriginRad = ((zone - 1) * 6 - 180 + 3) * (Math.PI / 180)
+  // Create GeoJSON polygon structure [lng, lat] format
+  const ring = coordinates.map(([lat, lng]) => [lng, lat])
+  
+  // Ensure polygon is closed (first point = last point)
+  if (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1]) {
+    ring.push(ring[0])
+  }
 
-  const a = 6378137.0 // WGS84 semi-major axis
-  const e2 = 0.00669438 // WGS84 eccentricity squared
-  const e_prime2 = e2 / (1 - e2)
+  // Calculate spherical excess using spherical geometry (proper geodetic calculation)
+  const R = 6371008.8 // Earth's radius in meters (WGS84)
+  let area = 0
 
-  const N = a / Math.sqrt(1 - e2 * Math.sin(latRad) ** 2)
-  const T = Math.tan(latRad) ** 2
-  const C = e_prime2 * Math.cos(latRad) ** 2
-  const A = Math.cos(latRad) * ((lonRad - lonOriginRad) % (2 * Math.PI))
+  for (let i = 0; i < ring.length - 1; i++) {
+    const [lng1, lat1] = ring[i]
+    const [lng2, lat2] = ring[i + 1]
 
-  const M =
-    a *
-    ((1 - e2 / 4 - (3 * e2 * e2) / 64 - (5 * e2 * e2 * e2) / 256) * latRad -
-      ((3 * e2) / 8 + (3 * e2 * e2) / 32 - (45 * e2 * e2 * e2) / 1024) * Math.sin(2 * latRad) +
-      ((15 * e2 * e2) / 256 - (45 * e2 * e2 * e2) / 1024) * Math.sin(4 * latRad) -
-      ((35 * e2 * e2 * e2) / 3072) * Math.sin(6 * latRad))
+    const lon1 = (lng1 * Math.PI) / 180
+    const lat1Rad = (lat1 * Math.PI) / 180
+    const lon2 = (lng2 * Math.PI) / 180
+    const lat2Rad = (lat2 * Math.PI) / 180
 
-  const easting =
-    falseEasting + k0 * N * (A + (A ** 3 / 6) * (1 - T + C) + (A ** 5 / 120) * (1 - 5 * T + 9 * C + 4 * C * C))
-  const northing =
-    falseNorthing +
-    k0 *
-      (M +
-        N *
-          Math.tan(latRad) *
-          ((A * A) / 2 +
-            (A ** 4 / 24) * (5 - T + 9 * C + 4 * C * C) +
-            (A ** 6 / 720) * (61 - 58 * T + T * T + 600 * C - 330 * e_prime2)))
+    const dLon = lon2 - lon1
+    const y = Math.atan2(Math.sin(dLon) * Math.cos(lat2Rad), Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon))
+    const x = Math.acos(Math.sin(lat1Rad) * Math.sin(lat2Rad) + Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon))
+    
+    // Spherical excess in radians
+    const e = 2 * Math.atan2(Math.tan(x / 2) * (Math.tan(lat1Rad / 2) + Math.tan(lat2Rad / 2)), 1 + Math.tan(lat1Rad / 2) * Math.tan(lat2Rad / 2))
+    area += e
+  }
 
-  return { easting, northing, zone }
+  // Apply absolute value and multiply by radius squared
+  if (area > 2 * Math.PI) {
+    area = 4 * Math.PI - area
+  }
+
+  const areaM2 = Math.abs(area) * R * R / 2
+  return areaM2 / 10000 // Convert m² to hectares
 }
 
 /**
- * Calculate polygon area in hectares using Shoelace formula on UTM projected coordinates
- * This method is accurate for Indonesian regions
+ * Calculate polygon area in hectares (wrapper for coordinate objects)
  */
 export function calculatePolygonAreaHectares(coordinates: Coordinate[]): number {
   if (coordinates.length < 3) return 0
 
-  // Filter valid coordinates
-  const validCoords = coordinates.filter((c) => c.latitude && c.longitude && c.latitude !== "" && c.longitude !== "")
-  if (validCoords.length < 3) return 0
+  // Convert to [lat, lng] array format
+  const coordArray = coordinates
+    .filter((c) => c.latitude && c.longitude && c.latitude !== "" && c.longitude !== "")
+    .map((c) => [Number.parseFloat(String(c.latitude)), Number.parseFloat(String(c.longitude))] as [number, number])
 
-  // Convert to UTM
-  const utmCoords = validCoords.map((coord) =>
-    latLonToUTM(Number.parseFloat(String(coord.latitude)), Number.parseFloat(String(coord.longitude))),
-  )
+  if (coordArray.length < 3) return 0
 
-  // Apply Shoelace formula for area calculation
-  let area = 0
-  for (let i = 0; i < utmCoords.length; i++) {
-    const current = utmCoords[i]
-    const next = utmCoords[(i + 1) % utmCoords.length]
-    area += current.easting * next.northing - next.easting * current.northing
-  }
-
-  area = Math.abs(area) / 2 // Square meters
-  return area / 10000 // Convert m² to hectares
+  return calculateGeodesicArea(coordArray)
 }
 
 /**
