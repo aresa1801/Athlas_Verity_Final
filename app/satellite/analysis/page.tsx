@@ -187,7 +187,6 @@ export default function SatelliteAnalysisPage() {
       // Handle ZIP files - could contain GeoJSON, KML, or shapefile
       else if (fileName.endsWith('.zip')) {
         try {
-          const arrayBuffer = await file.arrayBuffer()
           const text = await file.text()
           
           // Try to parse as GeoJSON first
@@ -197,11 +196,19 @@ export default function SatelliteAnalysisPage() {
           } catch (e) {
             // Try KML
             if (text.includes('<kml') || text.includes('<coordinates>')) {
-              parseResult = extractCoordinatesFromKML(text)
-              parseResult = { coordinates: parseResult, polygonCount: 1, holeCount: 0 }
+              const kmlCoords = extractCoordinatesFromKML(text)
+              parseResult = { 
+                coordinates: kmlCoords, 
+                polygonCount: 1, 
+                holeCount: 0,
+                multiPolygons: [{
+                  outerRing: kmlCoords,
+                  innerRings: []
+                }]
+              }
             } 
             // Check if it's a shapefile by looking for common shapefile indicators
-            else if (fileName.toLowerCase().includes('shp') || file.name.toLowerCase().includes('shapefile')) {
+            else if (fileName.toLowerCase().includes('shp') || fileName.includes('shapefile')) {
               // For now, return empty - user should provide GeoJSON export of shapefile
               parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
             }
@@ -213,12 +220,32 @@ export default function SatelliteAnalysisPage() {
           parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
         }
       } 
-      // Handle RAR files
+      // Handle RAR files - same logic as ZIP
       else if (fileName.endsWith('.rar')) {
-        const text = await file.text()
         try {
-          const geojsonData = JSON.parse(text)
-          parseResult = extractCoordinatesFromGeoJSON(geojsonData)
+          const text = await file.text()
+          
+          // Try to parse as GeoJSON first
+          try {
+            const geojsonData = JSON.parse(text)
+            parseResult = extractCoordinatesFromGeoJSON(geojsonData)
+          } catch (e) {
+            // Try KML
+            if (text.includes('<kml') || text.includes('<coordinates>')) {
+              const kmlCoords = extractCoordinatesFromKML(text)
+              parseResult = { 
+                coordinates: kmlCoords, 
+                polygonCount: 1, 
+                holeCount: 0,
+                multiPolygons: [{
+                  outerRing: kmlCoords,
+                  innerRings: []
+                }]
+              }
+            } else {
+              parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
+            }
+          }
         } catch (e) {
           parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
         }
@@ -580,7 +607,7 @@ export default function SatelliteAnalysisPage() {
         </div>
 
         {/* Function Cards Grid */}
-        {areaData && (
+        {(areaData || multiPolygonAreaData) && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {/* Location Input */}
             <Card className="border-border/50 bg-card/50 p-4">
@@ -664,7 +691,7 @@ export default function SatelliteAnalysisPage() {
         )}
 
         {/* Fetch Satellite Data Button */}
-        {areaData && (
+        {(areaData || multiPolygonAreaData) && (
           <Button 
             onClick={handleFetchSatelliteData}
             disabled={analysisRunning}

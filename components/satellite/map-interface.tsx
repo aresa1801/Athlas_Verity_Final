@@ -168,19 +168,25 @@ export function MapInterface({ polygon, setPolygon, multiPolygons, location, onA
         mapRef.current.removeLayer(polygonLayerRef.current)
       }
 
-      const layerGroup = L.layerGroup()
+      const layerGroup = L.featureGroup()
 
       // Render multi-polygon with holes if available
       if (multiPolygons && multiPolygons.length > 0) {
+        let allCoords: Array<[number, number]> = []
+        
         multiPolygons.forEach((polygonData) => {
           // Create polygon with outer ring and holes
           const outerRing = polygonData.outerRing.map(([lat, lng]) => [lat, lng] as [number, number])
+          allCoords = allCoords.concat(outerRing)
+          
           const latlngs: any[] = [outerRing]
           
           // Add inner rings (holes)
           if (polygonData.innerRings && polygonData.innerRings.length > 0) {
             polygonData.innerRings.forEach((innerRing) => {
-              latlngs.push(innerRing.map(([lat, lng]) => [lat, lng] as [number, number]))
+              const mappedRing = innerRing.map(([lat, lng]) => [lat, lng] as [number, number])
+              allCoords = allCoords.concat(mappedRing)
+              latlngs.push(mappedRing)
             })
           }
           
@@ -194,7 +200,12 @@ export function MapInterface({ polygon, setPolygon, multiPolygons, location, onA
 
         layerGroup.addTo(mapRef.current)
         polygonLayerRef.current = layerGroup
-        mapRef.current.fitBounds(layerGroup.getBounds())
+        
+        // Calculate bounds from all coordinates
+        if (allCoords.length > 0) {
+          const bounds = L.latLngBounds(allCoords)
+          mapRef.current.fitBounds(bounds)
+        }
       }
       // Fallback to single polygon from prop
       else if (polygon.length > 0) {
