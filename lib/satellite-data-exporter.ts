@@ -8,12 +8,14 @@ export interface SatelliteExportData {
   area: { hectares: number; km2: number }
   forestType: string
   polygonCoordinates: Array<[number, number]>
+  polygonInfo?: { count: number; holes: number }
   satellite: {
     ndvi: number
     cloudCover: number
     vegetationClass: string
-    biomass: number
-    carbonEstimate: number
+    biomass: number | string
+    carbonEstimate: number | string
+    unit?: string
   }
   timestamp: string
 }
@@ -22,6 +24,10 @@ export interface SatelliteExportData {
  * Generate PDF report (mock implementation - would use pdfmake in production)
  */
 export async function generateSatellitePDF(data: SatelliteExportData): Promise<Blob> {
+  const biomassValue = typeof data.satellite.biomass === 'number' ? data.satellite.biomass : parseFloat(String(data.satellite.biomass))
+  const carbonValue = typeof data.satellite.carbonEstimate === 'number' ? data.satellite.carbonEstimate : parseFloat(String(data.satellite.carbonEstimate))
+  const unit = data.satellite.unit || 'Ton CO2e/Ha'
+  
   const pdfContent = `
 SATELLITE ANALYSIS REPORT
 =========================
@@ -33,6 +39,7 @@ AREA CALCULATION
 ----------------
 Hectares: ${data.area.hectares.toFixed(2)} ha
 Km²: ${data.area.km2.toFixed(4)} km²
+${data.polygonInfo ? `Polygon Count: ${data.polygonInfo.count}\nHoles: ${data.polygonInfo.holes}` : ''}
 
 FOREST CHARACTERISTICS
 ---------------------
@@ -44,12 +51,12 @@ SPECTRAL ANALYSIS
 -----------------
 NDVI (Vegetation Index): ${data.satellite.ndvi.toFixed(3)}
 Cloud Cover: ${data.satellite.cloudCover.toFixed(1)}%
-Biomass (AGB): ${data.satellite.biomass.toFixed(2)} Mg/ha
+Biomass (AGB): ${biomassValue.toFixed(2)} ${unit}
 
 CARBON ANALYSIS
 ---------------
-Estimated Carbon Stock: ${data.satellite.carbonEstimate.toFixed(2)} tCO2e/ha
-Total Project Carbon: ${(data.satellite.carbonEstimate * data.area.hectares).toFixed(2)} tCO2e
+Estimated Carbon Stock: ${carbonValue.toFixed(2)} ${unit}
+Total Project Carbon: ${(carbonValue * data.area.hectares).toFixed(2)} tCO2e
 
 POLYGON COORDINATES
 ------------------
@@ -90,15 +97,19 @@ ${jsonContent}
  * Generate CSV format data
  */
 function generateCSV(data: SatelliteExportData): string {
-  const headers = ["Project", "Area (Ha)", "Forest Type", "NDVI", "Cloud Cover %", "Biomass (Mg/ha)", "Carbon (tCO2e/ha)"]
+  const biomassValue = typeof data.satellite.biomass === 'number' ? data.satellite.biomass : parseFloat(String(data.satellite.biomass))
+  const carbonValue = typeof data.satellite.carbonEstimate === 'number' ? data.satellite.carbonEstimate : parseFloat(String(data.satellite.carbonEstimate))
+  const unit = data.satellite.unit || 'Ton CO2e/Ha'
+  
+  const headers = ["Project", "Area (Ha)", "Forest Type", "NDVI", "Cloud Cover %", `Biomass (${unit})`, `Carbon (${unit})`]
   const values = [
     data.projectName,
     data.area.hectares.toFixed(2),
     data.forestType,
     data.satellite.ndvi.toFixed(3),
     data.satellite.cloudCover.toFixed(1),
-    data.satellite.biomass.toFixed(2),
-    data.satellite.carbonEstimate.toFixed(2),
+    biomassValue.toFixed(2),
+    carbonValue.toFixed(2),
   ]
 
   return `${headers.join(",")}\n${values.join(",")}`

@@ -92,46 +92,10 @@ export function calculateAndFormatArea(coordinates: Coordinate[]): { hectares: n
 }
 
 /**
- * Calculate polygon area using Haversine formula (alternative method)
- * More accurate for large areas using spherical calculations
- */
-function calculatePolygonAreaHaversine(coordinates: Coordinate[]): number {
-  if (coordinates.length < 3) return 0
-  
-  const validCoords = coordinates.filter((c) => c.latitude && c.longitude && c.latitude !== "" && c.longitude !== "")
-  if (validCoords.length < 3) return 0
-
-  const R = 6371000 // Earth radius in meters
-  let area = 0
-
-  for (let i = 0; i < validCoords.length; i++) {
-    const lat1 = (validCoords[i].latitude * Math.PI) / 180
-    const lon1 = (validCoords[i].longitude * Math.PI) / 180
-    const lat2 = (validCoords[(i + 1) % validCoords.length].latitude * Math.PI) / 180
-    const lon2 = (validCoords[(i + 1) % validCoords.length].longitude * Math.PI) / 180
-
-    const dlat = lat2 - lat1
-    const dlon = lon2 - lon1
-
-    const a = Math.sin(dlat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dlon / 2) ** 2
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    const distance = R * c
-
-    const dx = (lon2 - lon1) * R * Math.cos((lat1 + lat2) / 2)
-    const dy = (lat2 - lat1) * R
-
-    area += dx * dy
-  }
-
-  area = Math.abs(area) / 2 // Square meters
-  return area / 10000 // Convert m² to hectares
-}
-
-/**
  * Calculate multi-polygon area with hole subtraction
  * Properly handles Polygon with holes and MultiPolygon structures
  * Accepts coordinates as either {latitude, longitude} objects or [lat, lng] arrays
- * Uses combined UTM + Haversine methods for best accuracy
+ * Uses UTM projection (most accurate method for Indonesian coordinates)
  */
 export function calculateMultiPolygonArea(multiPolygons: Array<{
   outerRing: Array<Coordinate | [number, number]>
@@ -154,19 +118,17 @@ export function calculateMultiPolygonArea(multiPolygons: Array<{
   for (let i = 0; i < multiPolygons.length; i++) {
     const polygon = multiPolygons[i]
     
-    // Calculate outer ring area using both methods and average for best accuracy
+    // Calculate outer ring area using UTM (most accurate for Indonesia)
     const outerCoords = polygon.outerRing.map((coord) => {
       if (Array.isArray(coord)) {
         return { latitude: coord[0], longitude: coord[1] }
       }
       return coord
     })
-    const utmArea = calculatePolygonAreaHectares(outerCoords)
-    const haversineArea = calculatePolygonAreaHaversine(outerCoords)
-    const outerArea = (utmArea + haversineArea) / 2 // Average of both methods
+    const outerArea = calculatePolygonAreaHectares(outerCoords)
     totalOuterArea += outerArea
 
-    // Calculate all holes area
+    // Calculate all holes area using same UTM method
     let polygonHoleArea = 0
     for (const innerRing of polygon.innerRings) {
       const innerCoords = innerRing.map((coord) => {
@@ -175,9 +137,7 @@ export function calculateMultiPolygonArea(multiPolygons: Array<{
         }
         return coord
       })
-      const utmHoleArea = calculatePolygonAreaHectares(innerCoords)
-      const haversineHoleArea = calculatePolygonAreaHaversine(innerCoords)
-      const holeArea = (utmHoleArea + haversineHoleArea) / 2
+      const holeArea = calculatePolygonAreaHectares(innerCoords)
       polygonHoleArea += holeArea
       totalHoleArea += holeArea
     }
