@@ -341,11 +341,17 @@ export default function SatelliteAnalysisPage() {
     setAnalysisRunning(true)
     // Simulate Gemini AI analysis
     setTimeout(() => {
+      // Convert AGB (Mg/ha) to CO2e (1 Mg C = 3.67 Mg CO2e)
+      const agbMgHa = 287.4
+      const co2eMgHa = agbMgHa * 3.67
+      const co2eTonHa = co2eMgHa / 1000
+      
       setAnalysisResults({
         carbonEstimation: {
-          agb: 287.4,
-          unit: 'Mg/ha',
-          confidence: 0.92
+          agb: co2eTonHa.toFixed(2),
+          unit: 'Ton CO2e/Ha',
+          confidence: 0.92,
+          totalCarbon: (parseFloat(co2eTonHa.toFixed(2)) * (multiPolygonAreaData?.hectares || areaData?.hectares || 0)).toFixed(2)
         },
         vegetationClassification: {
           dominantSpecies: 'Shorea spp., Dipterocarpus spp.',
@@ -362,89 +368,154 @@ export default function SatelliteAnalysisPage() {
   }
 
   const handleDownloadCarbonPDF = async () => {
-    if (!analysisResults || !areaData) return
+    if (!analysisResults) return
+    
+    const areaInfo = multiPolygonAreaData || areaData
+    if (!areaInfo) return
     
     const data = {
       projectName: 'Satellite Analysis Project',
-      area: { hectares: areaData.hectares, km2: areaData.km2 },
+      area: { hectares: areaInfo.hectares, km2: areaInfo.km2 },
       forestType: analysisResults.vegetationClassification.forestType,
       polygonCoordinates: polygon,
+      polygonInfo,
       satellite: {
         ndvi: analysisResults.vegetationClassification.ndvi,
         cloudCover: 15,
         vegetationClass: analysisResults.vegetationClassification.dominantSpecies,
         biomass: analysisResults.carbonEstimation.agb,
-        carbonEstimate: analysisResults.carbonEstimation.agb * 0.5
+        carbonEstimate: analysisResults.carbonEstimation.totalCarbon,
+        unit: analysisResults.carbonEstimation.unit
       },
       timestamp: new Date().toISOString()
     }
     
-    const blob = await generateSatellitePDF(data)
-    downloadBlob(blob, `carbon-estimation-${Date.now()}.pdf`)
+    try {
+      const blob = await generateSatellitePDF(data)
+      downloadBlob(blob, `carbon-estimation-${Date.now()}.pdf`)
+    } catch (error) {
+      console.error('[v0] Download error:', error)
+      alert('Failed to download PDF')
+    }
   }
 
   const handleDownloadVegetationPDF = async () => {
-    if (!analysisResults || !areaData) return
+    if (!analysisResults) return
+    
+    const areaInfo = multiPolygonAreaData || areaData
+    if (!areaInfo) return
     
     const data = {
       projectName: 'Satellite Analysis Project',
-      area: { hectares: areaData.hectares, km2: areaData.km2 },
+      area: { hectares: areaInfo.hectares, km2: areaInfo.km2 },
       forestType: analysisResults.vegetationClassification.forestType,
       polygonCoordinates: polygon,
+      polygonInfo,
       satellite: {
         ndvi: analysisResults.vegetationClassification.ndvi,
         cloudCover: 15,
         vegetationClass: analysisResults.vegetationClassification.dominantSpecies,
         biomass: analysisResults.carbonEstimation.agb,
-        carbonEstimate: analysisResults.carbonEstimation.agb * 0.5
+        carbonEstimate: analysisResults.carbonEstimation.totalCarbon,
+        unit: analysisResults.carbonEstimation.unit
       },
       timestamp: new Date().toISOString()
     }
     
-    const blob = await generateSatellitePDF(data)
-    downloadBlob(blob, `vegetation-classification-${Date.now()}.pdf`)
+    try {
+      const blob = await generateSatellitePDF(data)
+      downloadBlob(blob, `vegetation-classification-${Date.now()}.pdf`)
+    } catch (error) {
+      console.error('[v0] Download error:', error)
+      alert('Failed to download PDF')
+    }
   }
 
   const handleDownloadDataPackage = async () => {
-    if (!analysisResults || !areaData) return
+    if (!analysisResults) return
+    
+    const areaInfo = multiPolygonAreaData || areaData
+    if (!areaInfo) return
     
     const data = {
       projectName: 'Satellite Analysis Project',
-      area: { hectares: areaData.hectares, km2: areaData.km2 },
+      area: { hectares: areaInfo.hectares, km2: areaInfo.km2 },
       forestType: analysisResults.vegetationClassification.forestType,
       polygonCoordinates: polygon,
+      polygonInfo,
       satellite: {
         ndvi: analysisResults.vegetationClassification.ndvi,
         cloudCover: 15,
         vegetationClass: analysisResults.vegetationClassification.dominantSpecies,
         biomass: analysisResults.carbonEstimation.agb,
-        carbonEstimate: analysisResults.carbonEstimation.agb * 0.5
+        carbonEstimate: analysisResults.carbonEstimation.totalCarbon,
+        unit: analysisResults.carbonEstimation.unit
       },
       timestamp: new Date().toISOString()
     }
     
-    const blob = await generateSatelliteDataZIP(data)
-    downloadBlob(blob, `satellite-data-${Date.now()}.zip`)
+    try {
+      const blob = await generateSatelliteDataZIP(data)
+      downloadBlob(blob, `satellite-data-${Date.now()}.zip`)
+    } catch (error) {
+      console.error('[v0] Download error:', error)
+      alert('Failed to download data package')
+    }
   }
 
   const handleProceedToGreenCarbon = () => {
-    const satelliteData = {
-      polygon,
-      area: areaData,
-      analysis: analysisResults
+    const areaInfo = multiPolygonAreaData || areaData
+    if (!areaInfo || !analysisResults) return
+    
+    const confirmMsg = `Proceed to Green Carbon Verification with the following data?\n\n` +
+      `Area: ${areaInfo.hectares.toFixed(2)} ha (${areaInfo.km2.toFixed(4)} km²)\n` +
+      `Polygon Count: ${polygonInfo.count}\n` +
+      `Forest Type: ${analysisResults.vegetationClassification.forestType}\n` +
+      `Carbon: ${analysisResults.carbonEstimation.agb} ${analysisResults.carbonEstimation.unit}\n\n` +
+      `Click OK to autofill the verification form.`
+    
+    if (confirm(confirmMsg)) {
+      const satelliteData = {
+        polygon,
+        multiPolygons: multiPolygons || undefined,
+        area: areaInfo,
+        polygonInfo,
+        analysis: analysisResults,
+        dateRange,
+        location: locationInput,
+        satelliteSource,
+        uploadedFile: uploadedFile?.name || 'Unknown'
+      }
+      sessionStorage.setItem('satelliteAnalysisData', JSON.stringify(satelliteData))
+      router.push('/verification/green-carbon/create')
     }
-    sessionStorage.setItem('satelliteAnalysisData', JSON.stringify(satelliteData))
-    router.push('/verification/green-carbon/create')
   }
 
   const handleProceedToBlueCarbon = () => {
-    const satelliteData = {
-      polygon,
-      area: areaData,
-      analysis: analysisResults
+    const areaInfo = multiPolygonAreaData || areaData
+    if (!areaInfo || !analysisResults) return
+    
+    const confirmMsg = `Proceed to Blue Carbon Verification with the following data?\n\n` +
+      `Area: ${areaInfo.hectares.toFixed(2)} ha (${areaInfo.km2.toFixed(4)} km²)\n` +
+      `Polygon Count: ${polygonInfo.count}\n` +
+      `Carbon: ${analysisResults.carbonEstimation.agb} ${analysisResults.carbonEstimation.unit}\n\n` +
+      `Click OK to autofill the verification form.`
+    
+    if (confirm(confirmMsg)) {
+      const satelliteData = {
+        polygon,
+        multiPolygons: multiPolygons || undefined,
+        area: areaInfo,
+        polygonInfo,
+        analysis: analysisResults,
+        dateRange,
+        location: locationInput,
+        satelliteSource,
+        uploadedFile: uploadedFile?.name || 'Unknown'
+      }
+      sessionStorage.setItem('satelliteAnalysisData', JSON.stringify(satelliteData))
+      router.push('/verification/blue-carbon/create')
     }
-    sessionStorage.setItem('satelliteAnalysisData', JSON.stringify(satelliteData))
-    router.push('/verification/blue-carbon/create')
   }
 
   return (
