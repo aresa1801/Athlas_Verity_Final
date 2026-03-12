@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle, CheckCircle2, HelpCircle, MapPin } from "lucide-react"
 import { EnhancedMapInterface } from "@/components/geospatial/enhanced-map-interface"
-import { BlueCarbonGeospatialSection } from "@/components/verification/blue-carbon-geospatial-section"
 
 interface BlueCarbonFormData {
   // Section A
@@ -72,6 +71,7 @@ export function BlueCarbonForm() {
     humanDisturbanceLevel: "",
   })
 
+  const [showMap, setShowMap] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
 
   const requiredFields = [
@@ -227,19 +227,32 @@ export function BlueCarbonForm() {
           <Badge variant="outline" className="ml-auto">2/5</Badge>
         </div>
 
-        {/* Satellite Analysis Integration */}
-        <BlueCarbonGeospatialSection
-          onDataUpdate={(data) => {
-            setFormData((prev) => ({
-              ...prev,
-              polygon: data.polygon,
-              tidalZoneType: data.tidalZoneType || prev.tidalZoneType,
-              ecosystemType: data.ecosystemType || prev.ecosystemType,
-            }))
-          }}
-          tidalZoneType={formData.tidalZoneType}
-          ecosystemType={formData.ecosystemType}
-        />
+        {!showMap ? (
+          <Button onClick={() => setShowMap(true)} className="w-full gap-2" variant="outline">
+            <MapPin className="w-4 h-4" />
+            Draw Coastal Boundary
+          </Button>
+        ) : (
+          <Card className="border-border/50 bg-card/50 p-6 overflow-hidden">
+            <EnhancedMapInterface
+              polygon={formData.polygon}
+              setPolygon={(poly) => setFormData((prev) => ({ ...prev, polygon: poly }))}
+              location={{ latitude: "1.35", longitude: "103.8", radius: "5" }}
+            />
+            <Button onClick={() => setShowMap(false)} variant="outline" className="mt-4 w-full">
+              Close Map
+            </Button>
+          </Card>
+        )}
+
+        {formData.polygon.length >= 3 && (
+          <div className="p-4 bg-blue-500/5 border border-blue-500/30 rounded-lg">
+            <div className="flex items-center gap-2 text-sm text-blue-700 dark:text-blue-400">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Polygon valid ({formData.polygon.length} points)</span>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
