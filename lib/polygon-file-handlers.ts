@@ -121,16 +121,89 @@ function extractCoordinatesFromGeometry(geometry: any): {
 }
 
 /**
- * Parse KML file
+ * Parse KML file and convert to GeoJSON format
  */
 export async function parseKML(file: File): Promise<ParsedPolygon> {
   const text = await file.text()
-  const coordinates = extractCoordinatesFromKML(text)
+  const geojson = convertKMLToGeoJSON(text)
+  
+  if (geojson) {
+    const { coordinates, multiPolygons, polygonCount, holeCount } = extractCoordinatesFromGeoJSON(geojson)
+    return {
+      coordinates,
+      multiPolygons,
+      polygonCount,
+      holeCount,
+      area: 0,
+      format: 'KML (converted to GeoJSON)',
+      isValid: coordinates.length >= 3,
+    }
+  }
+  
   return {
-    coordinates,
+    coordinates: [],
     area: 0,
     format: 'KML',
-    isValid: coordinates.length >= 3,
+    isValid: false,
+    error: 'Failed to parse KML file'
+  }
+}
+
+/**
+ * Convert KML to GeoJSON format
+ */
+function convertKMLToGeoJSON(kml: string): any {
+  try {
+    // Extract all Polygon elements
+    const polygonRegex = /<Polygon>([\s\S]*?)<\/Polygon>/g
+    const polygons: any[] = []
+    
+    let match
+    while ((match = polygonRegex.exec(kml)) !== null) {
+      const polygonXml = match[1]
+      
+      // Extract outer boundary
+      const outerBoundaryRegex = /<outerBoundaryIs>([\s\S]*?)<\/outerBoundaryIs>/
+      const outerMatch = polygonXml.match(outerBoundaryRegex)
+      
+      if (outerMatch) {
+        const outerCoords = extractCoordinatesFromKML(outerMatch[1])
+        
+        // Extract inner boundaries (holes)
+        const innerBoundaryRegex = /<innerBoundaryIs>([\s\S]*?)<\/innerBoundaryIs>/g
+        const innerBoundaries: any[] = []
+        let innerMatch
+        
+        while ((innerMatch = innerBoundaryRegex.exec(polygonXml)) !== null) {
+          const innerCoords = extractCoordinatesFromKML(innerMatch[1])
+          if (innerCoords.length > 0) {
+            innerBoundaries.push(innerCoords)
+          }
+        }
+        
+        // Create GeoJSON Polygon
+        const rings = [outerCoords, ...innerBoundaries]
+        polygons.push({
+          type: 'Polygon',
+          coordinates: rings.map(ring => ring.map(([lat, lng]) => [lng, lat])) // Convert back to [lng, lat]
+        })
+      }
+    }
+    
+    if (polygons.length === 0) return null
+    
+    // Return as FeatureCollection
+    return {
+      type: 'FeatureCollection',
+      features: polygons.map(geom => ({
+        type: 'Feature',
+        properties: {},
+        geometry: geom
+      }))
+    }
+  } catch (error) {
+    console.error('[v0] Error converting KML to GeoJSON:', error)
+    return null
   }
 }
 
@@ -143,11 +216,71 @@ function extractCoordinatesFromKML(kml: string): Array<[number, number]> {
     .trim()
     .split(/\s+/)
     .map((coord) => {
-      const [lng, lat] = coord.split(',').map(Number)
-      // KML uses [lng, lat], convert to [lat, lng]
+      const [lng, lat, ...rest] = coord.split(',').map(Number)
+      // KML uses [lng, lat, elevation], convert to [lat, lng]
       return [lat, lng] as [number, number]
     })
     .filter(([lat, lng]) => !isNaN(lng) && !isNaN(lat) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)
+}
+
+/**
+ * Parse ZIP file containing shapefile or other geospatial data
+ * Attempts to extract and convert to GeoJSON format
+ */
+export async function parseZIP(file: File): Promise<ParsedPolygon> {
+  try {
+    const text = await file.text()
+    
+    // Try to parse as GeoJSON first
+    try {
+      const geojsonData = JSON.parse(text)
+      const { coordinates, multiPolygons, polygonCount, holeCount } = extractCoordinatesFromGeoJSON(geojsonData)
+      return {
+        coordinates,
+        multiPolygons,
+        polygonCount,
+        holeCount,
+        area: 0,
+        format: 'ZIP (GeoJSON)',
+        isValid: coordinates.length >= 3,
+      }
+    } catch (e) {
+      // Try to parse as KML
+      if (text.includes('<kml') || text.includes('<coordinates>')) {
+        const geojson = convertKMLToGeoJSON(text)
+        if (geojson) {
+          const { coordinates, multiPolygons, polygonCount, holeCount } = extractCoordinatesFromGeoJSON(geojson)
+          return {
+            coordinates,
+            multiPolygons,
+            polygonCount,
+            holeCount,
+            area: 0,
+            format: 'ZIP (KML converted to GeoJSON)',
+            isValid: coordinates.length >= 3,
+          }
+        }
+      }
+      
+      // For shapefile ZIP archives, we would need a proper shapefile parser
+      // For now, return error message instructing users to export as GeoJSON
+      return {
+        coordinates: [],
+        area: 0,
+        format: 'ZIP',
+        isValid: false,
+        error: 'ZIP file detected. For shapefiles, please export as GeoJSON or convert the shapefile online first.'
+      }
+    }
+  } catch (error) {
+    return {
+      coordinates: [],
+      area: 0,
+      format: 'ZIP',
+      isValid: false,
+      error: 'Failed to read ZIP file. Ensure it contains valid geospatial data.'
+    }
+  }
 }
 
 /**
