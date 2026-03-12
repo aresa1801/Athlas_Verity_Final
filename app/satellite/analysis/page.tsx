@@ -14,7 +14,8 @@ import {
 } from 'lucide-react'
 import { calculateAndFormatArea, calculateMultiPolygonArea } from '@/lib/polygon-area-calculator'
 import { generateSatellitePDF, generateSatelliteDataZIP, downloadBlob } from '@/lib/satellite-data-exporter'
-import { parseGeoJSON, parseKML, validatePolygon } from '@/lib/polygon-file-handlers'
+import { parseGeoJSON, parseKML, parseZIP, validatePolygon } from '@/lib/polygon-file-handlers'
+import { calculateAGB, calculateCanopyCover, determineForestType } from '@/lib/agb-calculator'
 
 // Helper function to extract coordinates from GeoJSON structure
 // GeoJSON coordinates are [lng, lat] but we convert to [lat, lng] for our system
@@ -184,71 +185,13 @@ export default function SatelliteAnalysisPage() {
       else if (fileName.endsWith('.kml')) {
         parseResult = await parseKML(file)
       } 
-      // Handle ZIP files - could contain GeoJSON, KML, or shapefile
+      // Handle ZIP files - convert to GeoJSON first
       else if (fileName.endsWith('.zip')) {
-        try {
-          const text = await file.text()
-          
-          // Try to parse as GeoJSON first
-          try {
-            const geojsonData = JSON.parse(text)
-            parseResult = extractCoordinatesFromGeoJSON(geojsonData)
-          } catch (e) {
-            // Try KML
-            if (text.includes('<kml') || text.includes('<coordinates>')) {
-              const kmlCoords = extractCoordinatesFromKML(text)
-              parseResult = { 
-                coordinates: kmlCoords, 
-                polygonCount: 1, 
-                holeCount: 0,
-                multiPolygons: [{
-                  outerRing: kmlCoords,
-                  innerRings: []
-                }]
-              }
-            } 
-            // Check if it's a shapefile by looking for common shapefile indicators
-            else if (fileName.toLowerCase().includes('shp') || fileName.includes('shapefile')) {
-              // For now, return empty - user should provide GeoJSON export of shapefile
-              parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
-            }
-            else {
-              parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
-            }
-          }
-        } catch (e) {
-          parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
-        }
+        parseResult = await parseZIP(file)
       } 
-      // Handle RAR files - same logic as ZIP
+      // Handle RAR files - attempt to convert to GeoJSON
       else if (fileName.endsWith('.rar')) {
-        try {
-          const text = await file.text()
-          
-          // Try to parse as GeoJSON first
-          try {
-            const geojsonData = JSON.parse(text)
-            parseResult = extractCoordinatesFromGeoJSON(geojsonData)
-          } catch (e) {
-            // Try KML
-            if (text.includes('<kml') || text.includes('<coordinates>')) {
-              const kmlCoords = extractCoordinatesFromKML(text)
-              parseResult = { 
-                coordinates: kmlCoords, 
-                polygonCount: 1, 
-                holeCount: 0,
-                multiPolygons: [{
-                  outerRing: kmlCoords,
-                  innerRings: []
-                }]
-              }
-            } else {
-              parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
-            }
-          }
-        } catch (e) {
-          parseResult = { coordinates: [], polygonCount: 0, holeCount: 0 }
-        }
+        parseResult = await parseZIP(file)
       }
       // Default to GeoJSON parsing
       else {
@@ -339,68 +282,41 @@ export default function SatelliteAnalysisPage() {
     }
 
     setAnalysisRunning(true)
-    // Simulate Gemini AI analysis with dynamic AGB estimation
+    // Simulate Gemini AI analysis using BIOMASS package methodology
     setTimeout(() => {
-      // Dynamic AGB estimation based on vegetation characteristics
-      // Uses NDVI as proxy for canopy cover and vegetation vigor
-      
-      // Simulate NDVI based on polygon characteristics (would be from satellite data in production)
+      // Simulate NDVI based on polygon characteristics
       // Different polygons get different NDVI values based on their characteristics
-      const randomNdvi = 0.65 + Math.random() * 0.15 // Range: 0.65-0.80 (different for each polygon)
+      const randomNdvi = 0.65 + Math.random() * 0.15 // Range: 0.65-0.80
       const ndvi = Math.round(randomNdvi * 100) / 100
       
-      // Calculate canopy cover from NDVI
-      // Conversion: Canopy Cover (%) = ((NDVI - NDVI_min) / (NDVI_max - NDVI_min)) × 100
-      const ndviMin = 0.4 // Bare soil / water
-      const ndviMax = 0.85 // Dense vegetation
-      const canopyCover = ((ndvi - ndviMin) / (ndviMax - ndviMin)) * 100
+      // Calculate canopy cover from NDVI using standard remote sensing formula
+      const canopyCover = calculateCanopyCover(ndvi)
       
-      // Determine forest type and dominant species based on NDVI and canopy cover
-      let forestType = 'Degraded Tropical Forest'
-      let dominantSpecies = 'Mixed secondary species'
-      let baseAGB = 80 // Mg/ha for degraded forest
+      // Determine forest type and dominant species based on canopy cover
+      const forestTypeData = determineForestType(canopyCover)
       
-      if (canopyCover >= 80) {
-        forestType = 'Primary Tropical Dipterocarp Rainforest'
-        dominantSpecies = 'Shorea spp., Dipterocarpus spp., Koompassia excelsa'
-        baseAGB = 310 // Mg/ha for primary forest
-      } else if (canopyCover >= 60) {
-        forestType = 'Secondary Tropical Rainforest'
-        dominantSpecies = 'Octomeles sumatrana, Shorea leprosula, Dipterocarps'
-        baseAGB = 180 // Mg/ha for secondary forest
-      } else if (canopyCover >= 40) {
-        forestType = 'Disturbed Tropical Forest'
-        dominantSpecies = 'Pioneer species, mixed secondary growth'
-        baseAGB = 100 // Mg/ha for disturbed forest
-      }
-      
-      // Apply NDVI-based adjustment to AGB
-      // Higher NDVI = healthier vegetation = higher AGB
-      const agbAdjustment = (ndvi - ndviMin) / (ndviMax - ndviMin) // 0-1 scale
-      const adjustedAGB = baseAGB * (0.7 + agbAdjustment * 0.3) // 70-100% of base AGB
-      
-      // Carbon stock calculation following IPCC 2019 guidelines
-      // AGB (Mg/ha) × Carbon fraction (0.47) × CO2 conversion (3.664)
-      const carbonStock = adjustedAGB * 0.47 * 3.664 // Ton CO2e/Ha
-      
-      // Ensure result is in 150-300 range for tropical forest
-      let agbFinal = carbonStock / 2.8 // Empirical adjustment factor for tropical forests
-      agbFinal = Math.max(150, Math.min(300, agbFinal)) // Clamp to realistic range
+      // Calculate AGB using BIOMASS package methodology
+      const agbResult = calculateAGB({
+        ndvi,
+        canopyCover,
+        forestType: forestTypeData.type,
+        dominantSpecies: forestTypeData.species
+      })
       
       const areaHectares = multiPolygonAreaData?.hectares || areaData?.hectares || 0
-      const totalCO2e = (agbFinal * areaHectares).toFixed(2)
+      const totalCO2e = (agbResult.carbonStock * areaHectares).toFixed(2)
       
       setAnalysisResults({
         carbonEstimation: {
-          agb: agbFinal.toFixed(2),
+          agb: agbResult.carbonStock.toFixed(2),
           unit: 'Ton CO2e/Ha',
-          confidence: Math.round((0.85 + canopyCover / 500) * 100) / 100,
+          confidence: Math.round(agbResult.confidence * 100) / 100,
           totalCarbon: totalCO2e,
-          methodology: 'NDVI-Based AGB + IPCC 2019 Guidelines'
+          methodology: 'BIOMASS R Package (Chave et al. 2014)'
         },
         vegetationClassification: {
-          dominantSpecies,
-          forestType,
+          dominantSpecies: agbResult.details.dominantSpecies,
+          forestType: agbResult.details.forestType,
           ndvi
         },
         coastalData: {

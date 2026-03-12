@@ -49,9 +49,15 @@ export function EnhancedMapInterface({ polygon, setPolygon, location, onAreaCalc
 
   // Initialize map
   useEffect(() => {
-    if (typeof window === "undefined" || !mapContainerRef.current || mapRef.current) return
+    if (typeof window === "undefined" || !mapContainerRef.current) return
+    
+    // If map already exists, don't reinitialize
+    if (mapRef.current) return
 
     import("leaflet").then((L) => {
+      // Check again if map already exists (race condition protection)
+      if (mapRef.current) return
+
       delete (L.Icon.Default.prototype as any)._getIconUrl
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
@@ -76,26 +82,41 @@ export function EnhancedMapInterface({ polygon, setPolygon, location, onAreaCalc
       setMapReady(true)
 
       // Map click handler for drawing
-      map.on("click", handleMapClick)
+      const handleClickEvent = (e: any) => {
+        if (isDrawing) {
+          const { lat, lng } = e.latlng
+          setTempPoints((prev) => [...prev, [lat, lng]])
+        }
+      }
+      
+      map.on("click", handleClickEvent)
 
       // Map hover handler for coordinate display
-      map.on("mousemove", (e: any) => {
+      const handleMouseMove = (e: any) => {
         if (isDrawing) {
           const { lat, lng } = e.latlng
           setHoverCoordinate({ lat, lng })
         }
-      })
+      }
+      
+      map.on("mousemove", handleMouseMove)
 
       // Clear hover on mouse leave
-      mapContainerRef.current?.addEventListener("mouseout", () => {
+      const handleMouseOut = () => {
         setHoverCoordinate(null)
-      })
+      }
+      
+      mapContainerRef.current?.addEventListener("mouseout", handleMouseOut)
 
       return () => {
+        map.off("click", handleClickEvent)
+        map.off("mousemove", handleMouseMove)
+        mapContainerRef.current?.removeEventListener("mouseout", handleMouseOut)
         map.remove()
+        mapRef.current = null
       }
     })
-  }, [isDrawing])
+  }, [])
 
   // Render polygon on map
   useEffect(() => {
@@ -177,12 +198,7 @@ export function EnhancedMapInterface({ polygon, setPolygon, location, onAreaCalc
     })
   }, [polygon, tempPoints, mapReady])
 
-  const handleMapClick = (e: any) => {
-    if (!isDrawing) return
 
-    const { lat, lng } = e.latlng
-    setTempPoints([...tempPoints, [lat, lng]])
-  }
 
   const startDrawing = () => {
     setIsDrawing(true)
@@ -412,15 +428,21 @@ export function EnhancedMapInterface({ polygon, setPolygon, location, onAreaCalc
           <div className="grid grid-cols-3 gap-4">
             <div>
               <div className="text-xs text-muted-foreground mb-1">Area (Hectares)</div>
-              <div className="text-lg font-semibold text-foreground">{areaResult.areaHa.toLocaleString()}</div>
+              <div className="text-lg font-semibold text-foreground">
+                {typeof areaResult.areaHa === 'number' ? areaResult.areaHa.toLocaleString() : 'N/A'}
+              </div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground mb-1">Area (km²)</div>
-              <div className="text-lg font-semibold text-foreground">{areaResult.areaKm2.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+              <div className="text-lg font-semibold text-foreground">
+                {typeof areaResult.areaKm2 === 'number' ? areaResult.areaKm2.toLocaleString(undefined, { maximumFractionDigits: 2 }) : 'N/A'}
+              </div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground mb-1">Area (m²)</div>
-              <div className="text-lg font-semibold text-foreground">{areaResult.areaM2.toLocaleString()}</div>
+              <div className="text-lg font-semibold text-foreground">
+                {typeof areaResult.areaM2 === 'number' ? areaResult.areaM2.toLocaleString() : 'N/A'}
+              </div>
             </div>
           </div>
         </Card>
