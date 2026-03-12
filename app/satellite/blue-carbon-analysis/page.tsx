@@ -491,15 +491,16 @@ export default function BlueCarbonSatelliteAnalysisPage() {
 
             {/* Map Display */}
             {polygon.length > 0 && (
-              <Card className="border-border/50">
-                <div className="p-6">
-                  <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <MapPin className="w-5 h-5 text-blue-600" />
-                    Coastal Area Map
-                  </h2>
-                  <MapInterface polygon={polygon} multiPolygons={multiPolygons} />
-                </div>
-              </Card>
+              <div className="mt-6">
+                <MapInterface 
+                  polygon={polygon} 
+                  setPolygon={setPolygon}
+                  multiPolygons={multiPolygons}
+                  location={locationInput?.latitude && locationInput?.longitude 
+                    ? { latitude: locationInput.latitude, longitude: locationInput.longitude, radius: "10" }
+                    : { latitude: "1.35", longitude: "103.8", radius: "10" }}
+                />
+              </div>
             )}
 
             {/* Analysis Data Cards */}
