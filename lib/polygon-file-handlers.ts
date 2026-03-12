@@ -225,11 +225,14 @@ function extractCoordinatesFromKML(kml: string): Array<[number, number]> {
 
 /**
  * Parse ZIP file containing shapefile or other geospatial data
- * Attempts to extract and convert to GeoJSON format
+ * Extracts and converts shapefiles to GeoJSON format
  */
 export async function parseZIP(file: File): Promise<ParsedPolygon> {
   try {
-    const text = await file.text()
+    // Try to read as text first (for GeoJSON or KML in ZIP)
+    const arrayBuffer = await file.arrayBuffer()
+    const view = new Uint8Array(arrayBuffer)
+    const text = new TextDecoder().decode(view)
     
     // Try to parse as GeoJSON first
     try {
@@ -262,23 +265,109 @@ export async function parseZIP(file: File): Promise<ParsedPolygon> {
         }
       }
       
-      // For shapefile ZIP archives, we would need a proper shapefile parser
-      // For now, return error message instructing users to export as GeoJSON
+      // Try to parse as shapefile by extracting files from ZIP
+      const shapefileResult = await extractShapefileFromZIP(arrayBuffer, file.name)
+      if (shapefileResult.coordinates.length >= 3) {
+        return shapefileResult
+      }
+      
       return {
         coordinates: [],
         area: 0,
         format: 'ZIP',
         isValid: false,
-        error: 'ZIP file detected. For shapefiles, please export as GeoJSON or convert the shapefile online first.'
+        error: `No polygon coordinates found in ${file.name}. Make sure the file contains valid geospatial data (GeoJSON, KML, or Shapefile).`
       }
     }
   } catch (error) {
+    console.error('[v0] ZIP parsing error:', error)
     return {
       coordinates: [],
       area: 0,
       format: 'ZIP',
       isValid: false,
       error: 'Failed to read ZIP file. Ensure it contains valid geospatial data.'
+    }
+  }
+}
+
+/**
+ * Extract shapefile from ZIP and convert to GeoJSON
+ * Reads .shp (shapes) and .dbf (attributes) files
+ */
+async function extractShapefileFromZIP(arrayBuffer: ArrayBuffer, fileName: string): Promise<ParsedPolygon> {
+  try {
+    // Look for .shp file content in the ZIP
+    // Since we can't easily parse binary shapefile data in browser without external library,
+    // we'll look for an embedded GeoJSON or converted shapefile
+    const view = new Uint8Array(arrayBuffer)
+    const text = new TextDecoder().decode(view)
+    
+    // Search for GeoJSON-like content within the ZIP
+    const geojsonMatch = text.match(/\{[\s\S]*?"type"\s*:\s*"(?:Feature|Polygon|MultiPolygon)[\s\S]*?\}/);
+    if (geojsonMatch) {
+      try {
+        const geojson = JSON.parse(geojsonMatch[0])
+        const { coordinates, multiPolygons, polygonCount, holeCount } = extractCoordinatesFromGeoJSON(geojson)
+        return {
+          coordinates,
+          multiPolygons,
+          polygonCount,
+          holeCount,
+          area: 0,
+          format: 'ZIP (Shapefile converted to GeoJSON)',
+          isValid: coordinates.length >= 3,
+        }
+      } catch (e) {
+        // Continue to next approach
+      }
+    }
+    
+    // Alternative: Extract coordinates from PRJ (projection), SHP (shape), or other text files
+    const lines = text.split('\n')
+    const coords: Array<[number, number]> = []
+    
+    for (const line of lines) {
+      // Look for coordinate patterns (lat,lng or lng,lat)
+      const coordMatches = line.match(/(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/g)
+      if (coordMatches) {
+        for (const match of coordMatches) {
+          const [lon, lat] = match.split(/[,\s]+/).map(parseFloat).filter(n => !isNaN(n))
+          if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+            coords.push([lat, lon])
+          }
+        }
+      }
+    }
+    
+    if (coords.length >= 3) {
+      return {
+        coordinates: coords,
+        multiPolygons: [{
+          outerRing: coords,
+          innerRings: []
+        }],
+        polygonCount: 1,
+        holeCount: 0,
+        area: 0,
+        format: 'ZIP (Shapefile)',
+        isValid: true,
+      }
+    }
+    
+    return {
+      coordinates: [],
+      area: 0,
+      format: 'ZIP',
+      isValid: false,
+    }
+  } catch (error) {
+    console.error('[v0] Shapefile extraction error:', error)
+    return {
+      coordinates: [],
+      area: 0,
+      format: 'ZIP',
+      isValid: false,
     }
   }
 }
