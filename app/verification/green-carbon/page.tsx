@@ -141,7 +141,7 @@ export default function GreenCarbonPage() {
                   <MapPin className="w-4 h-4" />
                   Open Map
                 </Button>
-                <Link href="/satellite/analysis">
+                <Link href="/verification/green-carbon/green-carbon-analysis">
                   <Button size="lg" className="gap-2">
                     <Gauge className="w-4 h-4" />
                     Satellite Analysis
