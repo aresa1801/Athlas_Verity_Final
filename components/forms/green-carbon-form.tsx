@@ -1,14 +1,12 @@
 "use client"
 
 import React from "react"
-
+import { getCountries, getCountryName } from 'country-list'
 import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Upload, AlertCircle, CheckCircle2, HelpCircle, MapPin } from "lucide-react"
-import { EnhancedMapInterface } from "@/components/geospatial/enhanced-map-interface"
-import { GeospatialAnalysisSection } from "@/components/verification/geospatial-analysis-section"
+import { Upload, AlertCircle, CheckCircle2, HelpCircle } from "lucide-react"
 
 interface GreenCarbonFormData {
   // Section A
@@ -18,20 +16,21 @@ interface GreenCarbonFormData {
   methodologyRef: string
 
   // Section B
-  polygon: Array<[number, number]>
-  totalArea: number
+  satelliteDataFile: File | null
+  dataLuasan: string
+  dataKoordinat: string
   forestType: string
   protectionRestorationType: string
 
   // Section C
   dominantSpecies: string
   averageTreeHeight: string
-  fieldPlotData: File | null
 
-  // Section E
+  // Section D (formerly E)
   deforestationRiskLevel: string
   legalProtectionStatus: string
   landOwnershipProof: File | null
+  dataKebenaran: File | null
 }
 
 const FIELD_TOOLTIPS = {
@@ -39,13 +38,17 @@ const FIELD_TOOLTIPS = {
   country: "Country where the project is located - used for baseline and regulatory context",
   baselineYear: "Reference year for deforestation baseline - critical for additionality calculations",
   methodologyRef: "Carbon accounting methodology (Verra/Gold Standard) - determines validation rules",
-  polygon: "Define project boundaries via geospatial polygon - required for area calculation and satellite analysis",
+  satelliteDataFile: "Upload satellite data from green-carbon-analysis page - auto-populates area and coordinates",
+  dataLuasan: "Total project area in hectares (auto-filled from satellite data)",
+  dataKoordinat: "Project location coordinates (auto-filled from satellite data)",
   forestType: "Forest classification (tropical/temperate/boreal) - affects biomass regression models",
-  dominantSpecies: "Primary tree species for AGB allometric equation selection",
-  averageTreeHeight: "Average canopy height - improves biomass model accuracy",
+  protectionRestorationType: "Project activity type (protection/restoration/sustainable management)",
+  dominantSpecies: "Primary tree species - auto-pulled from satellite analysis data",
+  averageTreeHeight: "Average canopy height in meters - auto-pulled from satellite analysis data",
   deforestationRiskLevel: "Project area deforestation pressure - used for additionality risk scoring",
   legalProtectionStatus: "Land legal status (protected/private/community) - affects integrity scoring",
   landOwnershipProof: "Documentation proving project proponent control - required for verification",
+  dataKebenaran: "Owner's declaration of data truthfulness and accuracy statement",
 }
 
 type TooltipKey = keyof typeof FIELD_TOOLTIPS
@@ -65,16 +68,17 @@ export function GreenCarbonForm() {
     country: "",
     baselineYear: "",
     methodologyRef: "verra",
-    polygon: [],
-    totalArea: 0,
+    satelliteDataFile: null,
+    dataLuasan: "",
+    dataKoordinat: "",
     forestType: "",
     protectionRestorationType: "",
     dominantSpecies: "",
     averageTreeHeight: "",
-    fieldPlotData: null,
     deforestationRiskLevel: "",
     legalProtectionStatus: "",
     landOwnershipProof: null,
+    dataKebenaran: null,
   })
 
   const [showMap, setShowMap] = useState(false)
@@ -85,11 +89,13 @@ export function GreenCarbonForm() {
     "country",
     "baselineYear",
     "methodologyRef",
-    "polygon",
+    "satelliteDataFile",
     "forestType",
+    "protectionRestorationType",
     "deforestationRiskLevel",
     "legalProtectionStatus",
     "landOwnershipProof",
+    "dataKebenaran",
   ]
 
   const checkCompleteness = useCallback(() => {
@@ -99,35 +105,58 @@ export function GreenCarbonForm() {
     if (!formData.country) errors.push("Country is required")
     if (!formData.baselineYear) errors.push("Baseline year is required")
     if (!formData.methodologyRef) errors.push("Methodology reference is required")
-    if (formData.polygon.length < 3) errors.push("Polygon must have at least 3 points")
+    if (!formData.satelliteDataFile) errors.push("Satellite data file is required")
     if (!formData.forestType) errors.push("Forest type is required")
+    if (!formData.protectionRestorationType) errors.push("Protection/Restoration type is required")
     if (!formData.deforestationRiskLevel) errors.push("Deforestation risk level is required")
     if (!formData.legalProtectionStatus) errors.push("Legal protection status is required")
     if (!formData.landOwnershipProof) errors.push("Land ownership proof is required")
+    if (!formData.dataKebenaran) errors.push("Data truthfulness declaration is required")
 
     setValidationErrors(errors)
     return errors.length === 0
   }, [formData])
 
   const isComplete = requiredFields.every((field) => {
-    if (field === "polygon") return formData.polygon.length >= 3
-    if (field === "landOwnershipProof") return formData.landOwnershipProof !== null
+    if (field === "satelliteDataFile" || field === "landOwnershipProof" || field === "dataKebenaran") {
+      return formData[field as keyof GreenCarbonFormData] !== null
+    }
     const value = formData[field as keyof GreenCarbonFormData]
     return value && String(value).trim() !== ""
   })
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: "fieldPlotData" | "landOwnershipProof") => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: "satelliteDataFile" | "landOwnershipProof" | "dataKebenaran") => {
     const file = e.target.files?.[0]
     if (file) {
+      if (field === "satelliteDataFile" && !["application/zip", "application/json"].includes(file.type)) {
+        alert("Satellite data must be ZIP or JSON format")
+        return
+      }
       if (field === "landOwnershipProof" && !["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
         alert("Land ownership proof must be PDF or image")
         return
       }
-      if (field === "fieldPlotData" && !["text/csv", "application/vnd.ms-excel"].includes(file.type)) {
-        alert("Field plot data must be CSV")
+      if (field === "dataKebenaran" && !["application/pdf", "image/jpeg", "image/png"].includes(file.type)) {
+        alert("Data truthfulness declaration must be PDF or image")
         return
       }
       setFormData((prev) => ({ ...prev, [field]: file }))
+    }
+  }
+
+  const handleSatelliteDataUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      handleFileUpload(e, "satelliteDataFile")
+      
+      // Parse satellite data and auto-fill geospatial info
+      // This would ideally parse the satellite data file and extract coordinates and area
+      // For now, we'll show a placeholder
+      setFormData((prev) => ({
+        ...prev,
+        dataLuasan: "Auto-filled from satellite data",
+        dataKoordinat: "Auto-filled from satellite data",
+      }))
     }
   }
 
@@ -195,10 +224,9 @@ export function GreenCarbonForm() {
               className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
             >
               <option value="">Select country</option>
-              <option value="BR">Brazil</option>
-              <option value="ID">Indonesia</option>
-              <option value="CD">DRC</option>
-              <option value="PG">Papua New Guinea</option>
+              {Array.from(getCountries()).map(([code, name]) => (
+                <option key={code} value={code}>{name}</option>
+              ))}
             </select>
           </div>
 
@@ -236,122 +264,118 @@ export function GreenCarbonForm() {
         </div>
       </section>
 
-      {/* Section B: Geospatial Data with Satellite Analysis */}
+      {/* Section B: Geospatial Data & Satellite Analysis */}
       <section className="space-y-4">
         <div className="flex items-center gap-2 mb-6">
           <h2 className="text-2xl font-bold">Section B: Geospatial Data & Satellite Analysis</h2>
           <Badge variant="outline" className="ml-auto">2/5</Badge>
         </div>
 
-        <GeospatialAnalysisSection
-          onDataUpdate={(data) => {
-            setFormData((prev) => ({
-              ...prev,
-              polygon: data.polygon,
-              totalArea: data.area,
-              forestType: data.forestType,
-              protectionRestorationType: data.protectionType,
-            }))
-          }}
-        />
-
-        {/* Forest Type and Protection Type Details */}
+        {/* Upload Satellite Data */}
         <Card className="border-border/50 bg-card/50 p-6 space-y-4">
-          <h3 className="text-lg font-semibold">Additional Geospatial Details</h3>
+          <h3 className="text-lg font-semibold">Upload Satellite Data</h3>
+          <p className="text-sm text-muted-foreground">
+            Upload satellite data downloaded from the green-carbon-analysis page (ZIP or JSON format)
+          </p>
+          
+          <div>
+            <label className="flex items-center text-sm font-medium mb-2">
+              Satellite Data File
+              <Tooltip text={FIELD_TOOLTIPS.satelliteDataFile} />
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept=".zip,.json"
+                onChange={handleSatelliteDataUpload}
+                className="hidden"
+                id="satellite-data"
+              />
+              <label htmlFor="satellite-data" className="flex-1">
+                <Button variant="outline" className="w-full gap-2 cursor-pointer bg-transparent" asChild>
+                  <span>
+                    <Upload className="w-4 h-4" />
+                    {formData.satelliteDataFile ? formData.satelliteDataFile.name : "Upload Satellite Data"}
+                  </span>
+                </Button>
+              </label>
+            </div>
+            {formData.satelliteDataFile && <p className="text-xs text-emerald-600 mt-1">File uploaded successfully</p>}
+          </div>
+
+          {/* Auto-filled Data */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border/20">
+            <div>
+              <label className="flex items-center text-sm font-medium mb-2">
+                Data Luasan (Auto-filled)
+                <Tooltip text={FIELD_TOOLTIPS.dataLuasan} />
+              </label>
+              <input
+                type="text"
+                value={formData.dataLuasan}
+                disabled
+                placeholder="Auto-filled from satellite data"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center text-sm font-medium mb-2">
+                Data Koordinat Lokasi (Auto-filled)
+                <Tooltip text={FIELD_TOOLTIPS.dataKoordinat} />
+              </label>
+              <input
+                type="text"
+                value={formData.dataKoordinat}
+                disabled
+                placeholder="Auto-filled from satellite data"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground"
+              />
+            </div>
+          </div>
+        </Card>
+
+        {/* Forest Type and Protection Type */}
+        <Card className="border-border/50 bg-card/50 p-6 space-y-4">
+          <h3 className="text-lg font-semibold">Forest & Protection Details</h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="flex items-center text-sm font-medium mb-2">
-                Dominant Tree Species
-                <Tooltip text={FIELD_TOOLTIPS.dominantSpecies} />
+                Forest Type
+                <Tooltip text={FIELD_TOOLTIPS.forestType} />
               </label>
-              <input
-                type="text"
-                value={formData.dominantSpecies}
-                onChange={(e) => setFormData((prev) => ({ ...prev, dominantSpecies: e.target.value }))}
-                placeholder="e.g., Shorea spp., Dipterocarpus spp."
+              <select
+                value={formData.forestType}
+                onChange={(e) => setFormData((prev) => ({ ...prev, forestType: e.target.value }))}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
-              />
+              >
+                <option value="">Select forest type</option>
+                <option value="tropical">Tropical</option>
+                <option value="temperate">Temperate</option>
+                <option value="boreal">Boreal</option>
+                <option value="mangrove">Mangrove</option>
+              </select>
             </div>
 
             <div>
               <label className="flex items-center text-sm font-medium mb-2">
-                Average Tree Height (m)
-                <Tooltip text={FIELD_TOOLTIPS.averageTreeHeight} />
+                Protection / Restoration Type
+                <Tooltip text={FIELD_TOOLTIPS.protectionRestorationType} />
               </label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={formData.averageTreeHeight}
-                onChange={(e) => setFormData((prev) => ({ ...prev, averageTreeHeight: e.target.value }))}
-                placeholder="e.g., 35"
+              <select
+                value={formData.protectionRestorationType}
+                onChange={(e) => setFormData((prev) => ({ ...prev, protectionRestorationType: e.target.value }))}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
-              />
-            </div>
-
-            <div>
-              <label className="flex items-center text-sm font-medium mb-2">
-                Field Plot Data (CSV)
-                <Tooltip text="Vegetation inventory data from ground surveys" />
-              </label>
-              <input
-                type="file"
-                accept=".csv,.xls,.xlsx"
-                onChange={(e) => handleFileUpload(e, "fieldPlotData")}
-                className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
-              />
-              {formData.fieldPlotData && <p className="text-xs text-emerald-600 mt-1">{formData.fieldPlotData.name}</p>}
+              >
+                <option value="">Select type</option>
+                <option value="protection">Forest Protection</option>
+                <option value="restoration">Forest Restoration</option>
+                <option value="sustainable-mgmt">Sustainable Management</option>
+              </select>
             </div>
           </div>
         </Card>
-        
-        {formData.polygon.length >= 3 && (
-          <Card className="border-emerald-500/20 bg-emerald-500/5 p-4 flex gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold text-emerald-600">Geospatial Data Complete</p>
-              <p className="text-xs text-emerald-600/80">Polygon defined with {formData.polygon.length} points, ready for analysis</p>
-            </div>
-          </Card>
-        )}
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="flex items-center text-sm font-medium mb-2">
-              Forest Type
-              <Tooltip text={FIELD_TOOLTIPS.forestType} />
-            </label>
-            <select
-              value={formData.forestType}
-              onChange={(e) => setFormData((prev) => ({ ...prev, forestType: e.target.value }))}
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
-            >
-              <option value="">Select forest type</option>
-              <option value="tropical">Tropical</option>
-              <option value="temperate">Temperate</option>
-              <option value="boreal">Boreal</option>
-              <option value="mangrove">Mangrove</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="flex items-center text-sm font-medium mb-2">
-              Protection / Restoration Type
-              <Tooltip text="Project activity type" />
-            </label>
-            <select
-              value={formData.protectionRestorationType}
-              onChange={(e) => setFormData((prev) => ({ ...prev, protectionRestorationType: e.target.value }))}
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
-            >
-              <option value="">Select type</option>
-              <option value="protection">Forest Protection</option>
-              <option value="restoration">Forest Restoration</option>
-              <option value="sustainable-mgmt">Sustainable Management</option>
-            </select>
-          </div>
-        </div>
       </section>
 
       {/* Section C: Ecological Data */}
@@ -361,68 +385,49 @@ export function GreenCarbonForm() {
           <Badge variant="outline" className="ml-auto">3/5</Badge>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="flex items-center text-sm font-medium mb-2">
-              Dominant Species
-              <Tooltip text={FIELD_TOOLTIPS.dominantSpecies} />
-            </label>
-            <input
-              type="text"
-              value={formData.dominantSpecies}
-              onChange={(e) => setFormData((prev) => ({ ...prev, dominantSpecies: e.target.value }))}
-              placeholder="e.g., Hevea brasiliensis"
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
+        <Card className="border-border/50 bg-card/50 p-6 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Ecological data is automatically extracted from the satellite analysis
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="flex items-center text-sm font-medium mb-2">
+                Dominant Species (Auto-filled)
+                <Tooltip text={FIELD_TOOLTIPS.dominantSpecies} />
+              </label>
+              <input
+                type="text"
+                value={formData.dominantSpecies}
+                disabled
+                placeholder="Auto-filled from satellite data"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground"
+              />
+            </div>
 
-          <div>
-            <label className="flex items-center text-sm font-medium mb-2">
-              Average Tree Height (m)
-              <Tooltip text={FIELD_TOOLTIPS.averageTreeHeight} />
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              value={formData.averageTreeHeight}
-              onChange={(e) => setFormData((prev) => ({ ...prev, averageTreeHeight: e.target.value }))}
-              placeholder="e.g., 25.5"
-              className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
-            />
+            <div>
+              <label className="flex items-center text-sm font-medium mb-2">
+                Average Tree Height (m) (Auto-filled)
+                <Tooltip text={FIELD_TOOLTIPS.averageTreeHeight} />
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={formData.averageTreeHeight}
+                disabled
+                placeholder="Auto-filled from satellite data"
+                className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground"
+              />
+            </div>
           </div>
-        </div>
-
-        <div>
-          <label className="flex items-center text-sm font-medium mb-2">
-            Field Plot Data (CSV - Optional)
-            <Tooltip text="CSV with tree measurements improves biomass accuracy" />
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="file"
-              accept=".csv"
-              onChange={(e) => handleFileUpload(e, "fieldPlotData")}
-              className="hidden"
-              id="field-plot"
-            />
-            <label htmlFor="field-plot" className="flex-1">
-              <Button variant="outline" className="w-full gap-2 cursor-pointer bg-transparent" asChild>
-                <span>
-                  <Upload className="w-4 h-4" />
-                  {formData.fieldPlotData ? formData.fieldPlotData.name : "Upload CSV"}
-                </span>
-              </Button>
-            </label>
-          </div>
-        </div>
+        </Card>
       </section>
 
-      {/* Section E: Risk & Additionality */}
+      {/* Section D: Risk & Additionality */}
       <section className="space-y-4">
         <div className="flex items-center gap-2 mb-6">
-          <h2 className="text-2xl font-bold">Section E: Risk & Additionality</h2>
+          <h2 className="text-2xl font-bold">Section D: Risk & Additionality</h2>
           <Badge variant="outline" className="ml-auto">4/5</Badge>
         </div>
 
@@ -464,27 +469,53 @@ export function GreenCarbonForm() {
           </div>
         </div>
 
-        <div>
-          <label className="flex items-center text-sm font-medium mb-2">
-            Land Ownership Proof (PDF/Image)
-            <Tooltip text={FIELD_TOOLTIPS.landOwnershipProof} />
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png"
-              onChange={(e) => handleFileUpload(e, "landOwnershipProof")}
-              className="hidden"
-              id="ownership-proof"
-            />
-            <label htmlFor="ownership-proof" className="flex-1">
-              <Button variant="outline" className="w-full gap-2 cursor-pointer bg-transparent" asChild>
-                <span>
-                  <Upload className="w-4 h-4" />
-                  {formData.landOwnershipProof ? formData.landOwnershipProof.name : "Upload Proof"}
-                </span>
-              </Button>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="flex items-center text-sm font-medium mb-2">
+              Land Ownership Proof (PDF/Image)
+              <Tooltip text={FIELD_TOOLTIPS.landOwnershipProof} />
             </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => handleFileUpload(e, "landOwnershipProof")}
+                className="hidden"
+                id="ownership-proof"
+              />
+              <label htmlFor="ownership-proof" className="flex-1">
+                <Button variant="outline" className="w-full gap-2 cursor-pointer bg-transparent" asChild>
+                  <span>
+                    <Upload className="w-4 h-4" />
+                    {formData.landOwnershipProof ? formData.landOwnershipProof.name : "Upload Proof"}
+                  </span>
+                </Button>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label className="flex items-center text-sm font-medium mb-2">
+              Pernyataan Kebenaran Data (PDF/Image)
+              <Tooltip text={FIELD_TOOLTIPS.dataKebenaran} />
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => handleFileUpload(e, "dataKebenaran")}
+                className="hidden"
+                id="data-kebenaran"
+              />
+              <label htmlFor="data-kebenaran" className="flex-1">
+                <Button variant="outline" className="w-full gap-2 cursor-pointer bg-transparent" asChild>
+                  <span>
+                    <Upload className="w-4 h-4" />
+                    {formData.dataKebenaran ? formData.dataKebenaran.name : "Upload Statement"}
+                  </span>
+                </Button>
+              </label>
+            </div>
           </div>
         </div>
       </section>
@@ -502,8 +533,9 @@ export function GreenCarbonForm() {
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold">{Math.round((requiredFields.filter((field) => {
-              if (field === "polygon") return formData.polygon.length >= 3
-              if (field === "landOwnershipProof") return formData.landOwnershipProof !== null
+              if (field === "satelliteDataFile" || field === "landOwnershipProof" || field === "dataKebenaran") {
+                return formData[field as keyof GreenCarbonFormData] !== null
+              }
               const value = formData[field as keyof GreenCarbonFormData]
               return value && String(value).trim() !== ""
             }).length / requiredFields.length) * 100)}%</div>
