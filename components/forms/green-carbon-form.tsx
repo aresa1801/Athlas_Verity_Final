@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { getCountries, getCountryName } from 'country-list'
+import { COUNTRIES } from '@/lib/countries'
 import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -224,8 +224,8 @@ export function GreenCarbonForm() {
               className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
             >
               <option value="">Select country</option>
-              {Array.from(getCountries()).map(([code, name]) => (
-                <option key={code} value={code}>{name}</option>
+              {COUNTRIES.map((country) => (
+                <option key={country.code} value={country.code}>{country.name}</option>
               ))}
             </select>
           </div>
