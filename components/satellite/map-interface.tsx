@@ -264,7 +264,8 @@ export function MapInterface({ polygon, setPolygon, multiPolygons, location, onA
   const handleFinishDrawing = () => {
     if (tempPoints.length >= 3) {
       setPolygon(tempPoints)
-      calculateAreaViaBackend(tempPoints)
+      // Calculate area for the drawn polygon
+      calculateAreaViaBackend(tempPoints, multiPolygons)
     }
     setIsDrawing(false)
     setTempPoints([])
@@ -316,15 +317,20 @@ export function MapInterface({ polygon, setPolygon, multiPolygons, location, onA
     return display
   }
 
-  const calculateAreaViaBackend = async (polygonCoords: Array<[number, number]>) => {
-    if (polygonCoords.length < 3) return
+  const calculateAreaViaBackend = async (polygonCoords: Array<[number, number]>, multiPolygonData?: MultiPolygonData[]) => {
+    if (polygonCoords.length < 3 && (!multiPolygonData || multiPolygonData.length === 0)) return
 
     setIsCalculating(true)
     try {
+      // Prepare request body with support for multi-polygon with holes
+      const requestBody = multiPolygonData && multiPolygonData.length > 0
+        ? { multiPolygons: multiPolygonData }
+        : { polygon: polygonCoords }
+
       const response = await fetch("/api/geo/calculate-area", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ polygon: polygonCoords }),
+        body: JSON.stringify(requestBody),
       })
 
       if (!response.ok) throw new Error("Area calculation failed")

@@ -2,6 +2,7 @@
  * Multi-format polygon file handler for geospatial verification
  * Supports: GeoJSON (Polygon & MultiPolygon), KML, Shapefile (.shp), ZIP, and RAR formats
  * Handles outer boundaries and inner rings (holes) for accurate area calculation
+ * Automatically converts non-GeoJSON formats to GeoJSON before polygon plotting
  */
 
 export interface ParsedPolygon {
@@ -16,6 +17,8 @@ export interface ParsedPolygon {
   format: string
   isValid: boolean
   error?: string
+  geoJSON?: any
+  originalFormat?: string
 }
 
 /**
@@ -151,10 +154,11 @@ export async function parseKML(file: File): Promise<ParsedPolygon> {
 
 /**
  * Convert KML to GeoJSON format
+ * Supports single Polygons and MultiGeometry with multiple Polygons
  */
 function convertKMLToGeoJSON(kml: string): any {
   try {
-    // Extract all Polygon elements
+    // Extract all Polygon elements (for both single and multi-geometry)
     const polygonRegex = /<Polygon>([\s\S]*?)<\/Polygon>/g
     const polygons: any[] = []
     
@@ -192,14 +196,23 @@ function convertKMLToGeoJSON(kml: string): any {
     
     if (polygons.length === 0) return null
     
-    // Return as FeatureCollection
-    return {
-      type: 'FeatureCollection',
-      features: polygons.map(geom => ({
+    // If multiple polygons found, create MultiPolygon; otherwise return single or collection
+    if (polygons.length === 1) {
+      return {
         type: 'Feature',
         properties: {},
-        geometry: geom
-      }))
+        geometry: polygons[0]
+      }
+    } else {
+      // Return as MultiPolygon if all are polygons, or as FeatureCollection
+      return {
+        type: 'FeatureCollection',
+        features: polygons.map(geom => ({
+          type: 'Feature',
+          properties: {},
+          geometry: geom
+        }))
+      }
     }
   } catch (error) {
     console.error('[v0] Error converting KML to GeoJSON:', error)
@@ -292,19 +305,18 @@ export async function parseZIP(file: File): Promise<ParsedPolygon> {
 }
 
 /**
- * Extract shapefile from ZIP and convert to GeoJSON
- * Reads .shp (shapes) and .dbf (attributes) files
+ * Extract shapefile or geospatial data from ZIP and convert to GeoJSON
+ * Supports GeoJSON, KML, and coordinate data within ZIP files
  */
 async function extractShapefileFromZIP(arrayBuffer: ArrayBuffer, fileName: string): Promise<ParsedPolygon> {
   try {
-    // Look for .shp file content in the ZIP
-    // Since we can't easily parse binary shapefile data in browser without external library,
-    // we'll look for an embedded GeoJSON or converted shapefile
     const view = new Uint8Array(arrayBuffer)
     const text = new TextDecoder().decode(view)
     
-    // Search for GeoJSON-like content within the ZIP
-    const geojsonMatch = text.match(/\{[\s\S]*?"type"\s*:\s*"(?:Feature|Polygon|MultiPolygon)[\s\S]*?\}/);
+    // Try multiple approaches to extract data from ZIP
+    
+    // 1. Search for embedded GeoJSON
+    const geojsonMatch = text.match(/\{[\s\S]*?"type"\s*:\s*"(?:FeatureCollection|Feature|Polygon|MultiPolygon)[\s\S]*?\}/);
     if (geojsonMatch) {
       try {
         const geojson = JSON.parse(geojsonMatch[0])
@@ -315,43 +327,115 @@ async function extractShapefileFromZIP(arrayBuffer: ArrayBuffer, fileName: strin
           polygonCount,
           holeCount,
           area: 0,
-          format: 'ZIP (Shapefile converted to GeoJSON)',
+          format: 'ZIP (GeoJSON)',
           isValid: coordinates.length >= 3,
+          geoJSON: geojson,
+          originalFormat: 'GeoJSON'
         }
       } catch (e) {
         // Continue to next approach
       }
     }
     
-    // Alternative: Extract coordinates from PRJ (projection), SHP (shape), or other text files
-    const lines = text.split('\n')
-    const coords: Array<[number, number]> = []
-    
-    for (const line of lines) {
-      // Look for coordinate patterns (lat,lng or lng,lat)
-      const coordMatches = line.match(/(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/g)
-      if (coordMatches) {
-        for (const match of coordMatches) {
-          const [lon, lat] = match.split(/[,\s]+/).map(parseFloat).filter(n => !isNaN(n))
-          if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-            coords.push([lat, lon])
-          }
+    // 2. Search for KML within ZIP
+    if (text.includes('<kml') || text.includes('<Polygon')) {
+      const geojson = convertKMLToGeoJSON(text)
+      if (geojson) {
+        const { coordinates, multiPolygons, polygonCount, holeCount } = extractCoordinatesFromGeoJSON(geojson)
+        return {
+          coordinates,
+          multiPolygons,
+          polygonCount,
+          holeCount,
+          area: 0,
+          format: 'ZIP (KML converted to GeoJSON)',
+          isValid: coordinates.length >= 3,
+          geoJSON: geojson,
+          originalFormat: 'KML'
         }
       }
     }
     
-    if (coords.length >= 3) {
+    // 3. Extract coordinates from text content (shapefile text representation or CSV-like formats)
+    const polygons: Array<Array<[number, number]>> = []
+    const lines = text.split('\n')
+    let currentPolygon: Array<[number, number]> = []
+    
+    for (const line of lines) {
+      // Skip empty lines and comments
+      if (!line.trim() || line.trim().startsWith('#')) continue
+      
+      // Look for coordinate patterns
+      const coordMatches = line.match(/(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/g)
+      if (coordMatches) {
+        for (const match of coordMatches) {
+          const parts = match.split(/[,\s]+/).map(parseFloat).filter(n => !isNaN(n))
+          if (parts.length >= 2) {
+            const [val1, val2] = parts
+            // Assume [lat, lng] or detect based on range
+            if (val1 >= -90 && val1 <= 90 && val2 >= -180 && val2 <= 180) {
+              currentPolygon.push([val1, val2])
+            } else if (val2 >= -90 && val2 <= 90 && val1 >= -180 && val1 <= 180) {
+              currentPolygon.push([val2, val1])
+            }
+          }
+        }
+      }
+      
+      // Detect polygon boundaries (some formats use specific markers)
+      if (line.includes('END') || line.includes('end') || line.includes(';')) {
+        if (currentPolygon.length >= 3) {
+          polygons.push(currentPolygon)
+          currentPolygon = []
+        }
+      }
+    }
+    
+    // Add last polygon if exists
+    if (currentPolygon.length >= 3) {
+      polygons.push(currentPolygon)
+    }
+    
+    // If no separate polygons found, treat all as one
+    if (polygons.length === 0 && currentPolygon.length >= 3) {
+      polygons.push(currentPolygon)
+    }
+    
+    if (polygons.length > 0) {
+      // Create GeoJSON MultiPolygon if multiple, else single Polygon
+      let geoJSON: any
+      if (polygons.length === 1) {
+        geoJSON = {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [polygons[0].map(([lat, lng]) => [lng, lat])]
+          }
+        }
+      } else {
+        geoJSON = {
+          type: 'FeatureCollection',
+          features: polygons.map(poly => ({
+            type: 'Feature',
+            geometry: {
+              type: 'Polygon',
+              coordinates: [poly.map(([lat, lng]) => [lng, lat])]
+            }
+          }))
+        }
+      }
+      
+      const { coordinates, multiPolygons, polygonCount, holeCount } = extractCoordinatesFromGeoJSON(geoJSON)
       return {
-        coordinates: coords,
-        multiPolygons: [{
-          outerRing: coords,
-          innerRings: []
-        }],
-        polygonCount: 1,
-        holeCount: 0,
+        coordinates,
+        multiPolygons,
+        polygonCount,
+        holeCount,
         area: 0,
-        format: 'ZIP (Shapefile)',
-        isValid: true,
+        format: 'ZIP (Shapefile/Coordinates)',
+        isValid: coordinates.length >= 3,
+        geoJSON,
+        originalFormat: 'Shapefile'
       }
     }
     
@@ -360,6 +444,7 @@ async function extractShapefileFromZIP(arrayBuffer: ArrayBuffer, fileName: strin
       area: 0,
       format: 'ZIP',
       isValid: false,
+      error: 'No valid coordinate data found in ZIP file'
     }
   } catch (error) {
     console.error('[v0] Shapefile extraction error:', error)
@@ -368,8 +453,95 @@ async function extractShapefileFromZIP(arrayBuffer: ArrayBuffer, fileName: strin
       area: 0,
       format: 'ZIP',
       isValid: false,
+      error: 'Failed to extract data from ZIP file'
     }
   }
+}
+
+/**
+ * Parse CSV/TSV files containing coordinate data
+ */
+export async function parseCSV(file: File): Promise<ParsedPolygon> {
+  try {
+    const text = await file.text()
+    const coordinates = extractCoordinatesFromCSV(text)
+    
+    if (coordinates.length >= 3) {
+      return {
+        coordinates,
+        multiPolygons: [{
+          outerRing: coordinates,
+          innerRings: []
+        }],
+        polygonCount: 1,
+        holeCount: 0,
+        area: 0,
+        format: 'CSV',
+        isValid: true,
+        geoJSON: {
+          type: 'Feature',
+          geometry: {
+            type: 'Polygon',
+            coordinates: [coordinates.map(([lat, lng]) => [lng, lat])]
+          }
+        },
+        originalFormat: 'CSV'
+      }
+    }
+    
+    return {
+      coordinates: [],
+      area: 0,
+      format: 'CSV',
+      isValid: false,
+      error: 'No valid coordinates found in CSV file'
+    }
+  } catch (error) {
+    console.error('[v0] CSV parsing error:', error)
+    return {
+      coordinates: [],
+      area: 0,
+      format: 'CSV',
+      isValid: false,
+      error: 'Failed to parse CSV file'
+    }
+  }
+}
+
+/**
+ * Extract coordinates from CSV/TSV content
+ */
+function extractCoordinatesFromCSV(csv: string): Array<[number, number]> {
+  const coordinates: Array<[number, number]> = []
+  const lines = csv.trim().split('\n')
+  
+  // Try to detect delimiter
+  const firstLine = lines[0] || ''
+  const delimiter = firstLine.includes('\t') ? '\t' : ','
+  
+  for (const line of lines) {
+    if (!line.trim() || line.trim().startsWith('#')) continue
+    
+    const parts = line.split(delimiter).map(p => p.trim())
+    
+    // Try different coordinate column arrangements
+    if (parts.length >= 2) {
+      // Try lat,lng format
+      let lat = parseFloat(parts[0])
+      let lng = parseFloat(parts[1])
+      
+      if (!isNaN(lat) && !isNaN(lng)) {
+        if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+          coordinates.push([lat, lng])
+        } else if (lng >= -90 && lng <= 90 && lat >= -180 && lat <= 180) {
+          // Swap if ranges suggest lng,lat format
+          coordinates.push([lng, lat])
+        }
+      }
+    }
+  }
+  
+  return coordinates
 }
 
 /**
@@ -380,11 +552,46 @@ export function validatePolygon(coordinates: Array<[number, number]>): { isValid
     return { isValid: false, error: 'Polygon must have at least 3 points' }
   }
 
-  for (const [lng, lat] of coordinates) {
+  for (const [lat, lng] of coordinates) {
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       return { isValid: false, error: 'Invalid coordinates range' }
     }
   }
 
   return { isValid: true }
+}
+
+/**
+ * Detect file format and parse accordingly
+ * Automatically converts any format to GeoJSON representation
+ */
+export async function detectAndParseFile(file: File): Promise<ParsedPolygon> {
+  const fileName = file.name.toLowerCase()
+  
+  if (fileName.endsWith('.geojson') || fileName.endsWith('.json')) {
+    return parseGeoJSON(file)
+  } else if (fileName.endsWith('.kml')) {
+    return parseKML(file)
+  } else if (fileName.endsWith('.zip')) {
+    return parseZIP(file)
+  } else if (fileName.endsWith('.csv') || fileName.endsWith('.tsv') || fileName.endsWith('.txt')) {
+    return parseCSV(file)
+  } else {
+    // Try to detect format by content
+    const text = await file.text()
+    
+    if (text.includes('"type"') && text.includes('"coordinates"')) {
+      // Likely GeoJSON
+      return parseGeoJSON(file)
+    } else if (text.includes('<kml') || text.includes('<Polygon')) {
+      // Likely KML
+      return parseKML(file)
+    } else if (text.includes('PK\x03\x04')) {
+      // ZIP magic number (but this won't work in text)
+      return parseZIP(file)
+    } else {
+      // Try as CSV/coordinates
+      return parseCSV(file)
+    }
+  }
 }

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { calculateAndFormatArea, calculateMultiPolygonArea } from '@/lib/polygon-area-calculator'
 import { generateSatellitePDF, generateSatelliteDataZIP, downloadBlob } from '@/lib/satellite-data-exporter'
-import { parseGeoJSON, parseKML, parseZIP, validatePolygon } from '@/lib/polygon-file-handlers'
+import { parseGeoJSON, parseKML, parseZIP, parseCSV, validatePolygon, detectAndParseFile } from '@/lib/polygon-file-handlers'
 import { calculateAGB, calculateCanopyCover, determineForestType } from '@/lib/agb-calculator'
 
 // Helper function to extract coordinates from GeoJSON structure
@@ -174,29 +174,9 @@ export default function SatelliteAnalysisPage() {
     setUploadedFile(file)
     
     try {
-      let parseResult: any = {}
-      const fileName = file.name.toLowerCase()
-      
-      // Handle GeoJSON files first (most common)
-      if (fileName.endsWith('.geojson') || fileName.endsWith('.json')) {
-        parseResult = await parseGeoJSON(file)
-      } 
-      // Handle KML files
-      else if (fileName.endsWith('.kml')) {
-        parseResult = await parseKML(file)
-      } 
-      // Handle ZIP files - convert to GeoJSON first
-      else if (fileName.endsWith('.zip')) {
-        parseResult = await parseZIP(file)
-      } 
-      // Handle RAR files - attempt to convert to GeoJSON
-      else if (fileName.endsWith('.rar')) {
-        parseResult = await parseZIP(file)
-      }
-      // Default to GeoJSON parsing
-      else {
-        parseResult = await parseGeoJSON(file)
-      }
+  // Use intelligent file detection and conversion
+  // Automatically converts non-GeoJSON formats to GeoJSON
+  const parseResult = await detectAndParseFile(file)
 
       const coordinates = parseResult.coordinates || []
       

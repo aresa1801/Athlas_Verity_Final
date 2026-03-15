@@ -10,8 +10,14 @@ interface GeoJSONPolygon {
   coordinates: Array<Array<[number, number]>> // [longitude, latitude]
 }
 
+interface MultiPolygonData {
+  outerRing: Array<[number, number]>
+  innerRings: Array<Array<[number, number]>>
+}
+
 interface AreaCalculationRequest {
-  polygon: Array<[number, number]> // [latitude, longitude]
+  polygon?: Array<[number, number]> // [latitude, longitude]
+  multiPolygons?: MultiPolygonData[] // For multi-polygon with holes
 }
 
 interface AreaCalculationResponse {
@@ -142,15 +148,37 @@ async function hashGeometry(polygon: Array<[number, number]>): Promise<string> {
 export async function POST(request: NextRequest): Promise<NextResponse<AreaCalculationResponse>> {
   try {
     const body: AreaCalculationRequest = await request.json()
-    const { polygon } = body
+    const { polygon, multiPolygons } = body
 
-    if (!polygon || !Array.isArray(polygon) || polygon.length < 3) {
+    let polygonToCalculate: Array<[number, number]> | null = null
+    let allPolygonCoords: Array<[number, number]> = []
+    let totalAreaM2 = 0
+    let totalUtmBands: Set<string> = new Set()
+    let geometryHashInput: any = null
+
+    // Handle single polygon
+    if (polygon && Array.isArray(polygon) && polygon.length >= 3) {
+      polygonToCalculate = polygon
+      allPolygonCoords = polygon
+      geometryHashInput = polygon
+    }
+    // Handle multi-polygon with optional holes
+    else if (multiPolygons && Array.isArray(multiPolygons) && multiPolygons.length > 0) {
+      // Collect all coordinates for centroid calculation
+      for (const polyData of multiPolygons) {
+        if (polyData.outerRing && polyData.outerRing.length >= 3) {
+          allPolygonCoords = allPolygonCoords.concat(polyData.outerRing)
+        }
+      }
+      geometryHashInput = multiPolygons
+      polygonToCalculate = allPolygonCoords
+    } else {
       return NextResponse.json(
         {
           areaM2: 0,
           areaHa: 0,
           areaKm2: 0,
-          display: "Error: Polygon requires minimum 3 points",
+          display: "Error: Polygon or multiPolygons required with minimum 3 points",
           epsg: 0,
           zone: 0,
           utmBands: [],
@@ -162,32 +190,64 @@ export async function POST(request: NextRequest): Promise<NextResponse<AreaCalcu
     }
 
     // Get centroid for UTM zone detection
-    const centerLat = polygon.reduce((sum, [lat]) => sum + lat, 0) / polygon.length
-    const centerLon = polygon.reduce((sum, [_, lon]) => sum + lon, 0) / polygon.length
+    const centerLat = allPolygonCoords.reduce((sum, [lat]) => sum + lat, 0) / allPolygonCoords.length
+    const centerLon = allPolygonCoords.reduce((sum, [_, lon]) => sum + lon, 0) / allPolygonCoords.length
 
     const { epsg, zone } = getUTMEPSG(centerLon, centerLat)
 
-    // Calculate area
-    const { areaM2, utmBands } = calculateAreaFromUTMCoordinates(polygon, zone)
-    const areaHa = areaM2 / 10000 // Correct: 1 hectare = 10,000 m²
-    const areaKm2 = areaM2 / 1000000 // Correct: 1 km² = 1,000,000 m²
+    // Calculate total area
+    if (multiPolygons && multiPolygons.length > 0) {
+      // Calculate area for multi-polygon with holes support
+      let polygonArea = 0
+      let holesArea = 0
+
+      for (const polyData of multiPolygons) {
+        // Calculate outer ring area
+        const { areaM2: outerArea, utmBands } = calculateAreaFromUTMCoordinates(polyData.outerRing, zone)
+        polygonArea += outerArea
+        
+        // Add UTM bands
+        utmBands.forEach(band => totalUtmBands.add(band))
+
+        // Subtract holes area from total
+        if (polyData.innerRings && polyData.innerRings.length > 0) {
+          for (const innerRing of polyData.innerRings) {
+            if (innerRing.length >= 3) {
+              const { areaM2: holeArea } = calculateAreaFromUTMCoordinates(innerRing, zone)
+              holesArea += holeArea
+            }
+          }
+        }
+      }
+
+      totalAreaM2 = polygonArea - holesArea
+    } else if (polygonToCalculate) {
+      // Calculate single polygon area
+      const { areaM2, utmBands } = calculateAreaFromUTMCoordinates(polygonToCalculate, zone)
+      totalAreaM2 = areaM2
+      utmBands.forEach(band => totalUtmBands.add(band))
+    }
+
+    const areaHa = totalAreaM2 / 10000
+    const areaKm2 = totalAreaM2 / 1000000
 
     // Generate geometry hash for audit trail
-    const geometryHash = await hashGeometry(polygon)
+    const geometryHash = await hashGeometry(geometryHashInput)
 
     // Check for edge cases
     let warning: string | undefined
     if (areaHa < 0.1) warning = "Polygon area < 0.1 ha - ensure sufficient precision"
     if (areaKm2 > 100000) warning = "Polygon area > 100,000 km² - may span multiple UTM zones"
+    if (multiPolygons && multiPolygons.length > 1) warning = `Multi-polygon with ${multiPolygons.length} parts calculated`
 
     return NextResponse.json({
-      areaM2,
+      areaM2: totalAreaM2,
       areaHa: Math.round(areaHa * 100) / 100,
       areaKm2: Math.round(areaKm2 * 10000) / 10000,
       display: `${Math.round(areaHa * 100) / 100} ha (${Math.round(areaKm2 * 10000) / 10000} km²)`,
       epsg,
       zone,
-      utmBands,
+      utmBands: Array.from(totalUtmBands),
       calculatedAt: new Date().toISOString(),
       geometryHash,
       warning,
