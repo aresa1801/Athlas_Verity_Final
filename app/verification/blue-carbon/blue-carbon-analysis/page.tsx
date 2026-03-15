@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { calculateAndFormatArea, calculateMultiPolygonArea } from '@/lib/polygon-area-calculator'
 import { generateSatellitePDF, generateSatelliteDataZIP, downloadBlob } from '@/lib/satellite-data-exporter'
-import { parseGeoJSON, parseKML, parseZIP, validatePolygon } from '@/lib/polygon-file-handlers'
+import { parseGeoJSON, parseKML, parseZIP, parseCSV, validatePolygon, detectAndParseFile } from '@/lib/polygon-file-handlers'
 import { calculateAGB, calculateCanopyCover, determineForestType } from '@/lib/agb-calculator'
 
 // Helper functions from main satellite analysis page (same GeoJSON extraction)
@@ -156,21 +156,9 @@ export default function BlueCarbonSatelliteAnalysisPage() {
     setUploadedFile(file)
     
     try {
-      let parseResult: any = {}
-      const fileName = file.name.toLowerCase()
-      
-      // Handle all geospatial formats
-      if (fileName.endsWith('.geojson') || fileName.endsWith('.json')) {
-        parseResult = await parseGeoJSON(file)
-      } else if (fileName.endsWith('.kml')) {
-        parseResult = await parseKML(file)
-      } else if (fileName.endsWith('.zip')) {
-        parseResult = await parseZIP(file)
-      } else if (fileName.endsWith('.rar')) {
-        parseResult = await parseZIP(file)
-      } else {
-        parseResult = await parseGeoJSON(file)
-      }
+      // Use intelligent file detection and conversion
+      // Automatically converts non-GeoJSON formats to GeoJSON
+      const parseResult = await detectAndParseFile(file)
 
       const coordinates = parseResult.coordinates || []
       
@@ -448,9 +436,7 @@ export default function BlueCarbonSatelliteAnalysisPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-8">
             {/* Upload Section */}
             <Card className="border-border/50 bg-card/50">
               <div className="p-6">
@@ -532,176 +518,269 @@ export default function BlueCarbonSatelliteAnalysisPage() {
               </div>
             )}
 
-            {/* Analysis Button */}
-            {polygon.length > 0 && !analysisResults && (
-              <Button
+            {/* Function Cards Grid */}
+            {(areaData || multiPolygonAreaData) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {/* Location Input */}
+                <Card className="border-border/50 bg-card/50 p-4">
+                  <label className="text-xs font-semibold text-foreground mb-2 block">Location Coordinates</label>
+                  <div className="space-y-2">
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Latitude"
+                        value={locationInput.latitude}
+                        onChange={(e) => setLocationInput(prev => ({ ...prev, latitude: e.target.value }))}
+                        className="w-full text-xs px-2 py-1 border border-border rounded bg-background"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {bounds ? `Range: ${bounds.minLat.toFixed(3)}° to ${bounds.maxLat.toFixed(3)}°` : 'Upload data'}
+                      </p>
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Longitude"
+                        value={locationInput.longitude}
+                        onChange={(e) => setLocationInput(prev => ({ ...prev, longitude: e.target.value }))}
+                        className="w-full text-xs px-2 py-1 border border-border rounded bg-background"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {bounds ? `Range: ${bounds.minLng.toFixed(3)}° to ${bounds.maxLng.toFixed(3)}°` : 'Upload data'}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Date Range */}
+                <Card className="border-border/50 bg-card/50 p-4">
+                  <label className="text-xs font-semibold text-foreground mb-2 block">Date Range</label>
+                  <div className="space-y-2">
+                    <input
+                      type="date"
+                      value={dateRange.start}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                      className="w-full text-xs px-2 py-1 border border-border rounded bg-background"
+                    />
+                    <input
+                      type="date"
+                      value={dateRange.end}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                      className="w-full text-xs px-2 py-1 border border-border rounded bg-background"
+                    />
+                  </div>
+                </Card>
+
+                {/* Satellite Source */}
+                <Card className="border-border/50 bg-card/50 p-4">
+                  <label className="text-xs font-semibold text-foreground mb-2 block">Satellite Source</label>
+                  <select 
+                    value={satelliteSource} 
+                    onChange={(e) => setSatelliteSource(e.target.value)}
+                    className="w-full text-xs px-2 py-2 border border-border rounded bg-background"
+                  >
+                    <option value="all">All Sources</option>
+                    <option value="nasa">NASA Landsat 8/9</option>
+                    <option value="jaxa">JAXA ALOS PALSAR-2</option>
+                    <option value="sentinel">Sentinel-2 (ESA)</option>
+                    <option value="gee">Google Earth Engine</option>
+                    <option value="mpc">Microsoft Planetary Computer</option>
+                  </select>
+                </Card>
+
+                {/* Cloud Cover */}
+                <Card className="border-border/50 bg-card/50 p-4">
+                  <label className="text-xs font-semibold text-foreground mb-2 block">Max Cloud Cover (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    defaultValue="20"
+                    className="w-full text-xs px-2 py-2 border border-border rounded bg-background"
+                  />
+                </Card>
+              </div>
+            )}
+
+            {/* Fetch Satellite Data Button */}
+            {(areaData || multiPolygonAreaData) && (
+              <Button 
                 onClick={handleFetchSatelliteData}
                 disabled={analysisRunning}
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full mb-12 h-12 gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
               >
                 {analysisRunning ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Analyzing Coastal Satellite Data...
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Running Gemini AI Analysis...
                   </>
                 ) : (
                   <>
-                    <Gauge className="w-4 h-4 mr-2" />
-                    Analyze Blue Carbon Potential
+                    <Zap className="w-4 h-4" />
+                    Fetch Satellite Data & Run AI Analysis
                   </>
                 )}
               </Button>
             )}
 
-            {/* Carbon Estimation Card */}
+            {/* Analysis Results - Comprehensive Section */}
             {analysisResults && (
-              <Card className="border-border/50 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Droplet className="w-6 h-6 text-blue-600" />
-                    <h3 className="text-lg font-semibold">Blue Carbon Estimation (AI)</h3>
-                  </div>
-                  <Badge className="bg-blue-600">{(analysisResults.carbonEstimation.confidence * 100).toFixed(0)}% Confidence</Badge>
-                </div>
+              <div className="space-y-8">
+                <div className="border-t border-border/30 pt-8">
+                  <h2 className="text-2xl font-bold text-foreground mb-6">Analysis Results</h2>
 
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">Aboveground Biomass (AGB)</p>
-                    <p className="text-3xl font-bold text-foreground">
-                      {analysisResults.carbonEstimation.agb}
-                    </p>
-                    <p className="text-sm text-muted-foreground">{analysisResults.carbonEstimation.unit}</p>
+                  {/* Three Result Cards Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    {/* Blue Carbon Estimation */}
+                    <Card className="border-blue-500/20 bg-blue-500/5 p-6">
+                      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
+                        <Droplet className="w-5 h-5 text-blue-600" />
+                        Blue Carbon Estimation (AI)
+                      </h3>
+                      <div className="space-y-3">
+                        <div>
+                          <span className="text-xs text-muted-foreground">Soil Carbon Stock</span>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {analysisResults.carbonEstimation.agb} {analysisResults.carbonEstimation.unit}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-muted-foreground">Confidence Level</span>
+                          <p className="text-sm font-medium text-foreground">
+                            {(analysisResults.carbonEstimation.confidence * 100).toFixed(1)}%
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-muted-foreground">Methodology</span>
+                          <p className="text-xs font-medium text-foreground">
+                            {analysisResults.carbonEstimation.methodology}
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+
+                    {/* Ecosystem Classification */}
+                    <Card className="border-cyan-500/20 bg-cyan-500/5 p-6">
+                      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
+                        <Fish className="w-5 h-5 text-cyan-600" />
+                        Ecosystem Classification (AI)
+                      </h3>
+                      <div className="space-y-3">
+                        <div>
+                          <span className="text-xs text-muted-foreground">Dominant Type</span>
+                          <p className="text-sm font-medium text-foreground">
+                            {analysisResults.vegetationClassification.forestType}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-muted-foreground">Species</span>
+                          <p className="text-xs font-medium text-foreground">
+                            {analysisResults.vegetationClassification.dominantSpecies}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-muted-foreground">NDVI (Health)</span>
+                          <p className="text-sm font-medium text-cyan-600">
+                            {analysisResults.vegetationClassification.ndvi.toFixed(3)}
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+
+                    {/* Coastal Characteristics */}
+                    <Card className="border-teal-500/20 bg-teal-500/5 p-6">
+                      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
+                        <Waves className="w-5 h-5 text-teal-600" />
+                        Coastal Characteristics
+                      </h3>
+                      <div className="space-y-3">
+                        <div>
+                          <span className="text-xs text-muted-foreground">Sediment Type</span>
+                          <p className="text-sm font-medium text-foreground">
+                            {coastalAnalysis?.sedimentType || 'Fine silt/clay'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-muted-foreground">Soil Carbon Depth</span>
+                          <p className="text-sm font-medium text-teal-600">
+                            {coastalAnalysis?.soilCarbonDepth || '2.5m'}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-xs text-muted-foreground">Salinity Level</span>
+                          <p className="text-xs font-medium text-foreground">
+                            {coastalAnalysis?.salinity || '25-35 ppt'}
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/30">
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase">Ecosystem</p>
-                      <p className="font-semibold text-foreground">{analysisResults.vegetationClassification.forestType}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase">NDVI</p>
-                      <p className="font-semibold text-foreground">{analysisResults.vegetationClassification.ndvi.toFixed(3)}</p>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-border/30">
-                    <p className="text-xs text-muted-foreground uppercase mb-2">Total Carbon Stock</p>
-                    <p className="text-2xl font-bold text-foreground">
-                      {analysisResults.carbonEstimation.totalCarbon}
-                    </p>
-                    <p className="text-xs text-muted-foreground">tCO2e (entire project)</p>
-                  </div>
-
-                  {/* Coastal Analysis */}
+                  {/* Additional Coastal Parameters */}
                   {coastalAnalysis && (
-                    <div className="pt-4 border-t border-border/30">
-                      <p className="text-xs text-muted-foreground uppercase mb-3">Coastal Parameters</p>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div><span className="text-muted-foreground">Salinity:</span> {coastalAnalysis.salinity}</div>
-                        <div><span className="text-muted-foreground">Tidal Range:</span> {coastalAnalysis.tidalRange}</div>
-                        <div><span className="text-muted-foreground">Sediment Type:</span> {coastalAnalysis.sedimentType}</div>
-                        <div><span className="text-muted-foreground">Soil C Depth:</span> {coastalAnalysis.soilCarbonDepth}</div>
+                    <Card className="border-border/20 bg-background/50 p-6 mb-8">
+                      <h3 className="text-lg font-semibold text-foreground mb-4">Extended Coastal Analysis</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="p-3 bg-card rounded-lg">
+                          <p className="text-xs text-muted-foreground uppercase mb-1">Tidal Range</p>
+                          <p className="text-sm font-semibold text-foreground">{coastalAnalysis.tidalRange}</p>
+                        </div>
+                        <div className="p-3 bg-card rounded-lg">
+                          <p className="text-xs text-muted-foreground uppercase mb-1">Wave Energy</p>
+                          <p className="text-sm font-semibold text-foreground">{coastalAnalysis.waveHeight}</p>
+                        </div>
+                        <div className="p-3 bg-card rounded-lg">
+                          <p className="text-xs text-muted-foreground uppercase mb-1">Inundation</p>
+                          <p className="text-sm font-semibold text-foreground">{coastalAnalysis.inundationFrequency}</p>
+                        </div>
+                        <div className="p-3 bg-card rounded-lg">
+                          <p className="text-xs text-muted-foreground uppercase mb-1">Water Quality</p>
+                          <p className="text-sm font-semibold text-foreground">{coastalAnalysis.waterQuality}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Total Carbon Stock Summary */}
+                  <Card className="border-green-500/20 bg-green-500/5 p-6 mb-8">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">Total Blue Carbon Stock (Entire Area)</p>
+                        <p className="text-3xl font-bold text-green-600">
+                          {analysisResults.carbonEstimation.totalCarbon}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">tCO2e equivalent</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground mb-1">Per Hectare</p>
+                        <p className="text-lg font-semibold text-foreground">{analysisResults.carbonEstimation.agb}</p>
+                        <p className="text-xs text-muted-foreground">{analysisResults.carbonEstimation.unit}</p>
                       </div>
                     </div>
-                  )}
+                  </Card>
                 </div>
-              </Card>
+              </div>
             )}
 
-            {/* Download Buttons */}
+            {/* Download Satellite Data Package Button */}
             {analysisResults && (
-              <div className="grid grid-cols-2 gap-4">
-                <Button
-                  onClick={handleDownloadCarbonPDF}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Download PDF Report
-                </Button>
-                <Button
-                  onClick={handleDownloadDataPackage}
-                  variant="outline"
-                  className="gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Download Data Package
-                </Button>
-              </div>
+              <Button 
+                onClick={handleDownloadDataPackage}
+                className="w-full mb-6 h-11 gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+              >
+                <Download className="w-4 h-4" />
+                Download Satellite Data Package (ZIP)
+              </Button>
             )}
 
             {/* Proceed Button */}
             {analysisResults && (
-              <Button
-                onClick={handleProceedToBlueCarbon}
-                className="w-full bg-blue-600 hover:bg-blue-700"
-              >
+              <Button onClick={handleProceedToBlueCarbon} className="w-full gap-2 h-11">
+                <Droplet className="w-4 h-4" />
                 Proceed to Blue Carbon Verification
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <ArrowRight className="w-4 h-4 ml-auto" />
               </Button>
             )}
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <Card className="border-border/50 bg-gradient-to-br from-card to-card/50 p-6">
-              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Fish className="w-5 h-5 text-blue-600" />
-                Blue Carbon Ecosystems
-              </h3>
-              <div className="space-y-3 text-sm">
-                {[
-                  'Mangrove Forests',
-                  'Seagrass Meadows',
-                  'Salt Marshes',
-                  'Coastal Peatlands',
-                  'Brackish Wetlands',
-                  'Tidal Flats'
-                ].map((type, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                    <span className="text-muted-foreground">{type}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="border-border/50 bg-gradient-to-br from-cyan-500/5 to-blue-500/10 p-6">
-              <h3 className="font-semibold text-foreground mb-4">Analysis Parameters</h3>
-              <div className="space-y-4 text-sm">
-                <div>
-                  <label className="text-xs text-muted-foreground uppercase mb-1 block">Start Date</label>
-                  <input
-                    type="date"
-                    value={dateRange.start}
-                    onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                    className="w-full px-3 py-2 bg-background border border-border rounded text-foreground text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground uppercase mb-1 block">End Date</label>
-                  <input
-                    type="date"
-                    value={dateRange.end}
-                    onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                    className="w-full px-3 py-2 bg-background border border-border rounded text-foreground text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground uppercase mb-1 block">Satellite Source</label>
-                  <select
-                    value={satelliteSource}
-                    onChange={(e) => setSatelliteSource(e.target.value)}
-                    className="w-full px-3 py-2 bg-background border border-border rounded text-foreground text-sm"
-                  >
-                    <option value="all">All Available</option>
-                    <option value="sentinel">Sentinel-2</option>
-                    <option value="landsat">Landsat 8/9</option>
-                  </select>
-                </div>
-              </div>
-            </Card>
-          </div>
         </div>
       </div>
     </main>

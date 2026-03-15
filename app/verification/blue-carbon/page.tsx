@@ -140,7 +140,7 @@ export default function BlueCarbonPage() {
                   <MapPin className="w-4 h-4" />
                   Open Map
                 </Button>
-                <Link href="/satellite/blue-carbon-analysis">
+                <Link href="/verification/blue-carbon/blue-carbon-analysis">
                   <Button size="lg" className="gap-2">
                     <Gauge className="w-4 h-4" />
                     Satellite Analysis

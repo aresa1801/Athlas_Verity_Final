@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { calculateAndFormatArea, calculateMultiPolygonArea } from '@/lib/polygon-area-calculator'
 import { generateSatellitePDF, generateSatelliteDataZIP, downloadBlob } from '@/lib/satellite-data-exporter'
-import { parseGeoJSON, parseKML, parseZIP, validatePolygon } from '@/lib/polygon-file-handlers'
+import { parseGeoJSON, parseKML, parseZIP, parseCSV, validatePolygon, detectAndParseFile } from '@/lib/polygon-file-handlers'
 import { calculateAGB, calculateCanopyCover, determineForestType } from '@/lib/agb-calculator'
 
 // Helper function to extract coordinates from GeoJSON structure
@@ -174,29 +174,9 @@ export default function SatelliteAnalysisPage() {
     setUploadedFile(file)
     
     try {
-      let parseResult: any = {}
-      const fileName = file.name.toLowerCase()
-      
-      // Handle GeoJSON files first (most common)
-      if (fileName.endsWith('.geojson') || fileName.endsWith('.json')) {
-        parseResult = await parseGeoJSON(file)
-      } 
-      // Handle KML files
-      else if (fileName.endsWith('.kml')) {
-        parseResult = await parseKML(file)
-      } 
-      // Handle ZIP files - convert to GeoJSON first
-      else if (fileName.endsWith('.zip')) {
-        parseResult = await parseZIP(file)
-      } 
-      // Handle RAR files - attempt to convert to GeoJSON
-      else if (fileName.endsWith('.rar')) {
-        parseResult = await parseZIP(file)
-      }
-      // Default to GeoJSON parsing
-      else {
-        parseResult = await parseGeoJSON(file)
-      }
+  // Use intelligent file detection and conversion
+  // Automatically converts non-GeoJSON formats to GeoJSON
+  const parseResult = await detectAndParseFile(file)
 
       const coordinates = parseResult.coordinates || []
       
@@ -767,19 +747,13 @@ export default function SatelliteAnalysisPage() {
             <div className="border-t border-border/30 pt-8">
               <h2 className="text-2xl font-bold text-foreground mb-6">Analysis Results</h2>
               
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
                 {/* Carbon Estimation */}
                 <Card className="border-emerald-500/20 bg-emerald-500/5 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                      <Leaf className="w-5 h-5 text-emerald-600" />
-                      Carbon Estimation (AI)
-                    </h3>
-                    <Button size="sm" variant="ghost" className="gap-1 text-xs" onClick={handleDownloadCarbonPDF}>
-                      <Download className="w-3 h-3" />
-                      PDF
-                    </Button>
-                  </div>
+                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
+                    <Leaf className="w-5 h-5 text-emerald-600" />
+                    Carbon Estimation (AI)
+                  </h3>
                   <div className="space-y-3">
                     <div>
                       <span className="text-xs text-muted-foreground">Aboveground Biomass (AGB)</span>
@@ -798,16 +772,10 @@ export default function SatelliteAnalysisPage() {
 
                 {/* Vegetation Classification */}
                 <Card className="border-blue-500/20 bg-blue-500/5 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                      <BarChart3 className="w-5 h-5 text-blue-600" />
-                      Vegetation Classification (AI)
-                    </h3>
-                    <Button size="sm" variant="ghost" className="gap-1 text-xs" onClick={handleDownloadVegetationPDF}>
-                      <Download className="w-3 h-3" />
-                      PDF
-                    </Button>
-                  </div>
+                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
+                    <BarChart3 className="w-5 h-5 text-blue-600" />
+                    Vegetation Classification (AI)
+                  </h3>
                   <div className="space-y-3">
                     <div>
                       <span className="text-xs text-muted-foreground">Dominant Species</span>
@@ -829,6 +797,37 @@ export default function SatelliteAnalysisPage() {
                     </div>
                   </div>
                 </Card>
+
+                {/* Vegetation Description */}
+                <Card className="border-purple-500/20 bg-purple-500/5 p-6">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
+                    <Leaf className="w-5 h-5 text-purple-600" />
+                    Vegetation Description
+                  </h3>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Average Vegetation Height</span>
+                      <p className="text-sm font-medium text-foreground">
+                        {analysisResults.vegetationClassification.forestType === 'Primary Tropical Forest' ? '25-35 m' : 
+                         analysisResults.vegetationClassification.forestType === 'Secondary Forest' ? '15-25 m' : '10-20 m'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Average Stem Diameter</span>
+                      <p className="text-sm font-medium text-foreground">
+                        {analysisResults.vegetationClassification.forestType === 'Primary Tropical Forest' ? '45-65 cm' : 
+                         analysisResults.vegetationClassification.forestType === 'Secondary Forest' ? '30-45 cm' : '20-30 cm'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-muted-foreground">Vegetation Density</span>
+                      <p className="text-sm font-medium text-purple-600">
+                        {(analysisResults.vegetationClassification.ndvi > 0.75 ? 'Dense' : 
+                         analysisResults.vegetationClassification.ndvi > 0.6 ? 'Moderate' : 'Sparse')}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
               </div>
 
               {/* Download Data Package */}
@@ -837,19 +836,12 @@ export default function SatelliteAnalysisPage() {
                 Download Satellite Data Package (ZIP)
               </Button>
 
-              {/* Proceed Buttons */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                <Button onClick={handleProceedToGreenCarbon} className="w-full gap-2">
-                  <Leaf className="w-4 h-4" />
-                  Proceed to Green Carbon Verification
-                  <ArrowRight className="w-4 h-4 ml-auto" />
-                </Button>
-                <Button onClick={handleProceedToBlueCarbon} className="w-full gap-2" variant="outline">
-                  <Droplet className="w-4 h-4" />
-                  Proceed to Blue Carbon Verification
-                  <ArrowRight className="w-4 h-4 ml-auto" />
-                </Button>
-              </div>
+              {/* Proceed Button */}
+              <Button onClick={handleProceedToGreenCarbon} className="w-full gap-2 mt-6 h-11">
+                <Leaf className="w-4 h-4" />
+                Proceed to Green Carbon Verification
+                <ArrowRight className="w-4 h-4 ml-auto" />
+              </Button>
             </div>
           </div>
         )}
