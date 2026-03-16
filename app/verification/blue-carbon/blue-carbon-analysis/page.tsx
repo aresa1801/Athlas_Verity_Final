@@ -243,23 +243,32 @@ export default function BlueCarbonSatelliteAnalysisPage() {
       return
     }
 
-    // Detect ecosystem type
-    const detectedType = detectEcosystemType(polygon)
-    setDetectedEcosystem(detectedType)
-    setShowEcosystemDialog(true)
-    setPendingAnalysisAction('fetch')
+    // TODO: Re-enable ecosystem type verification in future
+    // const detectedType = detectEcosystemType(polygon)
+    // setDetectedEcosystem(detectedType)
+    // setShowEcosystemDialog(true)
+    // setPendingAnalysisAction('fetch')
+
+    // For now, directly proceed with analysis
+    setAnalysisRunning(true)
+    await performAnalysis()
   }
 
   const handleConfirmEcosystem = async () => {
+    // TEMPORARILY DISABLED - Ecosystem verification will be re-enabled in future
     // Verify that coastal/marine ecosystem matches (blue carbon is for coastal)
-    if (detectedEcosystem === 'terrestrial') {
-      alert('⚠️ Warning: Detected ecosystem is terrestrial forest. Blue Carbon is for coastal/marine ecosystems (mangroves, seagrass, salt marshes). Please verify your satellite data is from the correct location.')
-      setShowEcosystemDialog(false)
-      return
-    }
+    // if (detectedEcosystem === 'terrestrial') {
+    //   alert('⚠️ Warning: Detected ecosystem is terrestrial forest. Blue Carbon is for coastal/marine ecosystems (mangroves, seagrass, salt marshes). Please verify your satellite data is from the correct location.')
+    //   setShowEcosystemDialog(false)
+    //   return
+    // }
 
     setShowEcosystemDialog(false)
     setAnalysisRunning(true)
+    await performAnalysis()
+  }
+
+  const performAnalysis = async () => {
     setTimeout(() => {
       // Blue Carbon specific NDVI range (mangrove/seagrass dominated systems)
       // Coastal ecosystems typically show NDVI 0.4-0.7
