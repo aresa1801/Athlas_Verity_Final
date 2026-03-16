@@ -16,6 +16,8 @@ import { calculateAndFormatArea, calculateMultiPolygonArea } from '@/lib/polygon
 import { generateSatellitePDF, generateSatelliteDataZIP, downloadBlob } from '@/lib/satellite-data-exporter'
 import { parseGeoJSON, parseKML, parseZIP, parseCSV, validatePolygon, detectAndParseFile } from '@/lib/polygon-file-handlers'
 import { calculateAGB, calculateCanopyCover, determineForestType } from '@/lib/agb-calculator'
+import { detectEcosystemType } from '@/lib/satellite-data-parser'
+import { EcosystemConfirmationDialog } from '@/components/dialogs/ecosystem-confirmation-dialog'
 
 // Helper function to extract coordinates from GeoJSON structure
 // GeoJSON coordinates are [lng, lat] but we convert to [lat, lng] for our system
@@ -152,6 +154,9 @@ export default function SatelliteAnalysisPage() {
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [satelliteSource, setSatelliteSource] = useState('all')
   const [polygonInfo, setPolygonInfo] = useState<{ count: number; holes: number }>({ count: 0, holes: 0 })
+  const [showEcosystemDialog, setShowEcosystemDialog] = useState(false)
+  const [detectedEcosystem, setDetectedEcosystem] = useState<'terrestrial' | 'coastal' | 'marine'>('terrestrial')
+  const [pendingAnalysisAction, setPendingAnalysisAction] = useState<'fetch' | 'run' | null>(null)
 
   // Initialize date range with 10-year lookback
   useEffect(() => {
@@ -183,7 +188,7 @@ export default function SatelliteAnalysisPage() {
       // More informative error message
       if (!coordinates || coordinates.length < 3) {
         const errorMsg = coordinates.length === 0 
-          ? `No polygon coordinates found in ${fileName}. Make sure the file contains valid geospatial data.`
+          ? `No polygon coordinates found in ${file.name}. Make sure the file contains valid geospatial data.`
           : `Invalid polygon: Need at least 3 points, found ${coordinates.length}`
         alert(errorMsg)
         setLoading(false)
@@ -261,6 +266,22 @@ export default function SatelliteAnalysisPage() {
       return
     }
 
+    // Detect ecosystem type
+    const detectedType = detectEcosystemType(polygon)
+    setDetectedEcosystem(detectedType)
+    setShowEcosystemDialog(true)
+    setPendingAnalysisAction('fetch')
+  }
+
+  const handleConfirmEcosystem = async () => {
+    // Verify that terrestrial ecosystem matches (green carbon is for terrestrial)
+    if (detectedEcosystem !== 'terrestrial') {
+      alert('⚠️ Warning: Detected ecosystem is ' + detectedEcosystem + '. Green Carbon is for terrestrial forests. Please verify your satellite data is from the correct location.')
+      setShowEcosystemDialog(false)
+      return
+    }
+
+    setShowEcosystemDialog(false)
     setAnalysisRunning(true)
     // Simulate Gemini AI analysis using BIOMASS package methodology
     setTimeout(() => {
@@ -479,6 +500,22 @@ export default function SatelliteAnalysisPage() {
 
   return (
     <main className="min-h-screen bg-background">
+      {/* Ecosystem Confirmation Dialog */}
+      <EcosystemConfirmationDialog
+        isOpen={showEcosystemDialog}
+        detectedType={detectedEcosystem}
+        expectedType="terrestrial"
+        coordinates={polygon.length > 0 ? `${polygon[0][0].toFixed(4)}, ${polygon[0][1].toFixed(4)}` : 'N/A'}
+        onConfirm={handleConfirmEcosystem}
+        onEdit={() => {
+          setShowEcosystemDialog(false)
+        }}
+        onCancel={() => {
+          setShowEcosystemDialog(false)
+          setPendingAnalysisAction(null)
+        }}
+      />
+
       {/* Breadcrumb */}
       <div className="border-b border-border/30 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center gap-2 text-sm">
@@ -830,14 +867,32 @@ export default function SatelliteAnalysisPage() {
                 </Card>
               </div>
 
+              {/* Total Carbon Stock Summary */}
+              <Card className="border-green-500/20 bg-green-500/5 p-6 mb-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Total Green Carbon Stock (Entire Area)</p>
+                    <p className="text-3xl font-bold text-green-600">
+                      {analysisResults.carbonEstimation.totalCarbon}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-2">tCO2e equivalent</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground mb-1">Per Hectare</p>
+                    <p className="text-lg font-semibold text-foreground">{analysisResults.carbonEstimation.agb}</p>
+                    <p className="text-xs text-muted-foreground">{analysisResults.carbonEstimation.unit}</p>
+                  </div>
+                </div>
+              </Card>
+
               {/* Download Data Package */}
-              <Button onClick={handleDownloadDataPackage} className="w-full h-11 gap-2 bg-gradient-to-r from-cyan-600 to-blue-600">
+              <Button onClick={handleDownloadDataPackage} className="w-full h-11 gap-2 mb-4 bg-gradient-to-r from-cyan-600 to-blue-600">
                 <Download className="w-4 h-4" />
                 Download Satellite Data Package (ZIP)
               </Button>
 
               {/* Proceed Button */}
-              <Button onClick={handleProceedToGreenCarbon} className="w-full gap-2 mt-6 h-11">
+              <Button onClick={handleProceedToGreenCarbon} className="w-full gap-2 h-11">
                 <Leaf className="w-4 h-4" />
                 Proceed to Green Carbon Verification
                 <ArrowRight className="w-4 h-4 ml-auto" />

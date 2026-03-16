@@ -2,6 +2,7 @@
 
 import React from "react"
 import { COUNTRIES } from '@/lib/countries'
+import { parseSatelliteDataFile } from '@/lib/satellite-data-parser'
 import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -144,19 +145,29 @@ export function GreenCarbonForm() {
     }
   }
 
-  const handleSatelliteDataUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSatelliteDataUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       handleFileUpload(e, "satelliteDataFile")
       
-      // Parse satellite data and auto-fill geospatial info
-      // This would ideally parse the satellite data file and extract coordinates and area
-      // For now, we'll show a placeholder
-      setFormData((prev) => ({
-        ...prev,
-        dataLuasan: "Auto-filled from satellite data",
-        dataKoordinat: "Auto-filled from satellite data",
-      }))
+      try {
+        // Parse satellite data and auto-fill geospatial info
+        const parsedData = await parseSatelliteDataFile(file)
+        setFormData((prev) => ({
+          ...prev,
+          dataLuasan: parsedData.area,
+          dataKoordinat: parsedData.coordinates,
+          dominantSpecies: parsedData.forestType || "",
+        }))
+        console.log("[v0] Satellite data extracted:", parsedData)
+      } catch (error) {
+        console.error("[v0] Error parsing satellite data:", error)
+        setFormData((prev) => ({
+          ...prev,
+          dataLuasan: "Error reading file",
+          dataKoordinat: "Error reading file",
+        }))
+      }
     }
   }
 
@@ -195,13 +206,13 @@ export function GreenCarbonForm() {
       <section className="space-y-4">
         <div className="flex items-center gap-2 mb-6">
           <h2 className="text-2xl font-bold">Section A: Project Identity</h2>
-          <Badge variant="outline" className="ml-auto">1/5</Badge>
+          <Badge variant="outline" className="ml-auto">Step 1 of 5</Badge>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
-              Project Name
+              Project Name *
               <Tooltip text={FIELD_TOOLTIPS.projectName} />
             </label>
             <input
@@ -215,7 +226,7 @@ export function GreenCarbonForm() {
 
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
-              Country
+              Country *
               <Tooltip text={FIELD_TOOLTIPS.country} />
             </label>
             <select
@@ -268,19 +279,19 @@ export function GreenCarbonForm() {
       <section className="space-y-4">
         <div className="flex items-center gap-2 mb-6">
           <h2 className="text-2xl font-bold">Section B: Geospatial Data & Satellite Analysis</h2>
-          <Badge variant="outline" className="ml-auto">2/5</Badge>
+          <Badge variant="outline" className="ml-auto">Step 2 of 5</Badge>
         </div>
 
         {/* Upload Satellite Data */}
         <Card className="border-border/50 bg-card/50 p-6 space-y-4">
           <h3 className="text-lg font-semibold">Upload Satellite Data</h3>
           <p className="text-sm text-muted-foreground">
-            Upload satellite data downloaded from the green-carbon-analysis page (ZIP or JSON format)
+            Upload satellite data exported from the satellite analysis page (ZIP or JSON format). This data will automatically populate geospatial information including area and coordinates.
           </p>
           
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
-              Satellite Data File
+              Satellite Data File (Required) *
               <Tooltip text={FIELD_TOOLTIPS.satelliteDataFile} />
             </label>
             <div className="flex items-center gap-2">
@@ -303,34 +314,34 @@ export function GreenCarbonForm() {
             {formData.satelliteDataFile && <p className="text-xs text-emerald-600 mt-1">File uploaded successfully</p>}
           </div>
 
-          {/* Auto-filled Data */}
+          {/* Auto-filled Geospatial Data */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border/20">
             <div>
               <label className="flex items-center text-sm font-medium mb-2">
-                Data Luasan (Auto-filled)
+                Project Area (Hectares)
                 <Tooltip text={FIELD_TOOLTIPS.dataLuasan} />
               </label>
               <input
                 type="text"
-                value={formData.dataLuasan}
+                value={formData.dataLuasan || "Pending satellite data upload"}
                 disabled
-                placeholder="Auto-filled from satellite data"
                 className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground"
               />
+              {formData.dataLuasan && <p className="text-xs text-emerald-600 mt-1">✓ Auto-populated from satellite analysis</p>}
             </div>
 
             <div>
               <label className="flex items-center text-sm font-medium mb-2">
-                Data Koordinat Lokasi (Auto-filled)
+                Project Location Coordinates
                 <Tooltip text={FIELD_TOOLTIPS.dataKoordinat} />
               </label>
               <input
                 type="text"
-                value={formData.dataKoordinat}
+                value={formData.dataKoordinat || "Pending satellite data upload"}
                 disabled
-                placeholder="Auto-filled from satellite data"
                 className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground"
               />
+              {formData.dataKoordinat && <p className="text-xs text-emerald-600 mt-1">✓ Auto-populated from satellite analysis</p>}
             </div>
           </div>
         </Card>
@@ -382,7 +393,7 @@ export function GreenCarbonForm() {
       <section className="space-y-4">
         <div className="flex items-center gap-2 mb-6">
           <h2 className="text-2xl font-bold">Section C: Ecological Data</h2>
-          <Badge variant="outline" className="ml-auto">3/5</Badge>
+          <Badge variant="outline" className="ml-auto">Step 3 of 5</Badge>
         </div>
 
         <Card className="border-border/50 bg-card/50 p-6 space-y-4">
@@ -424,11 +435,11 @@ export function GreenCarbonForm() {
         </Card>
       </section>
 
-      {/* Section D: Risk & Additionality */}
+      {/* Section D: Risk & Additionality & Documentation */}
       <section className="space-y-4">
         <div className="flex items-center gap-2 mb-6">
-          <h2 className="text-2xl font-bold">Section D: Risk & Additionality</h2>
-          <Badge variant="outline" className="ml-auto">4/5</Badge>
+          <h2 className="text-2xl font-bold">Section D: Risk & Additionality & Documentation</h2>
+          <Badge variant="outline" className="ml-auto">Step 4 of 5</Badge>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -520,28 +531,47 @@ export function GreenCarbonForm() {
         </div>
       </section>
 
-      {/* Completeness Indicator */}
-      <Card className={`p-6 ${isComplete ? "bg-emerald-500/5 border-emerald-500/30" : "bg-amber-500/5 border-amber-500/30"}`}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className={`font-semibold ${isComplete ? "text-emerald-900 dark:text-emerald-400" : "text-amber-900 dark:text-amber-400"}`}>
-              Form Completeness
-            </h3>
-            <p className={`text-sm ${isComplete ? "text-emerald-800 dark:text-emerald-300" : "text-amber-800 dark:text-amber-300"}`}>
-              {isComplete ? "All required fields completed" : `${validationErrors.length} fields missing`}
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold">{Math.round((requiredFields.filter((field) => {
-              if (field === "satelliteDataFile" || field === "landOwnershipProof" || field === "dataKebenaran") {
-                return formData[field as keyof GreenCarbonFormData] !== null
-              }
-              const value = formData[field as keyof GreenCarbonFormData]
-              return value && String(value).trim() !== ""
-            }).length / requiredFields.length) * 100)}%</div>
-          </div>
+      {/* Section E: Form Completeness */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2 mb-6">
+          <h2 className="text-2xl font-bold">Section E: Form Completeness Summary</h2>
+          <Badge variant="outline" className="ml-auto">Step 5 of 5</Badge>
         </div>
-      </Card>
+
+        <Card className={`p-6 ${isComplete ? "bg-emerald-500/5 border-emerald-500/30" : "bg-amber-500/5 border-amber-500/30"}`}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className={`font-semibold text-lg ${isComplete ? "text-emerald-900 dark:text-emerald-400" : "text-amber-900 dark:text-amber-400"}`}>
+                Form Status
+              </h3>
+              <p className={`text-sm ${isComplete ? "text-emerald-800 dark:text-emerald-300" : "text-amber-800 dark:text-amber-300"}`}>
+                {isComplete ? "✓ All required fields completed - ready to submit" : `⚠ ${validationErrors.length} fields missing`}
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-4xl font-bold">{Math.round((requiredFields.filter((field) => {
+                if (field === "satelliteDataFile" || field === "landOwnershipProof" || field === "dataKebenaran") {
+                  return formData[field as keyof GreenCarbonFormData] !== null
+                }
+                const value = formData[field as keyof GreenCarbonFormData]
+                return value && String(value).trim() !== ""
+              }).length / requiredFields.length) * 100)}%</div>
+              <p className="text-xs text-muted-foreground">Complete</p>
+            </div>
+          </div>
+
+          {!isComplete && validationErrors.length > 0 && (
+            <div className="mt-4 p-4 bg-amber-100/50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+              <p className="text-sm font-medium text-amber-900 dark:text-amber-200 mb-2">Missing Fields:</p>
+              <ul className="space-y-1">
+                {validationErrors.map((error, idx) => (
+                  <li key={idx} className="text-xs text-amber-800 dark:text-amber-300">• {error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Card>
+      </section>
 
       {/* Run Verification Button */}
       <Button
