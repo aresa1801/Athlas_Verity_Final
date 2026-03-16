@@ -105,7 +105,9 @@ export function extractCenterCoordinates(geojson: any): string {
 
 /**
  * Detect if coordinates are in terrestrial or coastal/marine area
- * Using multiple heuristics based on coordinate patterns and known coastal regions
+ * Key differences:
+ * - Terrestrial: Compact, relatively regular polygons (forests)
+ * - Coastal: Thin/elongated shapes, often linear patterns along water
  */
 export function detectEcosystemType(coordinates: Array<[number, number]>): 'terrestrial' | 'coastal' | 'marine' {
   if (coordinates.length === 0) return 'terrestrial'
@@ -126,80 +128,113 @@ export function detectEcosystemType(coordinates: Array<[number, number]>): 'terr
   const latSpread = maxLat - minLat
   const lngSpread = maxLng - minLng
 
-  // Check known coastal regions and archipelago areas
+  // Check known coastal regions (priority check)
   const isKnownCoastalRegion = checkKnownCoastalRegion(centerLat, centerLng)
-  
-  // Characteristics of coastal/archipelago areas:
-  // - Often have irregular, elongated polygon shapes
-  // - May have large lng spread relative to lat spread (coastal lines)
-  // - Tend to be in specific regions (Southeast Asia, Mediterranean, etc.)
-  
-  // Irregular spread pattern suggests coastal (archipelago or irregular coastline)
-  const hasIrregularSpread = Math.abs(lngSpread - latSpread) > 0.5
-  
-  // Very small spread in one dimension can indicate coastal strip
-  const isCoastalStrip = (latSpread < 0.2 && lngSpread > 0.3) || 
-                         (lngSpread < 0.2 && latSpread > 0.3)
 
-  // Known coastal regions take priority
+  // Key indicator: aspect ratio of bounding box
+  // Coastal areas (mangroves, salt marshes) tend to be VERY THIN and ELONGATED
+  // Terrestrial forests tend to be more COMPACT and ROUND
+  const aspectRatio = Math.max(latSpread, lngSpread) / (Math.min(latSpread, lngSpread) || 1)
+  
+  // If one dimension is MUCH larger than the other, likely coastal (thin strip along water)
+  const isThinElongated = aspectRatio > 5.0
+
+  // Calculate polygon compactness (closer to 1 = more compact/round, closer to 0 = more elongated)
+  const area = calculatePolygonArea(coordinates)
+  const perimeter = calculatePolygonPerimeter(coordinates)
+  const compactness = (4 * Math.PI * area) / (perimeter * perimeter)
+
+  // Terrestrial forests have higher compactness (more compact shapes)
+  // Coastal areas have lower compactness (thin, elongated shapes)
+  const isCompactShape = compactness > 0.4
+
+  // If strongly elongated AND in a known coastal region = almost certainly coastal
+  if (isKnownCoastalRegion && isThinElongated) {
+    return 'coastal'
+  }
+
+  // If very thin elongated regardless of region = likely coastal
+  if (isThinElongated && aspectRatio > 8.0) {
+    return 'coastal'
+  }
+
+  // Check for archipelago-like patterns (scattered points)
+  const isArchipelago = detectArchipelagoPattern(coordinates)
+  if (isArchipelago && isKnownCoastalRegion) {
+    return 'coastal'
+  }
+
+  // Compact, rounded shapes indicate terrestrial forest
+  if (isCompactShape && !isArchipelago) {
+    return 'terrestrial'
+  }
+
+  // Known coastal region without strong terrestrial indicators = coastal
   if (isKnownCoastalRegion) {
     return 'coastal'
   }
 
-  // Check for archipelago-like patterns (multiple clusters)
-  const isArchipelago = detectArchipelagoPattern(coordinates)
-  if (isArchipelago) {
-    return 'coastal'
-  }
-
-  // Check coordinate density - coastal areas often have more scattered points
-  const coordinateDensity = coordinates.length / (latSpread * lngSpread || 1)
-  const isScatteredPattern = coordinateDensity < 50 && coordinates.length > 10
-
-  if ((isCoastalStrip || isIrregularSpread) && isScatteredPattern) {
-    return 'coastal'
-  }
-
-  // Default to terrestrial
+  // Default to terrestrial for all other cases
   return 'terrestrial'
 }
 
 /**
- * Check if coordinates fall within known coastal regions
- * This includes major mangrove, seagrass, and salt marsh areas globally
+ * Calculate approximate polygon area using shoelace formula
+ */
+function calculatePolygonArea(coordinates: Array<[number, number]>): number {
+  if (coordinates.length < 3) return 0
+  
+  let area = 0
+  for (let i = 0; i < coordinates.length; i++) {
+    const [lat1, lng1] = coordinates[i]
+    const [lat2, lng2] = coordinates[(i + 1) % coordinates.length]
+    area += (lng1 * lat2 - lng2 * lat1)
+  }
+  return Math.abs(area) / 2
+}
+
+/**
+ * Calculate polygon perimeter
+ */
+function calculatePolygonPerimeter(coordinates: Array<[number, number]>): number {
+  let perimeter = 0
+  for (let i = 0; i < coordinates.length; i++) {
+    const [lat1, lng1] = coordinates[i]
+    const [lat2, lng2] = coordinates[(i + 1) % coordinates.length]
+    const distance = Math.sqrt((lat2 - lat1) ** 2 + (lng2 - lng1) ** 2)
+    perimeter += distance
+  }
+  return perimeter
+}
+
+/**
+ * Check if coordinates fall within SPECIFIC known coastal regions
+ * Only returns true for specific coastal hotspots, not entire regions
+ * (many terrestrial forests also exist in these regions)
  */
 function checkKnownCoastalRegion(lat: number, lng: number): boolean {
-  // Major coastal and archipelago regions (approximate bounding boxes)
-  const coastalRegions = [
-    // Southeast Asia (Mangroves, Seagrass)
-    { name: 'Southeast Asia', minLat: -10, maxLat: 20, minLng: 95, maxLng: 145 },
+  // Only very specific known mangrove/coastal hotspots
+  // These are narrow bands near actual coastlines, not broad regions
+  const specificCoastalHotspots = [
+    // Indonesia/Malaysia mangroves (Borneo coastal areas) - NARROW COASTAL ZONE ONLY
+    { name: 'Borneo Mangroves', minLat: -1, maxLat: 2, minLng: 108, maxLng: 115 },
     
-    // Amazon Delta & Atlantic Coast
-    { name: 'Amazon Delta', minLat: -5, maxLat: 2, minLng: -60, maxLng: -50 },
+    // Sundarbans (Bangladesh/India mangroves) - VERY SPECIFIC
+    { name: 'Sundarbans', minLat: 21, maxLat: 23, minLng: 88, maxLng: 90 },
     
-    // Sundarbans & Bay of Bengal
-    { name: 'Bay of Bengal', minLat: 15, maxLat: 28, minLng: 86, maxLng: 98 },
+    // Amazon Delta only (not inland Amazon)
+    { name: 'Amazon Delta', minLat: -1, maxLat: 1, minLng: -59, maxLng: -49 },
     
-    // Gulf of Guinea
-    { name: 'Gulf of Guinea', minLat: -2, maxLat: 10, minLng: -10, maxLng: 5 },
+    // Everglades & Florida Keys
+    { name: 'Everglades', minLat: 24, maxLat: 26, minLng: -82, maxLng: -80 },
     
-    // Mediterranean
-    { name: 'Mediterranean', minLat: 30, maxLat: 46, minLng: -6, maxLng: 42 },
-    
-    // East Africa Coast
-    { name: 'East Africa', minLat: -12, maxLat: 5, minLng: 35, maxLng: 52 },
-    
-    // Australia & Pacific
-    { name: 'Pacific/Australia', minLat: -22, maxLat: -5, minLng: 110, maxLng: 155 },
-    
-    // Central America & Caribbean
-    { name: 'Caribbean', minLat: 8, maxLat: 22, minLng: -90, maxLng: -60 },
-    
-    // West Africa
-    { name: 'West Africa', minLat: 2, maxLat: 15, minLng: -20, maxLng: 0 },
+    // Pantanal coastal transition (very specific)
+    { name: 'Pantanal Coastal', minLat: -18, maxLat: -16, minLng: -57, maxLng: -54 },
   ]
 
-  return coastalRegions.some(region => 
+  // Only return true if EXACTLY in a known coastal hotspot
+  // This is very restrictive - most data won't match
+  return specificCoastalHotspots.some(region => 
     lat >= region.minLat && lat <= region.maxLat &&
     lng >= region.minLng && lng <= region.maxLng
   )
