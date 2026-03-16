@@ -16,6 +16,8 @@ import { calculateAndFormatArea, calculateMultiPolygonArea } from '@/lib/polygon
 import { generateSatellitePDF, generateSatelliteDataZIP, downloadBlob } from '@/lib/satellite-data-exporter'
 import { parseGeoJSON, parseKML, parseZIP, parseCSV, validatePolygon, detectAndParseFile } from '@/lib/polygon-file-handlers'
 import { calculateAGB, calculateCanopyCover, determineForestType } from '@/lib/agb-calculator'
+import { detectEcosystemType } from '@/lib/satellite-data-parser'
+import { EcosystemConfirmationDialog } from '@/components/dialogs/ecosystem-confirmation-dialog'
 
 // Helper functions from main satellite analysis page (same GeoJSON extraction)
 function extractCoordinatesFromGeoJSON(geojson: any): { 
@@ -133,6 +135,9 @@ export default function BlueCarbonSatelliteAnalysisPage() {
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
   const [satelliteSource, setSatelliteSource] = useState('all')
   const [polygonInfo, setPolygonInfo] = useState<{ count: number; holes: number }>({ count: 0, holes: 0 })
+  const [showEcosystemDialog, setShowEcosystemDialog] = useState(false)
+  const [detectedEcosystem, setDetectedEcosystem] = useState<'terrestrial' | 'coastal' | 'marine'>('coastal')
+  const [pendingAnalysisAction, setPendingAnalysisAction] = useState<'fetch' | 'run' | null>(null)
   const [coastalAnalysis, setCoastalAnalysis] = useState<any>(null)
 
   // Initialize date range with 10-year lookback
@@ -238,6 +243,22 @@ export default function BlueCarbonSatelliteAnalysisPage() {
       return
     }
 
+    // Detect ecosystem type
+    const detectedType = detectEcosystemType(polygon)
+    setDetectedEcosystem(detectedType)
+    setShowEcosystemDialog(true)
+    setPendingAnalysisAction('fetch')
+  }
+
+  const handleConfirmEcosystem = async () => {
+    // Verify that coastal/marine ecosystem matches (blue carbon is for coastal)
+    if (detectedEcosystem === 'terrestrial') {
+      alert('⚠️ Warning: Detected ecosystem is terrestrial forest. Blue Carbon is for coastal/marine ecosystems (mangroves, seagrass, salt marshes). Please verify your satellite data is from the correct location.')
+      setShowEcosystemDialog(false)
+      return
+    }
+
+    setShowEcosystemDialog(false)
     setAnalysisRunning(true)
     setTimeout(() => {
       // Blue Carbon specific NDVI range (mangrove/seagrass dominated systems)
@@ -417,6 +438,23 @@ export default function BlueCarbonSatelliteAnalysisPage() {
 
   return (
     <main className="min-h-screen bg-background">
+      {/* Ecosystem Confirmation Dialog */}
+      <EcosystemConfirmationDialog
+        isOpen={showEcosystemDialog}
+        detectedType={detectedEcosystem}
+        expectedType="coastal"
+        coordinates={polygon.length > 0 ? `${polygon[0][0].toFixed(4)}, ${polygon[0][1].toFixed(4)}` : 'N/A'}
+        onConfirm={handleConfirmEcosystem}
+        onEdit={() => {
+          setShowEcosystemDialog(false)
+          fileInputRef.current?.click()
+        }}
+        onCancel={() => {
+          setShowEcosystemDialog(false)
+          setPendingAnalysisAction(null)
+        }}
+      />
+
       {/* Header */}
       <div className="border-b border-border/30 px-6 py-6 bg-gradient-to-r from-blue-500/5 via-cyan-500/5 to-background">
         <div className="max-w-7xl mx-auto">
