@@ -188,7 +188,7 @@ export default function SatelliteAnalysisPage() {
       // More informative error message
       if (!coordinates || coordinates.length < 3) {
         const errorMsg = coordinates.length === 0 
-          ? `No polygon coordinates found in ${fileName}. Make sure the file contains valid geospatial data.`
+          ? `No polygon coordinates found in ${file.name}. Make sure the file contains valid geospatial data.`
           : `Invalid polygon: Need at least 3 points, found ${coordinates.length}`
         alert(errorMsg)
         setLoading(false)
@@ -509,7 +509,6 @@ export default function SatelliteAnalysisPage() {
         onConfirm={handleConfirmEcosystem}
         onEdit={() => {
           setShowEcosystemDialog(false)
-          fileInputRef.current?.click()
         }}
         onCancel={() => {
           setShowEcosystemDialog(false)
