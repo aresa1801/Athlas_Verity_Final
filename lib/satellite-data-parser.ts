@@ -1,12 +1,28 @@
 /**
- * Parse satellite data from GeoJSON and extract geospatial information
+ * Complete parsed satellite data structure matching form fields
  */
 export interface ParsedSatelliteData {
+  // Geospatial data
   area: string // in hectares
-  coordinates: string // center coordinates or bounding box
+  coordinates: string // center coordinates
+  
+  // Vegetation data
   forestType?: string
   dominantSpecies?: string
+  vegetationDescription?: string
+  averageTreeHeight?: string
+  canopyCover?: string
+  
+  // Analysis metrics
   ndvi?: number
+  biomass?: string
+  carbonEstimate?: string
+  
+  // Metadata
+  dataSource?: string[]
+  analysisDate?: string
+  polygonCount?: number
+  rawGeoJSON?: any
 }
 
 /**
@@ -70,6 +86,173 @@ function calculatePolygonAreaHectares(coordinates: Array<[number, number]>): num
   const areaHa = areaM2 / 10000
 
   return Math.round(areaHa * 100) / 100
+}
+
+/**
+ * Main function to parse satellite data file (ZIP or JSON)
+ */
+export async function parseSatelliteDataFile(file: File): Promise<ParsedSatelliteData> {
+  const fileName = file.name.toLowerCase()
+  
+  try {
+    // Handle ZIP files
+    if (fileName.endsWith('.zip')) {
+      return await parseSatelliteDataZIP(file)
+    }
+    // Handle JSON files
+    else if (fileName.endsWith('.json')) {
+      return await parseSatelliteDataJSON(file)
+    }
+    // Handle GeoJSON files
+    else if (fileName.endsWith('.geojson')) {
+      return await parseSatelliteDataJSON(file)
+    }
+    else {
+      throw new Error(`Unsupported file format: ${fileName}`)
+    }
+  } catch (error) {
+    console.error("[v0] Error parsing satellite data file:", error)
+    throw error
+  }
+}
+
+/**
+ * Parse ZIP file containing satellite data and shapefiles
+ */
+async function parseSatelliteDataZIP(file: File): Promise<ParsedSatelliteData> {
+  const JSZip = (await import('jszip')).default
+  const zip = new JSZip()
+  const contents = await zip.loadAsync(file)
+
+  let geojsonData: any = null
+  let shapefileFound = false
+  const files = Object.keys(contents.files)
+
+  // Check for required shapefile components
+  const hasShp = files.some(f => f.endsWith('.shp'))
+  const hasShx = files.some(f => f.endsWith('.shx'))
+  const hasDbf = files.some(f => f.endsWith('.dbf'))
+  
+  if (hasShp && hasShx && hasDbf) {
+    shapefileFound = true
+    // TODO: Parse shapefile in future implementation
+    // For now, look for GeoJSON representation of the shapefile
+  }
+
+  // Look for GeoJSON file in ZIP
+  for (const fileName in contents.files) {
+    if (fileName.endsWith('.geojson') || fileName.endsWith('.json')) {
+      const fileContent = await contents.files[fileName].async('text')
+      try {
+        geojsonData = JSON.parse(fileContent)
+        break
+      } catch (e) {
+        console.warn(`[v0] Invalid JSON in file: ${fileName}`)
+      }
+    }
+  }
+
+  // Look for analysis metadata file
+  let analysisMetadata: any = null
+  for (const fileName in contents.files) {
+    if (fileName.includes('analysis') && fileName.endsWith('.json')) {
+      const fileContent = await contents.files[fileName].async('text')
+      try {
+        analysisMetadata = JSON.parse(fileContent)
+        break
+      } catch (e) {
+        console.warn(`[v0] Invalid analysis metadata: ${fileName}`)
+      }
+    }
+  }
+
+  if (!geojsonData) {
+    throw new Error('No GeoJSON data found in satellite data package')
+  }
+
+  return parseGeoJSONWithMetadata(geojsonData, analysisMetadata, shapefileFound)
+}
+
+/**
+ * Parse JSON/GeoJSON file
+ */
+async function parseSatelliteDataJSON(file: File): Promise<ParsedSatelliteData> {
+  const text = await file.text()
+  const geojsonData = JSON.parse(text)
+  
+  return parseGeoJSONWithMetadata(geojsonData, null, false)
+}
+
+/**
+ * Parse GeoJSON with associated metadata
+ */
+function parseGeoJSONWithMetadata(
+  geojson: any,
+  metadata: any,
+  shapefileFormat: boolean
+): ParsedSatelliteData {
+  // Extract basic geospatial data
+  const area = extractAreaFromGeoJSON(geojson)
+  const coordinates = extractCenterCoordinates(geojson)
+
+  // Extract vegetation and analysis data from properties
+  let vegetation: any = {}
+  let dataSources: string[] = []
+
+  // Get properties from first feature if available
+  if (geojson.type === 'FeatureCollection' && geojson.features?.length > 0) {
+    vegetation = geojson.features[0].properties || {}
+  } else if (geojson.type === 'Feature') {
+    vegetation = geojson.properties || {}
+  }
+
+  // Extract data from metadata or properties
+  const forestType = vegetation.forestType || vegetation.forest_type || metadata?.forestType || 'Unknown'
+  const dominantSpecies = vegetation.dominantSpecies || vegetation.species || metadata?.dominantSpecies || vegetation.dominant_species || ''
+  const vegetationDescription = vegetation.description || vegetation.vegetation_description || metadata?.description || ''
+  const averageTreeHeight = vegetation.height || vegetation.tree_height || vegetation.average_height || metadata?.treeHeight || ''
+  const canopyCover = vegetation.canopy_cover || vegetation.canopyCover || metadata?.canopyCover || ''
+  const biomass = vegetation.biomass || vegetation.agb || metadata?.biomass || ''
+  const carbonEstimate = vegetation.carbon || vegetation.carbon_estimate || metadata?.carbonEstimate || ''
+
+  // Extract data sources from metadata
+  if (metadata?.dataSources && Array.isArray(metadata.dataSources)) {
+    dataSources = metadata.dataSources
+  } else if (geojson.properties?.dataSources) {
+    dataSources = Array.isArray(geojson.properties.dataSources) 
+      ? geojson.properties.dataSources 
+      : [geojson.properties.dataSources]
+  }
+
+  // Default data sources if not specified
+  if (dataSources.length === 0) {
+    dataSources = ['Sentinel-2', 'Landsat 8/9'] // Default sources
+  }
+
+  // Count polygons
+  let polygonCount = 1
+  if (geojson.type === 'FeatureCollection') {
+    polygonCount = geojson.features?.length || 1
+  }
+
+  const result: ParsedSatelliteData = {
+    area: `${area.toFixed(2)} ha`,
+    coordinates,
+    forestType: formatString(forestType),
+    dominantSpecies: formatString(dominantSpecies),
+    vegetationDescription: formatString(vegetationDescription),
+    averageTreeHeight: formatString(averageTreeHeight),
+    canopyCover: formatString(canopyCover),
+    biomass: formatString(biomass),
+    carbonEstimate: formatString(carbonEstimate),
+    dataSource: dataSources,
+    analysisDate: metadata?.analysisDate || new Date().toISOString().split('T')[0],
+    polygonCount,
+    rawGeoJSON: geojson,
+  }
+
+  console.log("[v0] Parsed satellite data:", result)
+  return result
 }
 
 /**
@@ -264,6 +447,21 @@ function detectArchipelagoPattern(coordinates: Array<[number, number]>): boolean
 
   // High variance in distances indicates scattered pattern (archipelago-like)
   return stdDev > avgDistance * 0.7
+}
+
+/**
+ * Format string values, cleaning up technical names to readable format
+ */
+function formatString(value: any): string {
+  if (!value) return ''
+  
+  const str = String(value)
+  // Convert snake_case and camelCase to Title Case
+  return str
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/^./, char => char.toUpperCase())
+    .trim()
 }
 
 /**

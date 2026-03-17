@@ -151,15 +151,31 @@ export function GreenCarbonForm() {
       handleFileUpload(e, "satelliteDataFile")
       
       try {
-        // Parse satellite data and auto-fill geospatial info
+        // Parse satellite data and auto-fill all available fields
         const parsedData = await parseSatelliteDataFile(file)
+        
         setFormData((prev) => ({
           ...prev,
-          dataLuasan: parsedData.area,
-          dataKoordinat: parsedData.coordinates,
-          dominantSpecies: parsedData.forestType || "",
+          // Geospatial data
+          dataLuasan: parsedData.area || "",
+          dataKoordinat: parsedData.coordinates || "",
+          
+          // Vegetation data
+          forestType: parsedData.forestType || "",
+          dominantSpecies: parsedData.dominantSpecies || "",
+          averageTreeHeight: parsedData.averageTreeHeight || "",
         }))
-        console.log("[v0] Satellite data extracted:", parsedData)
+        
+        console.log("[v0] Satellite data successfully extracted:", {
+          area: parsedData.area,
+          coordinates: parsedData.coordinates,
+          forestType: parsedData.forestType,
+          species: parsedData.dominantSpecies,
+          height: parsedData.averageTreeHeight,
+          description: parsedData.vegetationDescription,
+          sources: parsedData.dataSource,
+          polygons: parsedData.polygonCount,
+        })
       } catch (error) {
         console.error("[v0] Error parsing satellite data:", error)
         setFormData((prev) => ({
@@ -167,6 +183,7 @@ export function GreenCarbonForm() {
           dataLuasan: "Error reading file",
           dataKoordinat: "Error reading file",
         }))
+        alert(`Error reading satellite data: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
     }
   }
