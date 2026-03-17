@@ -464,27 +464,4 @@ function formatString(value: any): string {
     .trim()
 }
 
-/**
- * Parse satellite data file and extract information
- */
-export async function parseSatelliteDataFile(file: File): Promise<ParsedSatelliteData> {
-  try {
-    const text = await file.text()
-    const geojson = JSON.parse(text)
 
-    const area = extractAreaFromGeoJSON(geojson)
-    const coordinates = extractCenterCoordinates(geojson)
-
-    return {
-      area: area > 0 ? `${area} ha` : "Unable to calculate",
-      coordinates: coordinates,
-      forestType: "Detected from satellite data",
-    }
-  } catch (error) {
-    console.error("[v0] Error parsing satellite data:", error)
-    return {
-      area: "Error parsing",
-      coordinates: "Error parsing",
-    }
-  }
-}
