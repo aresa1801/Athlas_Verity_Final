@@ -539,7 +539,6 @@ export function GreenCarbonForm() {
               className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground min-h-24"
             />
             {formData.vegetationDescription && <p className="text-xs text-emerald-600 mt-1">✓ Multi-source satellite analysis</p>}
-            </div>
           </div>
         </Card>
       </section>
