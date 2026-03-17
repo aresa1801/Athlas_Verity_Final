@@ -386,7 +386,7 @@ export function GreenCarbonForm() {
                 disabled
                 className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground"
               />
-              {formData.dataLuasan && <p className="text-xs text-emerald-600 mt-1">✓ Auto-populated from satellite analysis</p>}
+              {formData.dataLuasan && <p className="text-xs text-emerald-600 mt-1">Verified: Auto-populated from satellite analysis</p>}
             </div>
 
             <div>
@@ -400,7 +400,7 @@ export function GreenCarbonForm() {
                 disabled
                 className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground"
               />
-              {formData.dataKoordinat && <p className="text-xs text-emerald-600 mt-1">✓ Auto-populated from satellite analysis</p>}
+              {formData.dataKoordinat && <p className="text-xs text-emerald-600 mt-1">Verified: Auto-populated from satellite analysis</p>}
             </div>
           </div>
         </Card>
@@ -505,7 +505,7 @@ export function GreenCarbonForm() {
                 disabled
                 className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground"
               />
-              {formData.vegetationClassification && <p className="text-xs text-emerald-600 mt-1">✓ From satellite analysis</p>}
+              {formData.vegetationClassification && <p className="text-xs text-emerald-600 mt-1">Verified: From satellite analysis</p>}
             </div>
 
             <div>
@@ -522,7 +522,7 @@ export function GreenCarbonForm() {
                 disabled
                 className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground"
               />
-              {formData.ndviValue && <p className="text-xs text-emerald-600 mt-1">✓ Satellite derived</p>}
+              {formData.ndviValue && <p className="text-xs text-emerald-600 mt-1">Verified: Satellite derived</p>}
             </div>
           </div>
 
@@ -538,7 +538,7 @@ export function GreenCarbonForm() {
               placeholder="Auto-populated from satellite analysis"
               className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground min-h-24"
             />
-            {formData.vegetationDescription && <p className="text-xs text-emerald-600 mt-1">✓ Multi-source satellite analysis</p>}
+            {formData.vegetationDescription && <p className="text-xs text-emerald-600 mt-1">Verified: Multi-source satellite analysis</p>}
           </div>
         </Card>
       </section>
