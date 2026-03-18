@@ -41,6 +41,7 @@ export async function parseGeoJSON(file: File): Promise<ParsedPolygon> {
 
 /**
  * Extract coordinates from GeoJSON with multi-polygon and hole support
+ * Handles FeatureCollections with multiple features
  */
 function extractCoordinatesFromGeoJSON(geojson: any): { 
   coordinates: Array<[number, number]>
@@ -51,7 +52,29 @@ function extractCoordinatesFromGeoJSON(geojson: any): {
   if (geojson.type === 'FeatureCollection') {
     const features = geojson.features || []
     if (features.length > 0) {
-      return extractCoordinatesFromGeometry(features[0].geometry)
+      // Process ALL features, not just the first one
+      const allMultiPolygons: Array<{ outerRing: Array<[number, number]>; innerRings: Array<Array<[number, number]>> }> = []
+      let totalHoles = 0
+      let allCoordinates: Array<[number, number]> = []
+      
+      for (const feature of features) {
+        const result = extractCoordinatesFromGeometry(feature.geometry)
+        if (result.multiPolygons) {
+          allMultiPolygons.push(...result.multiPolygons)
+          totalHoles += result.holeCount
+        }
+        // Use first feature's coordinates for main display
+        if (allCoordinates.length === 0 && result.coordinates.length > 0) {
+          allCoordinates = result.coordinates
+        }
+      }
+      
+      return {
+        coordinates: allCoordinates,
+        multiPolygons: allMultiPolygons,
+        polygonCount: allMultiPolygons.length,
+        holeCount: totalHoles
+      }
     }
   }
   if (geojson.type === 'Feature') {
