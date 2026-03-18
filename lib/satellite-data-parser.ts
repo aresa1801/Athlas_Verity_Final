@@ -289,7 +289,7 @@ function parseGeoJSONWithMetadata(
     forestType: formatString(forestType),
     dominantSpecies: formatString(dominantSpecies),
     vegetationDescription: formatString(vegetationDescription),
-    averageTreeHeight: formatString(averageTreeHeight),
+    averageTreeHeight: String(averageTreeHeight).trim(), // Keep as-is, don't format (preserve ranges like "25-30")
     canopyCover: formatString(canopyCover),
     biomass: formatString(biomass),
     carbonEstimate: formatString(carbonEstimate),

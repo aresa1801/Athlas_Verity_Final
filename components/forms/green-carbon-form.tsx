@@ -221,7 +221,17 @@ export function GreenCarbonForm() {
           coordinateValue = `${center.latitude}, ${center.longitude}`
         }
         
-        console.log("[v0] Extracted values:", {
+        console.log("[v0] Raw parsed satellite data fields:", {
+          parsedArea: parsedData.area,
+          parsedAreaHa: parsedData.areaHa,
+          parsedCoordinates: parsedData.coordinates,
+          parsedCenterCoords: parsedData.rawGeoJSON?.centerCoordinates,
+          parsedHeight: parsedData.averageTreeHeight,
+          parsedSpecies: parsedData.dominantSpecies,
+          parsedForestType: parsedData.forestType,
+        })
+        
+        console.log("[v0] Extracted & processed values:", {
           area: areaValue,
           coordinates: coordinateValue,
           height: heightValue,
@@ -235,22 +245,25 @@ export function GreenCarbonForm() {
           ? parsedData.vegetationDescription
           : generateVegetationDescription(parsedData)
         
-        setFormData((prev) => ({
-          ...prev,
-          // Geospatial data
+        const updatedData = {
           dataLuasan: areaValue ? `${areaValue} ha` : "",
           dataKoordinat: coordinateValue,
-          
-          // Forest and vegetation data from satellite analysis
           forestType: parsedData.forestType || "",
           dominantSpecies: parsedData.dominantSpecies || "Mixed tropical species",
-          averageTreeHeight: heightValue, // Numeric only: "25-30"
+          averageTreeHeight: heightValue,
           vegetationClassification: vegClassification,
           vegetationDescription: finalDescription,
           ndviValue: parsedData.ndvi || 0.65,
+        }
+        
+        console.log("[v0] About to update form with data:", updatedData)
+        
+        setFormData((prev) => ({
+          ...prev,
+          ...updatedData
         }))
         
-        console.log("[v0] Form updated with satellite data - All fields populated successfully")
+        console.log("[v0] Form updated - All fields should now be populated")
       } catch (error) {
         console.error("[v0] Error parsing satellite data:", error)
         alert(`Error reading satellite data: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -509,14 +522,13 @@ export function GreenCarbonForm() {
                 <Tooltip text={FIELD_TOOLTIPS.averageTreeHeight} />
               </label>
               <input
-                type="number"
-                min="0"
-                max="100"
+                type="text"
                 value={formData.averageTreeHeight}
                 disabled
                 placeholder="Auto-filled from satellite data"
                 className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground"
               />
+              {formData.averageTreeHeight && <p className="text-xs text-emerald-600 mt-1">Verified: Auto-filled from satellite analysis</p>}
             </div>
           </div>
 
