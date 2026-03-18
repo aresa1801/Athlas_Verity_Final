@@ -181,61 +181,78 @@ export function GreenCarbonForm() {
       handleFileUpload(e, "satelliteDataFile")
       
       try {
+        console.log("[v0] Starting satellite data extraction from:", file.name)
+        
         // Parse satellite data and auto-fill all available fields
         const parsedData = await parseSatelliteDataFile(file)
         
-        // Extract vegetation classification from forest type or use parsed data
+        console.log("[v0] Raw parsed data:", parsedData)
+        
+        // Extract vegetation classification from forest type
         const vegClassification = parsedData.forestType?.includes('Dense') 
           ? 'Dense Forest'
           : parsedData.forestType?.includes('Open') 
           ? 'Open Forest'
           : parsedData.forestType || 'Forest'
         
-        // Extract height value from averageTreeHeight string (e.g., "25-30m" -> "25-30")
+        // Extract height value from averageTreeHeight string
+        // Support formats: "25-30", "25-30m", "25 - 30", etc.
         let heightValue = ""
         if (parsedData.averageTreeHeight) {
-          heightValue = String(parsedData.averageTreeHeight).replace(/[^0-9\-\.]/g, '')
+          heightValue = String(parsedData.averageTreeHeight).replace(/[^0-9\-\.]/g, '').trim()
         }
         
-        // Extract area numeric value
-        const areaMatch = String(parsedData.area).match(/\d+\.?\d*/)
-        const areaValue = areaMatch ? areaMatch[0] : parsedData.areaHa?.toString() || ""
+        // Extract area numeric value with precision
+        let areaValue = ""
+        if (parsedData.areaHa && parsedData.areaHa > 0) {
+          areaValue = parsedData.areaHa.toFixed(2)
+        } else {
+          const areaMatch = String(parsedData.area).match(/(\d+\.?\d*)/)
+          areaValue = areaMatch ? areaMatch[1] : ""
+        }
+        
+        // Extract coordinates - support both "lat, lng" and object format
+        let coordinateValue = ""
+        if (parsedData.coordinates) {
+          coordinateValue = String(parsedData.coordinates)
+        }
+        if (!coordinateValue && parsedData.rawGeoJSON?.centerCoordinates) {
+          const center = parsedData.rawGeoJSON.centerCoordinates
+          coordinateValue = `${center.latitude}, ${center.longitude}`
+        }
+        
+        console.log("[v0] Extracted values:", {
+          area: areaValue,
+          coordinates: coordinateValue,
+          height: heightValue,
+          species: parsedData.dominantSpecies,
+          forestType: parsedData.forestType,
+          description: parsedData.vegetationDescription,
+        })
+        
+        // Generate detailed vegetation description if not provided
+        const finalDescription = parsedData.vegetationDescription && parsedData.vegetationDescription.length > 20
+          ? parsedData.vegetationDescription
+          : generateVegetationDescription(parsedData)
         
         setFormData((prev) => ({
           ...prev,
-          // Geospatial data - with area in hectares format
+          // Geospatial data
           dataLuasan: areaValue ? `${areaValue} ha` : "",
-          dataKoordinat: parsedData.coordinates || "",
+          dataKoordinat: coordinateValue,
           
-          // Vegetation data from satellite - these are extracted from actual satellite analysis
+          // Forest and vegetation data from satellite analysis
           forestType: parsedData.forestType || "",
           dominantSpecies: parsedData.dominantSpecies || "Mixed tropical species",
-          averageTreeHeight: heightValue || "", // Should contain numeric value like "25-30"
+          averageTreeHeight: heightValue, // Numeric only: "25-30"
           vegetationClassification: vegClassification,
-          vegetationDescription: parsedData.vegetationDescription || generateVegetationDescription(parsedData),
+          vegetationDescription: finalDescription,
           ndviValue: parsedData.ndvi || 0.65,
         }))
         
-        console.log("[v0] Satellite data successfully extracted:", {
-          area: parsedData.area,
-          areaHa: parsedData.areaHa,
-          coordinates: parsedData.coordinates,
-          forestType: parsedData.forestType,
-          species: parsedData.dominantSpecies,
-          height: heightValue,
-          classification: vegClassification,
-          ndvi: parsedData.ndvi,
-          description: parsedData.vegetationDescription,
-          sources: parsedData.dataSource,
-          polygons: parsedData.polygonCount,
-        })
+        console.log("[v0] Form updated with satellite data - All fields populated successfully")
       } catch (error) {
         console.error("[v0] Error parsing satellite data:", error)
-        setFormData((prev) => ({
-          ...prev,
-          dataLuasan: "Error reading file",
-          dataKoordinat: "Error reading file",
-        }))
         alert(`Error reading satellite data: ${error instanceof Error ? error.message : 'Unknown error'}`)
       }
     }

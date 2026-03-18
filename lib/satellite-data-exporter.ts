@@ -5,9 +5,15 @@
 
 export interface SatelliteExportData {
   projectName: string
+  timestamp: string
+  analysisVersion?: string
   area: { hectares: number; km2: number }
   forestType: string
+  dominantSpecies?: string
+  averageTreeHeight?: string
+  vegetationDescription?: string
   polygonCoordinates: Array<[number, number]>
+  centerCoordinates?: { latitude: number; longitude: number }
   multiPolygons?: Array<{
     outerRing: Array<[number, number]>
     innerRings: Array<Array<[number, number]>>
@@ -17,6 +23,7 @@ export interface SatelliteExportData {
   location?: string
   satelliteSource?: string
   uploadedFile?: string
+  uploadedFileName?: string
   satellite: {
     ndvi: number
     cloudCover: number
@@ -27,7 +34,16 @@ export interface SatelliteExportData {
     methodology?: string
     confidence?: number
   }
-  timestamp: string
+  carbonData?: {
+    agb: number | string
+    agbUnit?: string
+    totalCarbonStock: number | string
+    totalCarbonStockUnit?: string
+    co2e?: string
+    co2eUnit?: string
+    methodology?: string
+    confidence?: number
+  }
 }
 
 /**

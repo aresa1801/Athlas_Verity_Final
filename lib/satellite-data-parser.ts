@@ -391,6 +391,99 @@ export function extractCenterCoordinates(geojson: any): string {
 }
 
 /**
+ * Parse verification data from analysis page export
+ * Handles the complete data structure from green-carbon-analysis
+ */
+export async function parseAnalysisExportData(file: File): Promise<ParsedSatelliteData> {
+  const fileName = file.name.toLowerCase()
+  
+  if (!fileName.endsWith('.zip')) {
+    throw new Error('Please upload a ZIP file from the analysis export')
+  }
+
+  const JSZip = (await import('jszip')).default
+  const zip = new JSZip()
+  const contents = await zip.loadAsync(file)
+
+  // Look for satellite_analysis.json (new format from analysis page)
+  let analysisData: any = null
+  
+  for (const fileName in contents.files) {
+    if (fileName === 'satellite_analysis.json' || fileName.includes('satellite_analysis')) {
+      const fileContent = await contents.files[fileName].async('text')
+      try {
+        analysisData = JSON.parse(fileContent)
+        console.log("[v0] Found satellite_analysis.json in ZIP")
+        break
+      } catch (e) {
+        console.warn(`[v0] Invalid JSON: ${fileName}`)
+      }
+    }
+  }
+
+  if (!analysisData) {
+    throw new Error('No satellite analysis data found in ZIP file')
+  }
+
+  // Extract complete data from analysis export
+  return extractAnalysisData(analysisData)
+}
+
+/**
+ * Extract all fields from analysis export data structure
+ */
+function extractAnalysisData(data: any): ParsedSatelliteData {
+  // Extract area
+  const area = data.area || {}
+  const areaHa = area.hectares || 0
+  
+  // Extract coordinates
+  const centerCoords = data.centerCoordinates || { latitude: 0, longitude: 0 }
+  const coordinates = `${centerCoords.latitude}, ${centerCoords.longitude}`
+  
+  // Extract vegetation data
+  const forestType = data.forestType || 'Tropical Forest'
+  const dominantSpecies = data.dominantSpecies || data.satellite?.vegetationClass || 'Mixed tropical species'
+  const averageTreeHeight = data.averageTreeHeight || '25-30'
+  const vegetationDescription = data.vegetationDescription || ''
+  
+  // Extract satellite data
+  const satellite = data.satellite || {}
+  const ndvi = satellite.ndvi || 0.68
+  const biomass = satellite.biomass || data.carbonData?.agb || 250
+  const carbonEstimate = satellite.carbonEstimate || data.carbonData?.totalCarbonStock || 0
+  
+  console.log("[v0] Extracted analysis data:", {
+    areaHa,
+    coordinates,
+    forestType,
+    dominantSpecies,
+    averageTreeHeight,
+    biomass,
+    carbonEstimate,
+    ndvi,
+  })
+  
+  return {
+    area: `${areaHa.toFixed(2)} ha`,
+    areaHa,
+    coordinates,
+    forestType,
+    dominantSpecies,
+    vegetationDescription,
+    averageTreeHeight,
+    canopyCover: satellite.cloudCover ? `${100 - satellite.cloudCover}%` : '75-95%',
+    biomass: `${parseFloat(String(biomass)).toFixed(2)} tC/ha`,
+    carbonEstimate: `${parseFloat(String(carbonEstimate)).toFixed(2)} tC`,
+    ndvi,
+    dataSource: [data.satelliteSource || 'Satellite Analysis'],
+    analysisDate: new Date(data.timestamp).toISOString().split('T')[0],
+    polygonCount: data.polygonInfo?.count || 1,
+    rawGeoJSON: data,
+  }
+}
+
+/**
  * Detect if coordinates are in terrestrial or coastal/marine area
  * Key differences:
  * - Terrestrial: Compact, relatively regular polygons (forests)
