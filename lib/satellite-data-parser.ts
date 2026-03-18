@@ -3,7 +3,8 @@
  */
 export interface ParsedSatelliteData {
   // Geospatial data
-  area: string // in hectares
+  area: string // in hectares (formatted)
+  areaHa?: number // numeric area value for calculations
   coordinates: string // center coordinates
   
   // Vegetation data
@@ -283,6 +284,7 @@ function parseGeoJSONWithMetadata(
 
   const result: ParsedSatelliteData = {
     area: `${area.toFixed(2)} ha`,
+    areaHa: area, // Add numeric area for calculations
     coordinates,
     forestType: formatString(forestType),
     dominantSpecies: formatString(dominantSpecies),
@@ -299,6 +301,7 @@ function parseGeoJSONWithMetadata(
 
   console.log("[v0] Parsed satellite data:", result)
   console.log("[v0] Polygon coordinates extracted:", polygonCoordinates.length, "points")
+  console.log("[v0] Dominant Species:", dominantSpecies, "Tree Height:", averageTreeHeight)
   return result
 }
 

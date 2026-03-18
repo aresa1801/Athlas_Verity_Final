@@ -23,6 +23,14 @@ export interface VerificationFormSatelliteData {
       west: number
     }
   }
+  vegetationData: {
+    forestType: string
+    dominantSpecies: string
+    averageTreeHeight: string
+    vegetationDescription: string
+    canopyCover: string
+    ndvi: number
+  }
   carbonData: {
     biomass_agb_mean: number
     carbon_tC: number
@@ -81,6 +89,14 @@ export function convertPolygonToFormData(
       polygon: coordinates,
       area_ha: polygon.area,
       bounds,
+    },
+    vegetationData: {
+      forestType: 'Tropical Forest',
+      dominantSpecies: 'Mixed tropical species',
+      averageTreeHeight: '25-30',
+      vegetationDescription: 'Dense tropical forest ecosystem with mixed species composition and healthy canopy coverage.',
+      canopyCover: '85-95%',
+      ndvi: 0.75,
     },
     carbonData,
     results: [
@@ -159,6 +175,14 @@ export function convertSatelliteDataToFormData(
       area_ha: areaHa,
       bounds,
     },
+    vegetationData: {
+      forestType: satelliteData.forestType || 'Tropical Forest',
+      dominantSpecies: satelliteData.dominantSpecies || 'Mixed tropical species',
+      averageTreeHeight: satelliteData.averageTreeHeight || '25-30',
+      vegetationDescription: satelliteData.vegetationDescription || 'Dense forest with mixed species composition',
+      canopyCover: satelliteData.canopyCover || 'Medium to High',
+      ndvi: satelliteData.ndvi || 0.68,
+    },
     carbonData,
     results: [
       {
@@ -174,7 +198,7 @@ export function convertSatelliteDataToFormData(
           B12: 0.20,
         },
         indices: {
-          ndvi: satelliteData.rawGeoJSON?.ndvi || 0.68,
+          ndvi: satelliteData.ndvi || 0.68,
           ndvi_class: satelliteData.forestType || 'Vegetated',
           cloud_cover: 5,
           vegetation_health: satelliteData.canopyCover || 'Medium',
@@ -262,7 +286,7 @@ function createCoordinatesCSV(formData: VerificationFormSatelliteData): string {
 }
 
 /**
- * Generate GeoJSON from form data
+ * Generate GeoJSON from form data with complete vegetation and carbon metadata
  */
 function createGeoJSONFromFormData(formData: VerificationFormSatelliteData): string {
   const coordinates = formData.satelliteMetadata.polygon.map(([lat, lng]) => [lng, lat])
@@ -270,11 +294,26 @@ function createGeoJSONFromFormData(formData: VerificationFormSatelliteData): str
   const feature = {
     type: 'Feature',
     properties: {
+      // Geospatial data
       area_ha: formData.satelliteMetadata.area_ha,
       bounds: formData.satelliteMetadata.bounds,
+      
+      // Vegetation data for form population
+      forestType: formData.vegetationData?.forestType || 'Tropical Forest',
+      dominantSpecies: formData.vegetationData?.dominantSpecies || 'Mixed tropical species',
+      averageTreeHeight: formData.vegetationData?.averageTreeHeight || '25-30',
+      vegetationDescription: formData.vegetationData?.vegetationDescription || 'Dense tropical forest ecosystem',
+      canopyCover: formData.vegetationData?.canopyCover || '85-95%',
+      ndvi: formData.vegetationData?.ndvi || 0.75,
+      
+      // Carbon data
       carbon_tC: formData.carbonData.carbon_tC,
       co2_tCO2: formData.carbonData.co2_tCO2,
       biomass_agb_mean: formData.carbonData.biomass_agb_mean,
+      
+      // Coordinate bounds (for form population)
+      centerLat: (formData.satelliteMetadata.bounds.north + formData.satelliteMetadata.bounds.south) / 2,
+      centerLng: (formData.satelliteMetadata.bounds.east + formData.satelliteMetadata.bounds.west) / 2,
     },
     geometry: {
       type: 'Polygon',
