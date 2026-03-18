@@ -10,6 +10,8 @@ import { Upload, Loader2, ArrowLeft, Plus, CheckCircle } from "lucide-react"
 import Link from "next/link"
 import { WalletConnect } from "@/components/wallet-connect"
 import { calculateAndFormatArea } from "@/lib/polygon-area-calculator"
+import { detectAndParseFile } from "@/lib/polygon-file-handlers"
+import { convertPolygonToFormData, createVerificationDataZIP } from "@/lib/geojson-to-form-data"
 
 interface Coordinate {
   id: number
@@ -74,6 +76,70 @@ export default function UploadPage() {
     setIsDragging(false)
     const droppedFiles = Array.from(e.dataTransfer.files)
     setFiles([...files, ...droppedFiles])
+  }
+
+  const handleGeoJSONImport = async (file: File) => {
+    try {
+      console.log("[v0] Processing GeoJSON file:", file.name)
+      
+      // Parse the GeoJSON file using the polygon file handler
+      const parsedPolygon = await detectAndParseFile(file)
+      
+      if (!parsedPolygon.isValid || parsedPolygon.coordinates.length < 3) {
+        alert(`Error: ${parsedPolygon.error || 'No polygon coordinates found in ' + file.name + '. Make sure the file contains valid geospatial data.'}`)
+        return
+      }
+      
+      console.log("[v0] GeoJSON parsed successfully:", {
+        coordinates: parsedPolygon.coordinates.length,
+        area: parsedPolygon.area,
+        format: parsedPolygon.format,
+      })
+      
+      // Convert to form-compatible data structure
+      const formData = convertPolygonToFormData(parsedPolygon, file.name)
+      
+      // Create downloadable ZIP with form-compatible data
+      const zipBlob = await createVerificationDataZIP(formData, file.name.replace(/\.[^/.]+$/, '') + '-verification.zip')
+      
+      // Auto-download the ZIP file
+      const url = URL.createObjectURL(zipBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = file.name.replace(/\.[^/.]+$/, '') + '-verification.zip'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      
+      // Update form fields with extracted data
+      setFormData((prev) => ({
+        ...prev,
+        projectDescription: prev.projectDescription || `Analysis from ${file.name}`,
+        coordinates: formData.coordinates.map((coord, idx) => ({
+          id: idx + 1,
+          latitude: String(coord.latitude),
+          longitude: String(coord.longitude),
+        })),
+        satelliteData: {
+          bands: formData.results?.[0]?.bands,
+          area_ha: formData.satelliteMetadata.area_ha,
+          polygon_area_ha: formData.satelliteMetadata.area_ha,
+          features: formData.results?.[0]?.indices,
+          biomass_agb_mean: formData.carbonData.biomass_agb_mean,
+          carbon_tC: formData.carbonData.carbon_tC,
+          co2_tCO2: formData.carbonData.co2_tCO2,
+          net_verified_co2: formData.carbonData.net_verified_co2,
+        },
+        calculatedAreaHa: formData.satelliteMetadata.area_ha,
+        calculatedAreaKm2: formData.satelliteMetadata.area_ha / 100,
+      }))
+      
+      alert(`✓ GeoJSON processed successfully!\n\nArea: ${parsedPolygon.area.toFixed(2)} ha\nCoordinates: ${parsedPolygon.coordinates.length} points\n\nA verification data ZIP has been downloaded. You can import this into the verification form if needed.`)
+    } catch (error) {
+      console.error("[v0] Error processing GeoJSON:", error)
+      alert(`Failed to process GeoJSON file: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
 
   const handleSatelliteDataImport = async (file: File) => {
@@ -147,11 +213,22 @@ export default function UploadPage() {
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files)
+      
 
       newFiles.forEach((file) => {
-        if (file.name.includes("satellite-verification-data") && file.name.endsWith(".zip")) {
+        // Handle GeoJSON files (.geojson)
+        if (file.name.endsWith(".geojson")) {
+          handleGeoJSONImport(file)
+        }
+        // Handle satellite verification data ZIPs
+        else if (file.name.includes("satellite-verification-data") && file.name.endsWith(".zip")) {
           handleSatelliteDataImport(file)
         }
+      })
+
+      setFiles([...files, ...newFiles])
+    }
+  }
       })
 
       setFiles([...files, ...newFiles])

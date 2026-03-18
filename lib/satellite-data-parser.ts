@@ -53,37 +53,82 @@ export function extractAreaFromGeoJSON(geojson: any): number {
 }
 
 /**
- * Extract coordinates from geometry
+ * Extract coordinates from geometry - handles Polygon, MultiPolygon, and nested structures
  */
 function extractCoordinatesFromGeometry(geometry: any): Array<[number, number]> {
   if (!geometry?.coordinates) return []
 
+  // Handle Polygon: coordinates[0] is outer ring, [1+] are holes
+  if (geometry.type === 'Polygon' && Array.isArray(geometry.coordinates)) {
+    const outerRing = geometry.coordinates[0] || []
+    return outerRing.map((coord: [number, number]) => [coord[1], coord[0]]) // Convert from [lng,lat] to [lat,lng]
+  }
+
+  // Handle MultiPolygon: return first polygon's outer ring
+  if (geometry.type === 'MultiPolygon' && Array.isArray(geometry.coordinates)) {
+    const firstPolygon = geometry.coordinates[0]
+    if (firstPolygon && Array.isArray(firstPolygon) && firstPolygon.length > 0) {
+      const outerRing = firstPolygon[0] || []
+      return outerRing.map((coord: [number, number]) => [coord[1], coord[0]])
+    }
+  }
+
+  // Fallback for other geometry types
   const coords = geometry.coordinates[0] || geometry.coordinates
-  return coords.map((coord: [number, number]) => [coord[1], coord[0]]) // Convert from [lng,lat] to [lat,lng]
+  if (Array.isArray(coords) && coords.length > 0) {
+    return coords.map((coord: [number, number]) => [coord[1], coord[0]])
+  }
+
+  return []
 }
 
 /**
  * Calculate polygon area in hectares using Shoelace formula
+ * Handles both regular lat/lng coordinates and geodetic calculations
  */
 function calculatePolygonAreaHectares(coordinates: Array<[number, number]>): number {
   if (coordinates.length < 3) return 0
 
-  // Convert lat/lng to approximate meters (rough approximation)
-  let area = 0
-  for (let i = 0; i < coordinates.length - 1; i++) {
-    const [lat1, lng1] = coordinates[i]
-    const [lat2, lng2] = coordinates[i + 1]
-    
-    // Simplified Shoelace formula
-    area += (lng1 * lat2 - lng2 * lat1)
+  // Use geodetic area calculation for more accurate results
+  return calculateGeodesicArea(coordinates)
+}
+
+/**
+ * Calculate geodetic polygon area using the spherical excess method
+ * More accurate than simple Shoelace formula for geographic coordinates
+ */
+function calculateGeodesicArea(coordinates: Array<[number, number]>): number {
+  const R = 6371000 // Earth's radius in meters
+  
+  // Close the polygon if not already closed
+  const closedCoords = [...coordinates]
+  if (closedCoords[0] !== closedCoords[closedCoords.length - 1]) {
+    closedCoords.push(closedCoords[0])
   }
 
-  area = Math.abs(area) / 2
+  let area = 0
+  for (let i = 0; i < closedCoords.length - 1; i++) {
+    const [lat1, lng1] = closedCoords[i]
+    const [lat2, lng2] = closedCoords[i + 1]
+    
+    const phi1 = (lat1 * Math.PI) / 180
+    const phi2 = (lat2 * Math.PI) / 180
+    const deltaLambda = ((lng2 - lng1) * Math.PI) / 180
 
-  // Convert to hectares (rough approximation at equator: 1 degree ≈ 111km)
-  const metersPerDegree = 111000
-  const areaM2 = area * metersPerDegree * metersPerDegree
-  const areaHa = areaM2 / 10000
+    // Spherical excess formula
+    const E = 2 * Math.atan2(
+      Math.tan(deltaLambda / 2) * (Math.tan(phi1 / 2) + Math.tan(phi2 / 2)),
+      1 + Math.tan(phi1 / 2) * Math.tan(phi2 / 2)
+    )
+    
+    area += E
+  }
+
+  // Area in square meters: |excess| * R²
+  area = Math.abs(area) * R * R
+  
+  // Convert to hectares (1 hectare = 10,000 m²)
+  const areaHa = area / 10000
 
   return Math.round(areaHa * 100) / 100
 }
@@ -191,8 +236,9 @@ function parseGeoJSONWithMetadata(
   metadata: any,
   shapefileFormat: boolean
 ): ParsedSatelliteData {
-  // Extract basic geospatial data
-  const area = extractAreaFromGeoJSON(geojson)
+  // Extract actual polygon coordinates for accurate area calculation
+  const polygonCoordinates = extractPolygonCoordinates(geojson)
+  const area = polygonCoordinates.length >= 3 ? calculatePolygonAreaHectares(polygonCoordinates) : extractAreaFromGeoJSON(geojson)
   const coordinates = extractCenterCoordinates(geojson)
 
   // Extract vegetation and analysis data from properties
@@ -252,7 +298,62 @@ function parseGeoJSONWithMetadata(
   }
 
   console.log("[v0] Parsed satellite data:", result)
+  console.log("[v0] Polygon coordinates extracted:", polygonCoordinates.length, "points")
   return result
+}
+
+/**
+ * Extract actual polygon boundary coordinates from GeoJSON
+ * Handles FeatureCollection, Feature, Polygon, and MultiPolygon
+ */
+function extractPolygonCoordinates(geojson: any): Array<[number, number]> {
+  if (!geojson) return []
+
+  // Handle FeatureCollection - extract from first feature
+  if (geojson.type === 'FeatureCollection' && geojson.features?.length > 0) {
+    const geometry = geojson.features[0].geometry
+    return extractGeometryCoordinates(geometry)
+  }
+
+  // Handle Feature
+  if (geojson.type === 'Feature' && geojson.geometry) {
+    return extractGeometryCoordinates(geojson.geometry)
+  }
+
+  // Handle direct Polygon or MultiPolygon
+  if ((geojson.type === 'Polygon' || geojson.type === 'MultiPolygon') && geojson.coordinates) {
+    return extractGeometryCoordinates(geojson)
+  }
+
+  return []
+}
+
+/**
+ * Extract coordinates from a geometry object
+ */
+function extractGeometryCoordinates(geometry: any): Array<[number, number]> {
+  if (!geometry?.coordinates) return []
+
+  // Polygon: coordinates[0] is the outer ring
+  if (geometry.type === 'Polygon') {
+    const outerRing = geometry.coordinates[0]
+    if (Array.isArray(outerRing)) {
+      return outerRing.map((coord: [number, number]) => [coord[1], coord[0]]) // [lng,lat] → [lat,lng]
+    }
+  }
+
+  // MultiPolygon: get first polygon's outer ring
+  if (geometry.type === 'MultiPolygon') {
+    const firstPolygon = geometry.coordinates[0]
+    if (Array.isArray(firstPolygon) && firstPolygon.length > 0) {
+      const outerRing = firstPolygon[0]
+      if (Array.isArray(outerRing)) {
+        return outerRing.map((coord: [number, number]) => [coord[1], coord[0]])
+      }
+    }
+  }
+
+  return []
 }
 
 /**

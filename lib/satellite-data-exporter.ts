@@ -79,15 +79,52 @@ ${data.polygonCoordinates.map(([lat, lng]) => `${lat.toFixed(6)}, ${lng.toFixed(
 /**
  * Generate ZIP package with complete satellite data for form population
  * Includes all processed data needed for green carbon and blue carbon verification
+ * Uses jszip for proper ZIP file generation
  */
 export async function generateSatelliteDataZIP(data: SatelliteExportData): Promise<Blob> {
-  const csvContent = generateCSV(data)
-  const jsonContent = JSON.stringify(data, null, 2)
-  const coordinatesContent = generateCoordinatesFile(data)
-  const geojsonContent = generateGeoJSONFile(data)
-  
-  // Create manifest with data schema
-  const manifestContent = `SATELLITE DATA PACKAGE
+  try {
+    // Try to use JSZip if available
+    const JSZip = (await import('jszip')).default
+    const zip = new JSZip()
+
+    // Generate all file contents
+    const csvContent = generateCSV(data)
+    const jsonContent = JSON.stringify(data, null, 2)
+    const coordinatesContent = generateCoordinatesFile(data)
+    const geojsonContent = generateGeoJSONFile(data)
+    const manifestContent = generateManifest(data)
+
+    // Add files to ZIP
+    zip.file('README.txt', manifestContent)
+    zip.file('satellite_analysis.json', jsonContent)
+    zip.file('satellite_analysis.csv', csvContent)
+    zip.file('polygon_coordinates.geojson', geojsonContent)
+    zip.file('polygon_coordinates.txt', coordinatesContent)
+
+    // Generate and return ZIP blob
+    const blob = await zip.generateAsync({ type: 'blob' })
+    return blob
+  } catch (error) {
+    console.error('[v0] JSZip not available, using fallback format')
+    // Fallback: return data as JSON blob if ZIP not available
+    const data_stringified = JSON.stringify({
+      projectName: data.projectName,
+      timestamp: data.timestamp,
+      area: data.area,
+      polygonCoordinates: data.polygonCoordinates,
+      multiPolygons: data.multiPolygons,
+      satellite: data.satellite,
+    }, null, 2)
+    
+    return new Blob([data_stringified], { type: 'application/json' })
+  }
+}
+
+/**
+ * Generate manifest/README content
+ */
+function generateManifest(data: SatelliteExportData): string {
+  return `SATELLITE DATA PACKAGE
 ======================
 Project: ${data.projectName}
 Generated: ${data.timestamp}
@@ -117,33 +154,14 @@ All data is ready to populate:
 Use satellite_analysis.json for programmatic access (recommended)
 Use satellite_analysis.csv for spreadsheet applications
 Use polygon_coordinates.geojson for mapping applications
+
+USAGE IN VERIFICATION FORMS:
+1. Download and extract this ZIP file
+2. Open satellite_analysis.json in a text editor
+3. Copy the polygonCoordinates array to the form's coordinate field
+4. Copy area value to the area field
+5. Copy other metadata as needed
 `
-
-  // Simulate ZIP content with all files
-  const zipContent = `${manifestContent}
-
-================================================================================
-FILE: satellite_analysis.json
-================================================================================
-${jsonContent}
-
-================================================================================
-FILE: satellite_analysis.csv
-================================================================================
-${csvContent}
-
-================================================================================
-FILE: polygon_coordinates.geojson
-================================================================================
-${geojsonContent}
-
-================================================================================
-FILE: polygon_coordinates.txt
-================================================================================
-${coordinatesContent}
-  `
-
-  return new Blob([zipContent], { type: "application/zip" })
 }
 
 /**
@@ -170,72 +188,91 @@ function generateCSV(data: SatelliteExportData): string {
 
 /**
  * Generate GeoJSON format from polygon data
+ * Properly handles single/multiple polygons with holes
  */
 function generateGeoJSONFile(data: SatelliteExportData): string {
   // Convert coordinates from [lat, lng] to [lng, lat] for GeoJSON
   const outerRing = data.polygonCoordinates.map(([lat, lng]) => [lng, lat])
   
-  let coordinates: any[] = [outerRing]
+  let features: any[] = []
   let polygonCount = 1
   
-  // Add inner rings (holes) if available
-  if (data.multiPolygons && data.multiPolygons.length > 0) {
-    if (data.multiPolygons[0].innerRings.length > 0) {
+  // Handle multiple polygons
+  if (data.multiPolygons && data.multiPolygons.length > 1) {
+    polygonCount = data.multiPolygons.length
+    
+    // Create a MultiPolygon feature
+    const allPolygons = data.multiPolygons.map(poly => [
+      poly.outerRing.map(([lat, lng]) => [lng, lat]),
+      ...poly.innerRings.map(ring => ring.map(([lat, lng]) => [lng, lat]))
+    ])
+    
+    features.push({
+      type: 'Feature',
+      properties: {
+        projectName: data.projectName,
+        area: data.area.hectares,
+        area_km2: data.area.km2,
+        polygonCount,
+        holeCount: data.polygonInfo?.holes || 0,
+        forestType: data.forestType,
+        satelliteSource: data.satelliteSource || 'Unknown',
+        analysisDate: data.timestamp,
+        ndvi: data.satellite.ndvi,
+        cloudCover: data.satellite.cloudCover,
+        vegetationType: data.satellite.vegetationClass,
+        biomass: data.satellite.biomass,
+        carbonEstimate: data.satellite.carbonEstimate
+      },
+      geometry: {
+        type: 'MultiPolygon',
+        coordinates: allPolygons
+      }
+    })
+  } else {
+    // Single polygon (possibly with holes)
+    let coordinates: any[] = [outerRing]
+    
+    if (data.multiPolygons && data.multiPolygons[0]?.innerRings.length > 0) {
       coordinates = [
         outerRing,
         ...data.multiPolygons[0].innerRings.map(ring => ring.map(([lat, lng]) => [lng, lat]))
       ]
     }
     
-    // For multiple polygons, use MultiPolygon
-    if (data.multiPolygons.length > 1) {
-      polygonCount = data.multiPolygons.length
-      const allPolygons = data.multiPolygons.map(poly => [
-        poly.outerRing.map(([lat, lng]) => [lng, lat]),
-        ...poly.innerRings.map(ring => ring.map(([lat, lng]) => [lng, lat]))
-      ])
-      
-      const feature = {
-        type: 'Feature',
-        properties: {
-          projectName: data.projectName,
-          area: data.area.hectares,
-          polygonCount,
-          holeCount: data.polygonInfo?.holes || 0
-        },
-        geometry: {
-          type: 'MultiPolygon',
-          coordinates: allPolygons
-        }
+    features.push({
+      type: 'Feature',
+      properties: {
+        projectName: data.projectName,
+        area: data.area.hectares,
+        area_km2: data.area.km2,
+        polygonCount: 1,
+        holeCount: data.multiPolygons?.[0]?.innerRings.length || 0,
+        forestType: data.forestType,
+        satelliteSource: data.satelliteSource || 'Unknown',
+        analysisDate: data.timestamp,
+        ndvi: data.satellite.ndvi,
+        cloudCover: data.satellite.cloudCover,
+        vegetationType: data.satellite.vegetationClass,
+        biomass: data.satellite.biomass,
+        carbonEstimate: data.satellite.carbonEstimate
+      },
+      geometry: {
+        type: 'Polygon',
+        coordinates
       }
-      
-      return JSON.stringify({
-        type: 'FeatureCollection',
-        features: [feature]
-      }, null, 2)
-    }
+    })
   }
   
-  // Single polygon with holes
-  const feature = {
-    type: 'Feature',
-    properties: {
-      projectName: data.projectName,
-      area: data.area.hectares,
-      forestType: data.forestType,
-      vegetationType: data.satellite.vegetationClass,
-      ndvi: data.satellite.ndvi,
-      cloudCover: data.satellite.cloudCover
-    },
-    geometry: {
-      type: 'Polygon',
-      coordinates
-    }
-  }
-  
+  // Return as FeatureCollection for consistency
   return JSON.stringify({
     type: 'FeatureCollection',
-    features: [feature]
+    features,
+    properties: {
+      title: `Satellite Analysis for ${data.projectName}`,
+      description: 'Polygon boundaries and satellite analysis data',
+      generated: data.timestamp
+    }
   }, null, 2)
 }
 
