@@ -31,11 +31,32 @@ function extractCoordinatesFromGeoJSON(geojson: any): {
     return { coordinates: [], polygonCount: 0, holeCount: 0 }
   }
 
-  // Handle FeatureCollection
+  // Handle FeatureCollection - process ALL features
   if (geojson.type === 'FeatureCollection') {
     const features = geojson.features || []
     if (features.length > 0) {
-      return extractGeometry(features[0].geometry)
+      const allMultiPolygons: Array<{ outerRing: Array<[number, number]>; innerRings: Array<Array<[number, number]>> }> = []
+      let totalHoles = 0
+      let allCoordinates: Array<[number, number]> = []
+      
+      for (const feature of features) {
+        const result = extractGeometry(feature.geometry)
+        if (result.multiPolygons) {
+          allMultiPolygons.push(...result.multiPolygons)
+          totalHoles += result.holeCount
+        }
+        // Use first feature's coordinates for main display
+        if (allCoordinates.length === 0 && result.coordinates.length > 0) {
+          allCoordinates = result.coordinates
+        }
+      }
+      
+      return {
+        coordinates: allCoordinates,
+        multiPolygons: allMultiPolygons,
+        polygonCount: allMultiPolygons.length,
+        holeCount: totalHoles
+      }
     }
   }
 
