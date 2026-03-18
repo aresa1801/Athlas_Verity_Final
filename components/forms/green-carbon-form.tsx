@@ -184,7 +184,7 @@ export function GreenCarbonForm() {
         // Parse satellite data and auto-fill all available fields
         const parsedData = await parseSatelliteDataFile(file)
         
-        // Extract vegetation classification from forest type or use parsed data
+        // Extract vegetation classification from forest type
         const vegClassification = parsedData.forestType?.includes('Dense') 
           ? 'Dense Forest'
           : parsedData.forestType?.includes('Open') 
@@ -197,38 +197,49 @@ export function GreenCarbonForm() {
           heightValue = String(parsedData.averageTreeHeight).replace(/[^0-9\-\.]/g, '')
         }
         
-        // Extract area numeric value
-        const areaMatch = String(parsedData.area).match(/\d+\.?\d*/)
-        const areaValue = areaMatch ? areaMatch[0] : parsedData.areaHa?.toString() || ""
+        // Extract area numeric value - prioritize areaHa for accuracy
+        let areaValue = ""
+        if (parsedData.areaHa) {
+          areaValue = parsedData.areaHa.toFixed(2)
+        } else {
+          const areaMatch = String(parsedData.area).match(/\d+\.?\d*/)
+          areaValue = areaMatch ? areaMatch[0] : ""
+        }
+        
+        // Extract coordinates - use center if available, or use string format
+        let coordinateValue = parsedData.coordinates || ""
+        if (!coordinateValue && parsedData.rawGeoJSON?.centerCoordinates) {
+          const center = parsedData.rawGeoJSON.centerCoordinates
+          coordinateValue = `${center.latitude}, ${center.longitude}`
+        }
+        
+        console.log("[v0] Satellite data extraction details:", {
+          area: areaValue,
+          coordinates: coordinateValue,
+          forestType: parsedData.forestType,
+          species: parsedData.dominantSpecies,
+          height: heightValue,
+          ndvi: parsedData.ndvi,
+          canopyCover: parsedData.canopyCover,
+          rawData: parsedData,
+        })
         
         setFormData((prev) => ({
           ...prev,
           // Geospatial data - with area in hectares format
           dataLuasan: areaValue ? `${areaValue} ha` : "",
-          dataKoordinat: parsedData.coordinates || "",
+          dataKoordinat: coordinateValue,
           
-          // Vegetation data from satellite - these are extracted from actual satellite analysis
+          // Vegetation data from satellite analysis
           forestType: parsedData.forestType || "",
           dominantSpecies: parsedData.dominantSpecies || "Mixed tropical species",
-          averageTreeHeight: heightValue || "", // Should contain numeric value like "25-30"
+          averageTreeHeight: heightValue || "", // Numeric value only (e.g., "25-30")
           vegetationClassification: vegClassification,
           vegetationDescription: parsedData.vegetationDescription || generateVegetationDescription(parsedData),
           ndviValue: parsedData.ndvi || 0.65,
         }))
         
-        console.log("[v0] Satellite data successfully extracted:", {
-          area: parsedData.area,
-          areaHa: parsedData.areaHa,
-          coordinates: parsedData.coordinates,
-          forestType: parsedData.forestType,
-          species: parsedData.dominantSpecies,
-          height: heightValue,
-          classification: vegClassification,
-          ndvi: parsedData.ndvi,
-          description: parsedData.vegetationDescription,
-          sources: parsedData.dataSource,
-          polygons: parsedData.polygonCount,
-        })
+        console.log("[v0] Form fields updated with satellite data")
       } catch (error) {
         console.error("[v0] Error parsing satellite data:", error)
         setFormData((prev) => ({
