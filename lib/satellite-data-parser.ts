@@ -171,7 +171,6 @@ async function parseSatelliteDataZIP(file: File): Promise<ParsedSatelliteData> {
   const contents = await zip.loadAsync(file)
 
   let geojsonData: any = null
-  let verificationData: any = null
   let shapefileFound = false
   const files = Object.keys(contents.files)
 
@@ -182,29 +181,16 @@ async function parseSatelliteDataZIP(file: File): Promise<ParsedSatelliteData> {
   
   if (hasShp && hasShx && hasDbf) {
     shapefileFound = true
-  }
-
-  // Look for verification_data.json first (contains most complete data)
-  for (const fileName in contents.files) {
-    if (fileName === 'verification_data.json') {
-      const fileContent = await contents.files[fileName].async('text')
-      try {
-        verificationData = JSON.parse(fileContent)
-        console.log("[v0] Found verification_data.json in ZIP")
-        break
-      } catch (e) {
-        console.warn(`[v0] Invalid verification data: ${fileName}`)
-      }
-    }
+    // TODO: Parse shapefile in future implementation
+    // For now, look for GeoJSON representation of the shapefile
   }
 
   // Look for GeoJSON file in ZIP
   for (const fileName in contents.files) {
-    if (fileName.endsWith('.geojson') || (fileName.endsWith('.json') && !fileName.includes('verification') && !fileName.includes('metadata'))) {
+    if (fileName.endsWith('.geojson') || fileName.endsWith('.json')) {
       const fileContent = await contents.files[fileName].async('text')
       try {
         geojsonData = JSON.parse(fileContent)
-        console.log("[v0] Found GeoJSON file in ZIP:", fileName)
         break
       } catch (e) {
         console.warn(`[v0] Invalid JSON in file: ${fileName}`)
@@ -212,72 +198,25 @@ async function parseSatelliteDataZIP(file: File): Promise<ParsedSatelliteData> {
     }
   }
 
-  // If we have verification data, use it directly to extract all fields
-  if (verificationData) {
-    return parseVerificationDataJSON(verificationData)
+  // Look for analysis metadata file
+  let analysisMetadata: any = null
+  for (const fileName in contents.files) {
+    if (fileName.includes('analysis') && fileName.endsWith('.json')) {
+      const fileContent = await contents.files[fileName].async('text')
+      try {
+        analysisMetadata = JSON.parse(fileContent)
+        break
+      } catch (e) {
+        console.warn(`[v0] Invalid analysis metadata: ${fileName}`)
+      }
+    }
   }
 
   if (!geojsonData) {
     throw new Error('No GeoJSON data found in satellite data package')
   }
 
-  return parseGeoJSONWithMetadata(geojsonData, null, shapefileFound)
-}
-
-/**
- * Parse verification data JSON - this contains all required fields for form population
- */
-function parseVerificationDataJSON(verificationData: any): ParsedSatelliteData {
-  const satelliteMeta = verificationData.satelliteMetadata || {}
-  const vegData = verificationData.vegetationData || {}
-  const carbonData = verificationData.carbonData || {}
-  
-  // Extract area from satellite metadata
-  const areaHa = satelliteMeta.polygon_area_ha || satelliteMeta.polygon_area || 0
-  const centerCoords = satelliteMeta.centerCoordinates || { latitude: 0, longitude: 0 }
-  const coordinates = `${centerCoords.latitude}, ${centerCoords.longitude}`
-  
-  // Extract all vegetation data
-  const forestType = vegData.forestType || 'Tropical Forest'
-  const dominantSpecies = vegData.dominantSpecies || 'Mixed tropical species'
-  const averageTreeHeight = vegData.averageTreeHeight || '25-30'
-  const vegetationDescription = vegData.vegetationDescription || 'Dense forest ecosystem with mixed species'
-  const canopyCover = vegData.canopyCover || '75-95%'
-  const ndvi = vegData.ndvi || 0.68
-  
-  // Extract carbon data
-  const biomass = carbonData.biomass_agb_mean || 250
-  const carbonEstimate = carbonData.total_carbon_stock_tc || (carbonData.carbon_tC || 0) * areaHa
-  
-  console.log("[v0] Parsed verification data - Complete extraction:", {
-    areaHa,
-    coordinates,
-    forestType,
-    dominantSpecies,
-    averageTreeHeight,
-    canopyCover,
-    ndvi,
-    biomass,
-    carbonEstimate,
-  })
-  
-  return {
-    area: `${areaHa.toFixed(2)} ha`,
-    areaHa,
-    coordinates,
-    forestType,
-    dominantSpecies,
-    vegetationDescription,
-    averageTreeHeight,
-    canopyCover,
-    biomass: `${biomass.toFixed(2)} Mg/ha`,
-    carbonEstimate: `${carbonEstimate.toFixed(2)} tC`,
-    ndvi,
-    dataSource: ['Satellite Analysis'],
-    analysisDate: new Date().toISOString().split('T')[0],
-    polygonCount: 1,
-    rawGeoJSON: verificationData,
-  }
+  return parseGeoJSONWithMetadata(geojsonData, analysisMetadata, shapefileFound)
 }
 
 /**
