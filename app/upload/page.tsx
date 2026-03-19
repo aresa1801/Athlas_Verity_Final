@@ -229,11 +229,6 @@ export default function UploadPage() {
       setFiles([...files, ...newFiles])
     }
   }
-      })
-
-      setFiles([...files, ...newFiles])
-    }
-  }
 
   const handleRemoveFile = (index: number) => {
     setFiles(files.filter((_, i) => i !== index))
