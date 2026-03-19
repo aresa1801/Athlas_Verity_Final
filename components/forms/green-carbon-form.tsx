@@ -194,7 +194,14 @@ export function GreenCarbonForm() {
           throw new Error("Parser returned null/undefined data")
         }
         
-        console.log("[v0] Raw parsed data:", JSON.stringify(parsedData, null, 2))
+        console.log("[v0] Raw parsed data - Full Object:", parsedData)
+        console.log("[v0] Area from parser:", {
+          area: parsedData.area,
+          areaHa: parsedData.areaHa,
+        })
+        console.log("[v0] Coordinates from parser:", parsedData.coordinates)
+        console.log("[v0] Height from parser:", parsedData.averageTreeHeight)
+        console.log("[v0] NDVI from parser:", parsedData.ndvi)
         
         // Extract vegetation classification from forest type
         const vegClassification = parsedData.forestType?.includes('Dense') 
