@@ -13,6 +13,9 @@ import { Upload, AlertCircle, CheckCircle2, HelpCircle } from "lucide-react"
 interface GreenCarbonFormData {
   // Section A
   projectName: string
+  ownerName: string
+  ownerEmail: string
+  ownerPhone: string
   country: string
   baselineYear: string
   methodologyRef: string
@@ -40,6 +43,9 @@ interface GreenCarbonFormData {
 
 const FIELD_TOOLTIPS = {
   projectName: "Name of your carbon offset project for identification in the verification system",
+  ownerName: "Full name of the project owner or organization responsible for the project",
+  ownerEmail: "Email address of the project owner for contact and communication purposes",
+  ownerPhone: "Phone number of the project owner for contact purposes",
   country: "Country where the project is located - used for baseline and regulatory context",
   baselineYear: "Reference year for deforestation baseline - critical for additionality calculations",
   methodologyRef: "Carbon accounting methodology (Verra/Gold Standard) - determines validation rules",
@@ -97,6 +103,9 @@ export function GreenCarbonForm() {
   
   const [formData, setFormData] = useState<GreenCarbonFormData>({
     projectName: "",
+    ownerName: "",
+    ownerEmail: "",
+    ownerPhone: "",
     country: "",
     baselineYear: "",
     methodologyRef: "verra",
@@ -137,6 +146,9 @@ export function GreenCarbonForm() {
     const errors: string[] = []
 
     if (!formData.projectName.trim()) errors.push("Project name is required")
+    if (!formData.ownerName.trim()) errors.push("Owner name is required")
+    if (!formData.ownerEmail.trim()) errors.push("Owner email is required")
+    if (!formData.ownerPhone.trim()) errors.push("Owner phone number is required")
     if (!formData.country) errors.push("Country is required")
     if (!formData.baselineYear) errors.push("Baseline year is required")
     if (!formData.methodologyRef) errors.push("Methodology reference is required")
@@ -308,6 +320,9 @@ export function GreenCarbonForm() {
         
         // Section A: Project Identity
         projectName: formData.projectName,
+        ownerName: formData.ownerName,
+        ownerEmail: formData.ownerEmail,
+        ownerPhone: formData.ownerPhone,
         country: formData.country,
         baselineYear: formData.baselineYear,
         methodologyRef: formData.methodologyRef,
@@ -426,6 +441,48 @@ export function GreenCarbonForm() {
               value={formData.projectName}
               onChange={(e) => setFormData((prev) => ({ ...prev, projectName: e.target.value }))}
               placeholder="e.g., Amazon Forest Conservation Project"
+              className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          </div>
+
+          <div>
+            <label className="flex items-center text-sm font-medium mb-2">
+              Owner Name *
+              <Tooltip text={FIELD_TOOLTIPS.ownerName} />
+            </label>
+            <input
+              type="text"
+              value={formData.ownerName}
+              onChange={(e) => setFormData((prev) => ({ ...prev, ownerName: e.target.value }))}
+              placeholder="e.g., John Smith"
+              className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          </div>
+
+          <div>
+            <label className="flex items-center text-sm font-medium mb-2">
+              Email Address *
+              <Tooltip text={FIELD_TOOLTIPS.ownerEmail} />
+            </label>
+            <input
+              type="email"
+              value={formData.ownerEmail}
+              onChange={(e) => setFormData((prev) => ({ ...prev, ownerEmail: e.target.value }))}
+              placeholder="e.g., owner@example.com"
+              className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          </div>
+
+          <div>
+            <label className="flex items-center text-sm font-medium mb-2">
+              Phone Number *
+              <Tooltip text={FIELD_TOOLTIPS.ownerPhone} />
+            </label>
+            <input
+              type="tel"
+              value={formData.ownerPhone}
+              onChange={(e) => setFormData((prev) => ({ ...prev, ownerPhone: e.target.value }))}
+              placeholder="e.g., +1 (555) 123-4567"
               className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
