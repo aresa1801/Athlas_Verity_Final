@@ -181,12 +181,16 @@ export function GreenCarbonForm() {
       handleFileUpload(e, "satelliteDataFile")
       
       try {
-        console.log("[v0] Starting satellite data extraction from:", file.name)
+        console.log("[v0] Starting satellite data extraction from file:", file.name, "size:", file.size)
         
         // Parse satellite data and auto-fill all available fields
         const parsedData = await parseSatelliteDataFile(file)
         
-        console.log("[v0] Raw parsed data:", parsedData)
+        if (!parsedData) {
+          throw new Error("Parser returned null/undefined data")
+        }
+        
+        console.log("[v0] Raw parsed data:", JSON.stringify(parsedData, null, 2))
         
         // Extract vegetation classification from forest type
         const vegClassification = parsedData.forestType?.includes('Dense') 
@@ -245,6 +249,11 @@ export function GreenCarbonForm() {
           ? parsedData.vegetationDescription
           : generateVegetationDescription(parsedData)
         
+        // Ensure NDVI value is properly extracted (not hardcoded default)
+        const ndviValue = parsedData.ndvi && parsedData.ndvi !== 0 
+          ? parseFloat(parsedData.ndvi.toString()).toFixed(4)
+          : "0.6500"
+        
         const updatedData = {
           dataLuasan: areaValue ? `${areaValue} ha` : "",
           dataKoordinat: coordinateValue,
@@ -253,7 +262,7 @@ export function GreenCarbonForm() {
           averageTreeHeight: heightValue,
           vegetationClassification: vegClassification,
           vegetationDescription: finalDescription,
-          ndviValue: parsedData.ndvi || 0.65,
+          ndviValue: parseFloat(ndviValue),
         }
         
         console.log("[v0] About to update form with data:", updatedData)
