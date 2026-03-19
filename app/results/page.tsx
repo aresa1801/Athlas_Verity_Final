@@ -756,67 +756,6 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          <!-- PAGE 6: DISCLAIMER & DATA INTEGRITY NOTICE (Part 1) -->
-          <div class="page page-break">
-            <h1>Disclaimer & Data Integrity Notice</h1>
-            
-            <div class="section" style="background: rgba(255, 193, 7, 0.05); border: 1px solid rgba(255, 193, 7, 0.2); page-break-inside: avoid; break-inside: avoid;">
-              <h2 style="color: #FFD700; border-left-color: #FFD700;">Important Information</h2>
-              
-              <div style="color: #E0E0E0; line-height: 1.8; margin-top: 20px;">
-                <p style="margin-bottom: 15px;">
-                  <strong>Data Source & Accuracy:</strong><br/>
-                  The carbon reduction calculations, metrics, and verification results presented in this report are derived solely from data and documentation provided by the Carbon Project Developer or Carbon Asset Owner. The accuracy, completeness, and authenticity of all underlying data depend entirely on the information submitted during the verification process.
-                </p>
-
-                <p style="margin-bottom: 15px;">
-                  <strong>Calculation Methodology:</strong><br/>
-                  All carbon accounting calculations follow established IPCC (Intergovernmental Panel on Climate Change) methodologies and are computed based on the input parameters provided. These include Above Ground Biomass (AGB), carbon fractions, project area, baseline emissions, leakage factors, and buffer pool adjustments. The integrity of results is contingent upon the accuracy of these input values.
-                </p>
-
-                <p style="margin-bottom: 15px;">
-                  <strong>Validator Network Verification:</strong><br/>
-                  The Athlas Verity AI System decentralized validator network has reviewed and verified the submitted data against publicly available standards and protocols. However, this verification is computational in nature and does not constitute an audit or independent certification of the carbon asset or project claims.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- PAGE 7: DISCLAIMER & DATA INTEGRITY NOTICE (Part 2) -->
-          <div class="page page-break">
-            <h1 style="font-size: 18px; margin-bottom: 20px;">Disclaimer & Data Integrity Notice (Continued)</h1>
-            
-            <div class="section" style="background: rgba(255, 193, 7, 0.05); border: 1px solid rgba(255, 193, 7, 0.2); page-break-inside: avoid; break-inside: avoid;">
-              <div style="color: #E0E0E0; line-height: 1.8;">
-                <p style="margin-bottom: 15px;">
-                  <strong>Limitation of Liability:</strong><br/>
-                  Athlas Verity Platform and the AI validator network assume no liability for errors, omissions, or misstatements in the source data provided by project developers or asset owners. Users are solely responsible for the accuracy and legitimacy of all information submitted for verification.
-                </p>
-
-                <p style="margin-bottom: 15px;">
-                  <strong>Use of This Report:</strong><br/>
-                  This report is intended for informational purposes only and should not be construed as investment advice, financial guidance, or certification of carbon credits. Any commercial use of this verification report requires explicit authorization from Athlas Verity Platform and compliance with applicable regulatory frameworks.
-                </p>
-
-                <p style="margin-bottom: 15px;">
-                  <strong>Data Confidentiality:</strong><br/>
-                  This document contains sensitive project and verification data. Recipients are obligated to maintain appropriate confidentiality and restrict access to authorized personnel only.
-                </p>
-
-                <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(61, 214, 140, 0.2); font-style: italic; color: #B0B0B0;">
-                  By accessing this verification report, you acknowledge that you have read, understood, and agree to be bound by the terms and limitations outlined in this disclaimer. If you do not agree with any provision herein, you must discontinue the use of this report immediately.
-                </p>
-
-                <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid rgba(61, 214, 140, 0.2); text-align: center; font-size: 12px; color: #888;">
-                  <p style="margin-bottom: 8px; font-style: italic;">Generated on ${new Date().toLocaleString()}</p>
-                  <p style="margin-bottom: 8px; font-weight: 500; color: #3DD68C;">Athlas Verity Platform - Powered by CarbonFi Labs System</p>
-                  <p style="margin-bottom: 15px; color: #FFD700;">This report contains sensitive verification data. Please handle with appropriate confidentiality.</p>
-                  <p style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(61, 214, 140, 0.1); color: #666;">© 2025 Athlas Verity - Environmental Impact Verification Platform. All rights reserved.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <!-- PAGE 8: VEGETATION CLASSIFICATION -->
           <div class="page page-break">
             <h1>Vegetation Classification</h1>
@@ -985,6 +924,67 @@ export default function ResultsPage() {
                   Forest demonstrates resilience and regenerative capacity with active recruitment of new growth. 
                   Minimal anthropogenic impact detected. Ecological integrity maintained at high levels.
                 </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- PAGE 10: DISCLAIMER & DATA INTEGRITY NOTICE (Part 1) -->
+          <div class="page page-break">
+            <h1>Disclaimer & Data Integrity Notice</h1>
+            
+            <div class="section" style="background: rgba(255, 193, 7, 0.05); border: 1px solid rgba(255, 193, 7, 0.2); page-break-inside: avoid; break-inside: avoid;">
+              <h2 style="color: #FFD700; border-left-color: #FFD700;">Important Information</h2>
+              
+              <div style="color: #E0E0E0; line-height: 1.8; margin-top: 20px;">
+                <p style="margin-bottom: 15px;">
+                  <strong>Data Source & Accuracy:</strong><br/>
+                  The carbon reduction calculations, metrics, and verification results presented in this report are derived solely from data and documentation provided by the Carbon Project Developer or Carbon Asset Owner. The accuracy, completeness, and authenticity of all underlying data depend entirely on the information submitted during the verification process.
+                </p>
+
+                <p style="margin-bottom: 15px;">
+                  <strong>Calculation Methodology:</strong><br/>
+                  All carbon accounting calculations follow established IPCC (Intergovernmental Panel on Climate Change) methodologies and are computed based on the input parameters provided. These include Above Ground Biomass (AGB), carbon fractions, project area, baseline emissions, leakage factors, and buffer pool adjustments. The integrity of results is contingent upon the accuracy of these input values.
+                </p>
+
+                <p style="margin-bottom: 15px;">
+                  <strong>Validator Network Verification:</strong><br/>
+                  The Athlas Verity AI System decentralized validator network has reviewed and verified the submitted data against publicly available standards and protocols. However, this verification is computational in nature and does not constitute an audit or independent certification of the carbon asset or project claims.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- PAGE 11: DISCLAIMER & DATA INTEGRITY NOTICE (Part 2) -->
+          <div class="page page-break">
+            <h1 style="font-size: 18px; margin-bottom: 20px;">Disclaimer & Data Integrity Notice (Continued)</h1>
+            
+            <div class="section" style="background: rgba(255, 193, 7, 0.05); border: 1px solid rgba(255, 193, 7, 0.2); page-break-inside: avoid; break-inside: avoid;">
+              <div style="color: #E0E0E0; line-height: 1.8;">
+                <p style="margin-bottom: 15px;">
+                  <strong>Limitation of Liability:</strong><br/>
+                  Athlas Verity Platform and the AI validator network assume no liability for errors, omissions, or misstatements in the source data provided by project developers or asset owners. Users are solely responsible for the accuracy and legitimacy of all information submitted for verification.
+                </p>
+
+                <p style="margin-bottom: 15px;">
+                  <strong>Use of This Report:</strong><br/>
+                  This report is intended for informational purposes only and should not be construed as investment advice, financial guidance, or certification of carbon credits. Any commercial use of this verification report requires explicit authorization from Athlas Verity Platform and compliance with applicable regulatory frameworks.
+                </p>
+
+                <p style="margin-bottom: 15px;">
+                  <strong>Data Confidentiality:</strong><br/>
+                  This document contains sensitive project and verification data. Recipients are obligated to maintain appropriate confidentiality and restrict access to authorized personnel only.
+                </p>
+
+                <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(61, 214, 140, 0.2); font-style: italic; color: #B0B0B0;">
+                  By accessing this verification report, you acknowledge that you have read, understood, and agree to be bound by the terms and limitations outlined in this disclaimer. If you do not agree with any provision herein, you must discontinue the use of this report immediately.
+                </p>
+
+                <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid rgba(61, 214, 140, 0.2); text-align: center; font-size: 12px; color: #888;">
+                  <p style="margin-bottom: 8px; font-style: italic;">Generated on ${new Date().toLocaleString()}</p>
+                  <p style="margin-bottom: 8px; font-weight: 500; color: #3DD68C;">Athlas Verity Platform - Powered by CarbonFi Labs System</p>
+                  <p style="margin-bottom: 15px; color: #FFD700;">This report contains sensitive verification data. Please handle with appropriate confidentiality.</p>
+                  <p style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(61, 214, 140, 0.1); color: #666;">© 2025 Athlas Verity - Environmental Impact Verification Platform. All rights reserved.</p>
+                </div>
               </div>
             </div>
           </div>
