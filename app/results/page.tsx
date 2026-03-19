@@ -51,9 +51,9 @@ export default function ResultsPage() {
   const [isCalculating, setIsCalculating] = useState(false)
 
   const [carbonInputs, setCarbonInputs] = useState<CarbonCalculationInputs>({
-    agb_per_ha: 124.2,
+    agb_per_ha: 0, // Will be set from satellite data
     carbon_fraction: 0.47,
-    area_ha: 87,
+    area_ha: 0, // Will be set from satellite data
     baseline_emission: 1.8,
     duration_years: 10,
     leakage: 5,
@@ -62,7 +62,20 @@ export default function ResultsPage() {
     validator_consensus: 0.93,
   })
 
-  const carbonCalculation = calculateCarbonReduction(carbonInputs)
+  // Calculate carbon reduction based on current inputs
+  const carbonCalculation = carbonInputs.area_ha > 0 && carbonInputs.agb_per_ha > 0 
+    ? calculateCarbonReduction(carbonInputs)
+    : calculateCarbonReduction({
+        agb_per_ha: 124.2,
+        carbon_fraction: 0.47,
+        area_ha: 87,
+        baseline_emission: 1.8,
+        duration_years: 10,
+        leakage: 5,
+        buffer_pool: 20,
+        integrity_class: "IC-A",
+        validator_consensus: 0.93,
+      })
 
   useEffect(() => {
     const data = sessionStorage.getItem("projectFormData")
@@ -70,7 +83,32 @@ export default function ResultsPage() {
       const parsedData = JSON.parse(data) as ResultsData
       setProjectData(parsedData)
 
-      const area = parsedData.satelliteData?.polygon_area_ha || parsedData.calculatedAreaHa || 87
+      // Extract area from satellite data with proper fallback chain
+      let area = 0
+      let biomassAgb = 0
+      
+      // Try to get area from multiple sources
+      if (parsedData.satelliteData?.polygon_area_ha && parsedData.satelliteData.polygon_area_ha > 0) {
+        area = parsedData.satelliteData.polygon_area_ha
+        console.log("[v0] Using polygon_area_ha from satellite data:", area)
+      } else if (parsedData.satelliteData?.area_ha && parsedData.satelliteData.area_ha > 0) {
+        area = parsedData.satelliteData.area_ha
+        console.log("[v0] Using area_ha from satellite data:", area)
+      } else if (parsedData.calculatedAreaHa && parsedData.calculatedAreaHa > 0) {
+        area = parsedData.calculatedAreaHa
+        console.log("[v0] Using calculated area:", area)
+      } else {
+        console.warn("[v0] No area data found, using default 87 ha")
+        area = 87
+      }
+
+      // Try to get AGB from satellite data
+      if (parsedData.satelliteData?.biomass_agb_mean && parsedData.satelliteData.biomass_agb_mean > 0) {
+        biomassAgb = parsedData.satelliteData.biomass_agb_mean
+        console.log("[v0] Using biomass_agb_mean from satellite data:", biomassAgb)
+      } else {
+        console.log("[v0] No direct AGB data, will estimate from satellite features")
+      }
 
       // Initialize AGB estimation with satellite features
       const satelliteFeatures = {
@@ -85,14 +123,25 @@ export default function ResultsPage() {
       const agbResult = estimateAGB(satelliteFeatures, area, "tropical_forest")
       setAgbEstimation(agbResult)
 
-      // Update carbon inputs with estimated AGB
-      setCarbonInputs((prev) => ({
-        ...prev,
-        agb_per_ha: agbResult.agb_tpha_final,
-        area_ha: area,
-      }))
+      // Use actual AGB from satellite data if available, otherwise use estimation
+      const finalAGB = biomassAgb > 0 ? biomassAgb : agbResult.agb_tpha_final
+      
+      console.log("[v0] Final values - Area:", area, "ha, AGB:", finalAGB, "t/ha")
 
-      // Set AI carbon data structure for display
+      // Update carbon inputs with actual data
+      setCarbonInputs({
+        agb_per_ha: finalAGB,
+        carbon_fraction: 0.47,
+        area_ha: area,
+        baseline_emission: 1.8,
+        duration_years: 10,
+        leakage: 5,
+        buffer_pool: 20,
+        integrity_class: "IC-A",
+        validator_consensus: 0.93,
+      })
+
+      // Set AI carbon data structure for display with actual data
       setAiCarbonData({
         carbon_estimation: {
           project_id: `proj_${Date.now()}`,
@@ -101,10 +150,10 @@ export default function ResultsPage() {
             coordinates: parsedData.coordinates,
             area_ha: area,
           },
-          agb_tpha: agbResult.agb_tpha_final,
+          agb_tpha: finalAGB,
           agb_uncertainty_pct: agbResult.agb_uncertainty_pct,
-          carbon_stock_tc: agbResult.agb_tpha_final * area * 0.47,
-          co2_equivalent_tco2: agbResult.agb_tpha_final * area * 0.47 * (44 / 12),
+          carbon_stock_tc: finalAGB * area * 0.47,
+          co2_equivalent_tco2: finalAGB * area * 0.47 * (44 / 12),
           verification_methods: agbResult.agb_source_models,
           aura_verification: agbResult.aura_verification,
           scientific_basis: agbResult.scientific_references,
@@ -247,6 +296,11 @@ export default function ResultsPage() {
   }
 
   const handleExportPDF = async () => {
+    if (!projectData) {
+      alert("Project data is not yet loaded. Please wait and try again.")
+      return
+    }
+
     const carbonOffsetTypes: Record<string, string> = {
       reforestation: "Reforestation",
       afforestation: "Afforestation",
@@ -288,7 +342,7 @@ export default function ResultsPage() {
       "carbon-utilization": "Carbon Utilization Projects",
     }
 
-    const filledCoordinates = projectData?.coordinates.filter((c) => c.latitude && c.longitude) || []
+    const filledCoordinates = (projectData?.coordinates || []).filter((c) => c?.latitude && c?.longitude) || []
 
     const printContent = `
       <!DOCTYPE html>

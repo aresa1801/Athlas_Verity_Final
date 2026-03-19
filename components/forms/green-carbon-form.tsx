@@ -338,13 +338,41 @@ export function GreenCarbonForm() {
       
       console.log("[v0] Verification data prepared:", verificationData)
       
+      // Extract area value from dataLuasan (e.g., "1234.56 ha" -> 1234.56)
+      let areaHa = 0
+      if (formData.dataLuasan) {
+        const areaMatch = String(formData.dataLuasan).match(/(\d+\.?\d*)/)
+        areaHa = areaMatch ? parseFloat(areaMatch[1]) : 0
+      }
+
+      // Prepare satellite data for results page
+      const formDataWithSatellite = {
+        ...formData,
+        satelliteData: {
+          polygon_area_ha: areaHa,
+          area_ha: areaHa,
+          biomass_agb_mean: 0, // Will be calculated in results page if not available
+          features: {
+            ndvi: formData.ndviValue || 0.65,
+            evi: 0.45,
+            canopy_density: 0.75,
+            elevation: 500,
+            sar_backscatter: 0.3,
+          }
+        }
+      }
+
       // Store verification data in session for results page
       if (typeof window !== 'undefined') {
-        sessionStorage.setItem('projectFormData', JSON.stringify(formData))
+        sessionStorage.setItem('projectFormData', JSON.stringify(formDataWithSatellite))
         sessionStorage.setItem('verificationData', JSON.stringify(verificationData))
       }
       
-      console.log("[v0] Verification data stored in session:", { verificationData, formData })
+      console.log("[v0] Verification data stored in session:", { 
+        area: areaHa, 
+        ndvi: formData.ndviValue,
+        formData: formDataWithSatellite 
+      })
       
       // Navigate to results page with verification report
       console.log("[v0] Navigating to validation report...")
