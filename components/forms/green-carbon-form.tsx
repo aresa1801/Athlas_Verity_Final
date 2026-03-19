@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import { useRouter } from "next/navigation"
 import { COUNTRIES } from '@/lib/countries'
 import { parseSatelliteDataFile } from '@/lib/satellite-data-parser'
 import { useState, useCallback } from "react"
@@ -91,6 +92,9 @@ function generateVegetationDescription(parsedData: any): string {
 }
 
 export function GreenCarbonForm() {
+  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  
   const [formData, setFormData] = useState<GreenCarbonFormData>({
     projectName: "",
     country: "",
@@ -282,11 +286,69 @@ export function GreenCarbonForm() {
 
   const handleRunVerification = async () => {
     if (!checkCompleteness()) {
+      alert("Please complete all required fields before running verification")
       return
     }
 
-    console.log("[v0] Running Green Carbon verification with data:", formData)
-    // Submit to verification API
+    setIsSubmitting(true)
+    console.log("[v0] Starting Green Carbon verification with data:", formData)
+    
+    try {
+      // Prepare verification data
+      const verificationData = {
+        type: "green_carbon_verification",
+        timestamp: new Date().toISOString(),
+        
+        // Section A: Project Identity
+        projectName: formData.projectName,
+        country: formData.country,
+        baselineYear: formData.baselineYear,
+        methodologyRef: formData.methodologyRef,
+        
+        // Section B: Geospatial & Satellite Data
+        geospatial: {
+          area_hectares: formData.dataLuasan,
+          coordinates: formData.dataKoordinat,
+          forestType: formData.forestType,
+          protectionRestorationType: formData.protectionRestorationType,
+        },
+        
+        // Section C: Vegetation Data
+        vegetation: {
+          dominantSpecies: formData.dominantSpecies,
+          averageTreeHeight: formData.averageTreeHeight,
+          vegetationClassification: formData.vegetationClassification,
+          vegetationDescription: formData.vegetationDescription,
+          ndviValue: formData.ndviValue,
+        },
+        
+        // Section D: Risk & Legal
+        riskAssessment: {
+          deforestationRiskLevel: formData.deforestationRiskLevel,
+          legalProtectionStatus: formData.legalProtectionStatus,
+        },
+      }
+      
+      console.log("[v0] Verification data prepared:", verificationData)
+      
+      // Store verification data in session for results page
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('projectFormData', JSON.stringify(formData))
+        sessionStorage.setItem('verificationData', JSON.stringify(verificationData))
+      }
+      
+      console.log("[v0] Verification data stored in session:", { verificationData, formData })
+      
+      // Navigate to results page with verification report
+      console.log("[v0] Navigating to validation report...")
+      router.push('/results')
+      
+    } catch (error) {
+      console.error("[v0] Error during verification:", error)
+      alert(`Verification error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -733,11 +795,18 @@ export function GreenCarbonForm() {
       {/* Run Verification Button */}
       <Button
         onClick={handleRunVerification}
-        disabled={!isComplete}
+        disabled={!isComplete || isSubmitting}
         size="lg"
         className="w-full"
       >
-        Run Verification
+        {isSubmitting ? (
+          <>
+            <span className="inline-block animate-spin mr-2">⏳</span>
+            Processing Verification...
+          </>
+        ) : (
+          "Run Verification"
+        )}
       </Button>
     </div>
   )
