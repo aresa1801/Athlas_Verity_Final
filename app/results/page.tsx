@@ -490,12 +490,14 @@ export default function ResultsPage() {
                 </div>
                 <div class="grid-item">
                   <div class="label">Carbon Offset Type</div>
-                  <div class="value">${carbonOffsetTypes[projectData?.carbonOffsetType || ""] || "N/A"}</div>
+                  <div class="value">Green Carbon</div>
                 </div>
               </div>
               <div style="margin-top: 15px;" class="grid-item">
                 <div class="label">Project Description</div>
-                <div class="value">${projectData?.projectDescription || "N/A"}</div>
+                <div class="value" style="line-height: 1.8;">
+                  ${projectData?.projectName ? `Project "${projectData.projectName}" encompasses approximately ${carbonInputs.area_ha.toFixed(2)} hectares of forest ecosystem with ${projectData?.forestType || 'tropical forest'} classification. The project is focused on carbon offset generation through forest protection and restoration activities. With an estimated carbon stock of ${(carbonInputs.agb_per_ha * carbonInputs.area_ha * 0.47).toFixed(2)} tC and dominant species of ${projectData?.dominantSpecies || 'mixed species'}, this project demonstrates significant biodiversity value and carbon sequestration potential. The vegetation is characterized by ${projectData?.vegetationDescription || 'dense forest cover with healthy canopy structure'}. Located in ${projectData?.country || 'a carbon-rich region'}, the project contributes to global climate change mitigation efforts.` : "N/A"}
+                </div>
               </div>
             </div>
 
@@ -527,10 +529,10 @@ export default function ResultsPage() {
           <!-- PAGE 2: CARBON ASSET COORDINATES -->
           <div class="page page-break">
             <h1>Carbon Asset Coordinates</h1>
-            <p style="color: #B0B0B0; margin-bottom: 30px;">Geospatial Location Data - 8 Asset Points</p>
+            <p style="color: #B0B0B0; margin-bottom: 30px;">Geospatial Location Data - ${filledCoordinates.length} Asset Points</p>
             
             <div class="section">
-              <h2>Geographic Coordinates (8 Points)</h2>
+              <h2>Geographic Coordinates (${filledCoordinates.length} Points)</h2>
               <table>
                 <tr>
                   <th>Point Number</th>
