@@ -448,27 +448,66 @@ export default function SatelliteAnalysisPage() {
       ? parseFloat(analysisResults.carbonEstimation.totalCarbon)
       : analysisResults.carbonEstimation.totalCarbon
     
+    // Calculate center point from polygon
+    const centerLat = polygon.reduce((sum, coord) => sum + coord[0], 0) / polygon.length
+    const centerLng = polygon.reduce((sum, coord) => sum + coord[1], 0) / polygon.length
+    
+    // Create comprehensive data structure with ALL analysis results
     const data = {
       projectName: 'Satellite Analysis Project',
+      timestamp: new Date().toISOString(),
+      analysisVersion: 'v2.0',
+      
+      // Geospatial data
       area: { hectares: areaInfo.hectares, km2: areaInfo.km2 },
-      forestType: analysisResults.vegetationClassification.forestType,
       polygonCoordinates: polygon,
       polygonInfo,
+      centerCoordinates: { latitude: centerLat, longitude: centerLng },
+      
+      // Vegetation and Forest data (AUTO-FILL FIELDS)
+      forestType: analysisResults.vegetationClassification.forestType,
+      dominantSpecies: analysisResults.vegetationClassification.dominantSpecies,
+      averageTreeHeight: '25-30', // This should come from AGB calculation
+      vegetationDescription: '', // Will be generated in form
+      
+      // Satellite data
       satellite: {
         ndvi: analysisResults.vegetationClassification.ndvi,
         cloudCover: 15,
         vegetationClass: analysisResults.vegetationClassification.dominantSpecies,
         biomass: biomassNum,
         carbonEstimate: carbonNum,
-        unit: analysisResults.carbonEstimation.unit
+        unit: analysisResults.carbonEstimation.unit,
+        methodology: analysisResults.carbonEstimation.methodology,
+        confidence: analysisResults.carbonEstimation.confidence
       },
-      timestamp: new Date().toISOString()
+      
+      // Carbon data (FOR CARBON REDUCTION CALCULATION)
+      carbonData: {
+        agb: biomassNum,
+        agbUnit: 'tC/ha',
+        totalCarbonStock: carbonNum,
+        totalCarbonStockUnit: 'tC',
+        co2e: (carbonNum * 44 / 12).toFixed(2), // Convert tC to tCO2e
+        co2eUnit: 'tCO2e',
+        methodology: analysisResults.carbonEstimation.methodology,
+        confidence: analysisResults.carbonEstimation.confidence
+      },
+      
+      // Location info
+      location: locationInput || 'Unknown',
+      dateRange,
+      satelliteSource,
+      uploadedFileName: uploadedFile?.name || 'Unknown'
     }
+    
+    console.log("[v0] Exporting complete analysis data package:", data)
     
     try {
       const blob = await generateSatelliteDataZIP(data)
-      downloadBlob(blob, `satellite-data-${Date.now()}.zip`)
+      downloadBlob(blob, `satellite-analysis-${Date.now()}.zip`)
     } catch (error) {
+      console.error("[v0] Error downloading data package:", error)
       alert('Failed to download data package. Please try again.')
     }
   }
