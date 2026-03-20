@@ -175,27 +175,33 @@ export function MapInterface({ polygon, setPolygon, multiPolygons, location, onA
         let allCoords: Array<[number, number]> = []
         
         multiPolygons.forEach((polygonData) => {
-          // Create polygon with outer ring and holes
-          const outerRing = polygonData.outerRing.map(([lat, lng]) => [lat, lng] as [number, number])
-          allCoords = allCoords.concat(outerRing)
+          // Ensure polygonData is in the correct format
+          if (!polygonData || typeof polygonData !== 'object') return
           
-          const latlngs: any[] = [outerRing]
-          
-          // Add inner rings (holes)
-          if (polygonData.innerRings && polygonData.innerRings.length > 0) {
-            polygonData.innerRings.forEach((innerRing) => {
-              const mappedRing = innerRing.map(([lat, lng]) => [lat, lng] as [number, number])
-              allCoords = allCoords.concat(mappedRing)
-              latlngs.push(mappedRing)
-            })
+          // Check if it's a MultiPolygonData object with outerRing property
+          if ('outerRing' in polygonData && Array.isArray(polygonData.outerRing)) {
+            // Create polygon with outer ring and holes
+            const outerRing = polygonData.outerRing.map(([lat, lng]: [number, number]) => [lat, lng] as [number, number])
+            allCoords = allCoords.concat(outerRing)
+            
+            const latlngs: any[] = [outerRing]
+            
+            // Add inner rings (holes)
+            if (polygonData.innerRings && Array.isArray(polygonData.innerRings) && polygonData.innerRings.length > 0) {
+              polygonData.innerRings.forEach((innerRing: Array<[number, number]>) => {
+                const mappedRing = innerRing.map(([lat, lng]: [number, number]) => [lat, lng] as [number, number])
+                allCoords = allCoords.concat(mappedRing)
+                latlngs.push(mappedRing)
+              })
+            }
+            
+            const poly = L.polygon(latlngs, {
+              color: "#3DD68C",
+              fillColor: "#3DD68C",
+              fillOpacity: 0.2,
+              weight: 3,
+            }).addTo(layerGroup)
           }
-          
-          const poly = L.polygon(latlngs, {
-            color: "#3DD68C",
-            fillColor: "#3DD68C",
-            fillOpacity: 0.2,
-            weight: 3,
-          }).addTo(layerGroup)
         })
 
         layerGroup.addTo(mapRef.current)

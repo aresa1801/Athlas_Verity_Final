@@ -16,6 +16,7 @@ interface GreenCarbonFormData {
   ownerName: string
   ownerEmail: string
   ownerPhone: string
+  projectLocation: string
   country: string
   baselineYear: string
   methodologyRef: string
@@ -46,6 +47,7 @@ const FIELD_TOOLTIPS = {
   ownerName: "Full name of the project owner or organization responsible for the project",
   ownerEmail: "Email address of the project owner for contact and communication purposes",
   ownerPhone: "Phone number of the project owner for contact purposes",
+  projectLocation: "Specific location or name of the project site (e.g., Amazon Basin, Kalimantan Region)",
   country: "Country where the project is located - used for baseline and regulatory context",
   baselineYear: "Reference year for deforestation baseline - critical for additionality calculations",
   methodologyRef: "Carbon accounting methodology (Verra/Gold Standard) - determines validation rules",
@@ -106,6 +108,7 @@ export function GreenCarbonForm() {
     ownerName: "",
     ownerEmail: "",
     ownerPhone: "",
+    projectLocation: "",
     country: "",
     baselineYear: "",
     methodologyRef: "verra",
@@ -149,6 +152,7 @@ export function GreenCarbonForm() {
     if (!formData.ownerName.trim()) errors.push("Owner name is required")
     if (!formData.ownerEmail.trim()) errors.push("Owner email is required")
     if (!formData.ownerPhone.trim()) errors.push("Owner phone number is required")
+    if (!formData.projectLocation.trim()) errors.push("Project location is required")
     if (!formData.country) errors.push("Country is required")
     if (!formData.baselineYear) errors.push("Baseline year is required")
     if (!formData.methodologyRef) errors.push("Methodology reference is required")
@@ -323,6 +327,7 @@ export function GreenCarbonForm() {
         ownerName: formData.ownerName,
         ownerEmail: formData.ownerEmail,
         ownerPhone: formData.ownerPhone,
+        projectLocation: formData.projectLocation,
         country: formData.country,
         baselineYear: formData.baselineYear,
         methodologyRef: formData.methodologyRef,
@@ -363,6 +368,7 @@ export function GreenCarbonForm() {
       // Prepare satellite data for results page
       const formDataWithSatellite = {
         ...formData,
+        projectLocation: formData.projectLocation,
         satelliteData: {
           polygon_area_ha: areaHa,
           area_ha: areaHa,
@@ -483,6 +489,20 @@ export function GreenCarbonForm() {
               value={formData.ownerPhone}
               onChange={(e) => setFormData((prev) => ({ ...prev, ownerPhone: e.target.value }))}
               placeholder="e.g., +1 (555) 123-4567"
+              className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          </div>
+
+          <div>
+            <label className="flex items-center text-sm font-medium mb-2">
+              Project Location *
+              <Tooltip text={FIELD_TOOLTIPS.projectLocation} />
+            </label>
+            <input
+              type="text"
+              value={formData.projectLocation}
+              onChange={(e) => setFormData((prev) => ({ ...prev, projectLocation: e.target.value }))}
+              placeholder="e.g., Amazon Basin, Kalimantan Region"
               className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
