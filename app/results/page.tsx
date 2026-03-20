@@ -358,6 +358,14 @@ export default function ResultsPage() {
       return
     }
 
+    // Detect if this is a blue carbon project
+    const isBlueCarbonProject = projectData.tidalZoneType || projectData.ecosystemType?.toLowerCase().includes('mangrove') || projectData.ecosystemType?.toLowerCase().includes('seagrass') || projectData.salinityType
+    
+    // Use blue colors for blue carbon, green for others
+    const primaryColor = isBlueCarbonProject ? "#0EA5E9" : "#3DD68C"
+    const primaryColorRgba = isBlueCarbonProject ? "14, 165, 233" : "61, 214, 140"
+    const primaryTextColor = isBlueCarbonProject ? "text-cyan-900 dark:text-cyan-400" : "text-emerald-900 dark:text-emerald-400"
+
     const carbonOffsetTypes: Record<string, string> = {
       reforestation: "Reforestation",
       afforestation: "Afforestation",
@@ -423,8 +431,8 @@ export default function ResultsPage() {
             }
             .section { 
               margin-bottom: 30px; 
-              background: rgba(61, 214, 140, 0.05);
-              border: 1px solid rgba(61, 214, 140, 0.2);
+              background: rgba(${primaryColorRgba}, 0.05);
+              border: 1px solid rgba(${primaryColorRgba}, 0.2);
               padding: 20px; 
               border-radius: 8px;
               page-break-inside: avoid;
@@ -432,23 +440,23 @@ export default function ResultsPage() {
             }
             .page-break { page-break-before: always; }
             h1 { 
-              color: #3DD68C; 
-              border-bottom: 2px solid #3DD68C; 
+              color: ${primaryColor}; 
+              border-bottom: 2px solid ${primaryColor}; 
               padding-bottom: 15px;
               margin-bottom: 30px;
               font-size: 32px;
             }
             h2 { 
-              color: #3DD68C; 
+              color: ${primaryColor}; 
               margin-top: 30px;
               margin-bottom: 15px;
               font-size: 20px;
-              border-left: 4px solid #3DD68C;
+              border-left: 4px solid ${primaryColor};
               padding-left: 15px;
             }
             .label { 
               font-weight: 600; 
-              color: #3DD68C;
+              color: ${primaryColor};
               margin-bottom: 5px;
             }
             .value { 
@@ -457,7 +465,7 @@ export default function ResultsPage() {
             }
             .score { 
               display: inline-block; 
-              background: #3DD68C; 
+              background: ${primaryColor}; 
               color: #0D0F10; 
               padding: 8px 12px; 
               border-radius: 4px; 
@@ -471,7 +479,7 @@ export default function ResultsPage() {
               background: rgba(255, 255, 255, 0.02);
             }
             th { 
-              background: #3DD68C; 
+              background: ${primaryColor}; 
               color: #0D0F10; 
               padding: 12px; 
               text-align: left;
@@ -479,7 +487,7 @@ export default function ResultsPage() {
             }
             td { 
               padding: 12px; 
-              border-bottom: 1px solid rgba(61, 214, 140, 0.1);
+              border-bottom: 1px solid ${primaryColorRgba}0.1);
               color: #E0E0E0;
             }
             tr:last-child td { border-bottom: none; }
@@ -493,11 +501,11 @@ export default function ResultsPage() {
               background: rgba(255, 255, 255, 0.03);
               padding: 12px;
               border-radius: 6px;
-              border: 1px solid rgba(61, 214, 140, 0.1);
+              border: 1px solid rgba(${primaryColorRgba}, 0.1);
             }
-            .highlight-green {
-              background: rgba(61, 214, 140, 0.2);
-              border-left: 4px solid #3DD68C;
+            .highlight-accent {
+              background: rgba(${primaryColorRgba}, 0.2);
+              border-left: 4px solid ${primaryColor};
               padding: 15px;
               margin: 15px 0;
               border-radius: 4px;
@@ -506,14 +514,14 @@ export default function ResultsPage() {
               display: flex;
               justify-content: space-between;
               padding: 8px 0;
-              border-bottom: 1px solid rgba(61, 214, 140, 0.1);
+              border-bottom: 1px solid rgba(${primaryColorRgba}, 0.1);
             }
             .metric-row:last-child { border-bottom: none; }
             .metric-label { color: #B0B0B0; }
-            .metric-value { color: #3DD68C; font-weight: 600; }
+            .metric-value { color: ${primaryColor}; font-weight: 600; }
             .final-value {
               font-size: 28px;
-              color: #3DD68C;
+              color: ${primaryColor};
               font-weight: 700;
               margin: 15px 0;
             }
@@ -523,7 +531,7 @@ export default function ResultsPage() {
               color: #666;
               margin-top: 40px;
               padding-top: 20px;
-              border-top: 1px solid rgba(61, 214, 140, 0.1);
+              border-top: 1px solid rgba(${primaryColorRgba}, 0.1);
             }
             @media print { 
               body { margin: 0; background: #0D0F10; }
@@ -536,7 +544,7 @@ export default function ResultsPage() {
           <!-- PAGE 1: PROJECT OVERVIEW -->
           <div class="page">
             <h1>Athlas Verity Impact Verification & Carbon Reduction Report</h1>
-            <p style="color: #3DD68C; font-size: 16px; margin-bottom: 40px;">Generated via Athlas Verity AI System</p>
+            <p style="color: ${primaryColor}; font-size: 16px; margin-bottom: 40px;">Generated via Athlas Verity AI System</p>
             
             <div class="section">
               <h2>Project Information</h2>
@@ -547,13 +555,13 @@ export default function ResultsPage() {
                 </div>
                 <div class="grid-item">
                   <div class="label">Carbon Offset Type</div>
-                  <div class="value">Green Carbon</div>
+                  <div class="value">${isBlueCarbonProject ? "Blue Carbon" : "Green Carbon"}</div>
                 </div>
               </div>
               <div style="margin-top: 15px;" class="grid-item">
                 <div class="label">Project Description</div>
                 <div class="value" style="line-height: 1.8;">
-                  ${projectData?.projectName ? `Project "${projectData.projectName}" located in ${projectData?.projectLocation || 'the project area'}, encompasses approximately ${carbonInputs.area_ha.toFixed(2)} hectares of forest ecosystem with ${projectData?.forestType || 'tropical forest'} classification. The project is focused on carbon offset generation through forest protection and restoration activities. With an estimated carbon stock of ${(carbonInputs.agb_per_ha * carbonInputs.area_ha * 0.47).toFixed(2)} tC and dominant species of ${projectData?.dominantSpecies || 'mixed species'}, this project demonstrates significant biodiversity value and carbon sequestration potential. The vegetation is characterized by ${projectData?.vegetationDescription || 'dense forest cover with healthy canopy structure'}. Located in ${projectData?.country || 'a carbon-rich region'}, the project contributes to global climate change mitigation efforts.` : "N/A"}
+                  ${projectData?.projectName ? `Project "${projectData.projectName}" located in ${projectData?.projectLocation || 'the project area'}, encompasses approximately ${carbonInputs.area_ha.toFixed(2)} hectares of ${isBlueCarbonProject ? 'coastal ecosystem' : 'forest ecosystem'} with ${projectData?.forestType || 'tropical ecosystem'} classification. ${isBlueCarbonProject ? `The project focuses on blue carbon sequestration through ${projectData?.ecosystemType || 'coastal wetland'} conservation. Tidal zone type: ${projectData?.tidalZoneType || 'variable'}, Ecosystem: ${projectData?.ecosystemType || 'mixed coastal species'}.` : 'The project is focused on carbon offset generation through forest protection and restoration activities.'} With an estimated carbon stock of ${(carbonInputs.agb_per_ha * carbonInputs.area_ha * 0.47).toFixed(2)} tC and dominant species of ${projectData?.dominantSpecies || 'mixed species'}, this project demonstrates significant biodiversity value and carbon sequestration potential. ${isBlueCarbonProject ? `Coastal parameters: Water depth (${projectData?.waterDepth || 'N/A'}), Salinity (${projectData?.salinityType || 'N/A'}), Sediment depth (${projectData?.sedimentDepthEstimate || 'N/A'}).` : 'The vegetation is characterized by dense forest cover with healthy canopy structure.'} Located in ${projectData?.country || 'a carbon-rich region'}, the project contributes to global climate change mitigation efforts.` : "N/A"}
                 </div>
               </div>
               <div style="margin-top: 15px;" class="grid-item">
