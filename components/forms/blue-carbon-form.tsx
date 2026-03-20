@@ -154,13 +154,23 @@ export function BlueCarbonForm() {
         const parsed = await parseSatelliteDataFile(file)
         console.log("[v0] Parsed satellite data:", parsed)
         
+        // Extract coastal-specific data from parsed satellite data
+        const tidalZone = parsed.coastalData?.tidalRange ? 'intertidal' : parsed.tidalZone || ''
+        const salinity = parsed.coastalData?.salinity || parsed.salinityType || ''
+        const waterDepth = parsed.coastalData?.tidalRange || parsed.waterDepth || ''
+        const sedimentDepth = parsed.coastalData?.soilCarbonDepth || parsed.sedimentDepthEstimate || ''
+        
         setFormData(prev => ({
           ...prev,
-          dataLuasan: parsed.area_ha?.toString() || "",
-          dataKoordinat: parsed.center_coordinates?.join(", ") || "",
-          tidalZoneType: parsed.tidalZone || "",
-          ecosystemType: parsed.ecosystemType || "",
+          dataLuasan: parsed.area_ha?.toString() || parsed.area?.hectares?.toString() || "",
+          dataKoordinat: parsed.center_coordinates?.join(", ") || parsed.coordinates?.join(", ") || "",
+          tidalZoneType: tidalZone,
+          ecosystemType: parsed.ecosystemType || parsed.forestType || "",
+          sedimentDepthEstimate: sedimentDepth,
+          salinityType: salinity,
+          waterDepth: waterDepth,
           vegetationDescription: parsed.vegetationDescription || "",
+          vegetationCoverage: parsed.canopyCoverPercent?.toString() || "",
         }))
       } catch (error) {
         console.error("[v0] Error parsing satellite file:", error)
