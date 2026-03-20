@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowRight, Leaf, MapPin, Gauge, Upload, Check } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
+import { MapInterface } from "@/components/satellite/map-interface"
 
 export default function GreenCarbonPage() {
   const [polygon, setPolygon] = useState<Array<[number, number]>>([])
@@ -151,13 +152,15 @@ export default function GreenCarbonPage() {
           </div>
           
           {showMap && (
-            <Card className="border-border/50 bg-card/50 p-6">
-              <div className="h-96 rounded-lg bg-muted/50 flex items-center justify-center">
-                <p className="text-muted-foreground">Map interface coming soon</p>
-              </div>
+            <Card className="border-border/50 bg-card/50 p-6 overflow-hidden">
+              <MapInterface
+                polygon={polygon}
+                setPolygon={setPolygon}
+                location={location}
+              />
               <div className="mt-6 flex gap-4 justify-between">
                 <Button variant="outline" onClick={() => setShowMap(false)}>
-                  Close
+                  Close Map
                 </Button>
                 <Link href="/verification/green-carbon/create">
                   <Button className="gap-2">

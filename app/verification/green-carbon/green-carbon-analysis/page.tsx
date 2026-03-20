@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { MapInterface } from '@/components/satellite/map-interface'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -621,8 +622,13 @@ export default function SatelliteAnalysisPage() {
                 <MapPin className="w-5 h-5 text-blue-600" />
                 Map Interface
               </h3>
-              <div className="h-96 rounded-lg overflow-hidden border border-border/30 bg-muted/50 flex items-center justify-center">
-                <p className="text-muted-foreground">Map interface coming soon</p>
+              <div className="h-96 rounded-lg overflow-hidden border border-border/30">
+                <MapInterface
+                  polygon={polygon}
+                  setPolygon={setPolygon}
+                  multiPolygons={multiPolygons || undefined}
+                  location={{ latitude: locationInput.latitude, longitude: locationInput.longitude, radius: '5' }}
+                />
               </div>
               {polygon.length > 0 && (
                 <div className="text-xs text-emerald-600 mt-3 space-y-1">
