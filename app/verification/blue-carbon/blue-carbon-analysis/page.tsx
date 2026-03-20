@@ -474,6 +474,9 @@ export default function BlueCarbonSatelliteAnalysisPage() {
                 <p className="text-sm text-muted-foreground mt-1">Analyze coastal wetlands, mangroves, and seagrass for blue carbon quantification</p>
               </div>
             </div>
+            <Link href="/satellite">
+              <Button variant="ghost" size="sm">← Back</Button>
+            </Link>
           </div>
         </div>
       </div>
