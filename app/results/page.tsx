@@ -519,6 +519,10 @@ export default function ResultsPage() {
                   ${projectData?.projectName ? `Project "${projectData.projectName}" located in ${projectData?.projectLocation || 'the project area'}, encompasses approximately ${carbonInputs.area_ha.toFixed(2)} hectares of forest ecosystem with ${projectData?.forestType || 'tropical forest'} classification. The project is focused on carbon offset generation through forest protection and restoration activities. With an estimated carbon stock of ${(carbonInputs.agb_per_ha * carbonInputs.area_ha * 0.47).toFixed(2)} tC and dominant species of ${projectData?.dominantSpecies || 'mixed species'}, this project demonstrates significant biodiversity value and carbon sequestration potential. The vegetation is characterized by ${projectData?.vegetationDescription || 'dense forest cover with healthy canopy structure'}. Located in ${projectData?.country || 'a carbon-rich region'}, the project contributes to global climate change mitigation efforts.` : "N/A"}
                 </div>
               </div>
+              <div style="margin-top: 15px;" class="grid-item">
+                <div class="label">Project Location Detail</div>
+                <div class="value">${projectData?.projectLocation || "N/A"}, ${projectData?.country || "N/A"}</div>
+              </div>
             </div>
 
             <div class="section">
@@ -852,10 +856,40 @@ export default function ResultsPage() {
               <h2>Ecosystem Overview</h2>
               <div style="background: rgba(61, 214, 140, 0.1); padding: 15px; border-radius: 6px; border-left: 4px solid #3DD68C; margin: 15px 0;">
                 <p style="color: #E0E0E0; line-height: 1.8;">
-                  This project encompasses a ${projectData?.satelliteData?.area_ha || 'substantial'} hectare area of pristine tropical forest ecosystem. 
-                  The vegetation is characterized by dense, multi-layered canopy structure with exceptional biodiversity. 
-                  Satellite analysis reveals consistently high vegetation indices indicating healthy, actively growing forest with minimal disturbance. 
-                  The ecosystem demonstrates strong carbon sequestration potential and serves as critical habitat for diverse flora and fauna species.
+                  ${(() => {
+                    const ndvi = projectData?.satelliteData?.features?.ndvi || projectData?.ndviValue || 0.65
+                    const area = carbonInputs.area_ha || 87
+                    let healthStatus = "healthy, actively growing"
+                    let vegetationType = "dense, multi-layered canopy"
+                    let biodiversityLevel = "exceptional"
+                    
+                    if (ndvi >= 0.8) {
+                      healthStatus = "pristine and extremely healthy"
+                      vegetationType = "very dense, multi-layered canopy with high vigor"
+                      biodiversityLevel = "outstanding"
+                    } else if (ndvi >= 0.7) {
+                      healthStatus = "healthy and actively growing"
+                      vegetationType = "dense, multi-layered canopy structure"
+                      biodiversityLevel = "exceptional"
+                    } else if (ndvi >= 0.6) {
+                      healthStatus = "moderately healthy with active growth"
+                      vegetationType = "moderate canopy density with mixed strata"
+                      biodiversityLevel = "good"
+                    } else if (ndvi >= 0.5) {
+                      healthStatus = "showing signs of moderate disturbance or degradation"
+                      vegetationType = "sparse to moderate canopy coverage"
+                      biodiversityLevel = "moderate"
+                    } else {
+                      healthStatus = "significantly stressed or degraded"
+                      vegetationType = "limited canopy coverage with sparse vegetation"
+                      biodiversityLevel = "reduced"
+                    }
+                    
+                    return `This project encompasses a ${area.toFixed(2)} hectare area of forest ecosystem with NDVI value of ${ndvi.toFixed(4)} indicating ${healthStatus} vegetation. 
+The vegetation is characterized by ${vegetationType} with ${biodiversityLevel} biodiversity. 
+Satellite analysis reveals vegetation indices consistent with ${ndvi >= 0.7 ? 'active photosynthetic activity and carbon sequestration' : 'moderate to reduced vegetation vigor'} indicating a forest with ${ndvi >= 0.7 ? 'minimal disturbance and strong regenerative capacity' : 'varying levels of ecological pressure'}. 
+The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' : 'limited'} carbon sequestration potential and serves as ${ndvi >= 0.7 ? 'critical habitat for diverse flora and fauna species' : 'habitat with varying conservation value'}.`
+                  })()}
                 </p>
               </div>
             </div>
@@ -1050,14 +1084,28 @@ export default function ResultsPage() {
           })
 
           if (!uploadResponse.ok) {
-            const errorData = await uploadResponse.json()
-            console.error("[v0] Google Drive upload failed with status:", uploadResponse.status)
-            console.error("[v0] Error details:", errorData)
-            alert(`Failed to upload PDF to Google Drive: ${errorData.details || "Unknown error"}`)
+            try {
+              const errorData = await uploadResponse.json()
+              console.error("[v0] Google Drive upload failed with status:", uploadResponse.status)
+              console.error("[v0] Error details:", errorData)
+              alert(`Failed to upload PDF to Google Drive: ${errorData.details || "Unknown error"}`)
+            } catch {
+              const errorText = await uploadResponse.text()
+              console.error("[v0] Google Drive upload failed with status:", uploadResponse.status, errorText)
+              alert(`Failed to upload PDF to Google Drive: HTTP ${uploadResponse.status}`)
+            }
             return
           }
 
-          const uploadResult = await uploadResponse.json()
+          let uploadResult
+          try {
+            uploadResult = await uploadResponse.json()
+          } catch (parseError) {
+            const responseText = await uploadResponse.text()
+            console.error("[v0] Failed to parse upload response as JSON:", responseText)
+            alert(`Error: Invalid response from server`)
+            return
+          }
           if (uploadResult.success) {
             console.log("[v0] PDF uploaded to Google Drive:", uploadResult.fileLink)
             alert(`PDF successfully uploaded to Google Drive!\nFile: ${uploadResult.fileName}`)
