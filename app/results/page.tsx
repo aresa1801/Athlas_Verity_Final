@@ -1130,23 +1130,6 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Navigation */}
-      <nav className="border-b border-border px-6 py-3 flex items-center justify-between sticky top-0 bg-background/60 backdrop-blur-md z-50">
-        <Link href="/" className="flex items-center hover:opacity-80 transition-opacity flex-1">
-          <Image
-            src="/athlas-verity-banner-logo.png"
-            alt="Athlas Verity"
-            width={1400}
-            height={80}
-            className="h-32 w-auto max-w-3xl"
-            priority
-          />
-        </Link>
-        <div className="flex items-center gap-4">
-          <WalletConnect />
-        </div>
-      </nav>
-
       <div className="max-w-7xl mx-auto px-6 py-12">
         <Link href="/upload" className="flex items-center gap-2 text-accent hover:text-accent/80 mb-8">
           <ArrowLeft className="w-4 h-4" />
