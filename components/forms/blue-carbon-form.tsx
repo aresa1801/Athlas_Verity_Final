@@ -147,6 +147,15 @@ export function BlueCarbonForm() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Validate file type - only ZIP files allowed for satellite data
+    if (fieldName === 'satelliteDataFile') {
+      if (!file.name.endsWith('.zip') || file.type !== 'application/zip') {
+        setValidationErrors(["Only ZIP files from Blue Carbon Analysis page are supported"])
+        e.target.value = ''
+        return
+      }
+    }
+
     setFormData(prev => ({ ...prev, [fieldName]: file }))
 
     if (fieldName === 'satelliteDataFile') {
@@ -160,10 +169,18 @@ export function BlueCarbonForm() {
         const waterDepth = parsed.coastalData?.tidalRange || parsed.waterDepth || ''
         const sedimentDepth = parsed.coastalData?.soilCarbonDepth || parsed.sedimentDepthEstimate || ''
         
+        // Handle coordinates - can be array or string
+        let coordinatesStr = ""
+        if (Array.isArray(parsed.center_coordinates)) {
+          coordinatesStr = parsed.center_coordinates.join(", ")
+        } else if (typeof parsed.coordinates === 'string') {
+          coordinatesStr = parsed.coordinates
+        }
+        
         setFormData(prev => ({
           ...prev,
           dataLuasan: parsed.area_ha?.toString() || parsed.area?.hectares?.toString() || "",
-          dataKoordinat: parsed.center_coordinates?.join(", ") || parsed.coordinates?.join(", ") || "",
+          dataKoordinat: coordinatesStr,
           tidalZoneType: tidalZone,
           ecosystemType: parsed.ecosystemType || parsed.forestType || "",
           sedimentDepthEstimate: sedimentDepth,
@@ -172,8 +189,12 @@ export function BlueCarbonForm() {
           vegetationDescription: parsed.vegetationDescription || "",
           vegetationCoverage: parsed.canopyCoverPercent?.toString() || "",
         }))
+        
+        setValidationErrors([])
       } catch (error) {
-        console.error("[v0] Error parsing satellite file:", error)
+        console.error("[v0] Error parsing satellite ZIP:", error)
+        setValidationErrors(["Invalid ZIP file from Blue Carbon Analysis. Please verify the file was downloaded from the analysis page."])
+        e.target.value = ''
       }
     }
   }, [])
@@ -370,11 +391,11 @@ export function BlueCarbonForm() {
             <input
               type="file"
               onChange={(e) => handleFileUpload(e, 'satelliteDataFile')}
-              accept=".json,.geojson,.csv"
+              accept=".zip"
               className="hidden"
             />
           </label>
-          <p className="text-xs text-muted-foreground mt-2">Supported: GeoJSON, CSV, JSON</p>
+          <p className="text-xs text-muted-foreground mt-2">Supported: ZIP file from Blue Carbon Analysis page only</p>
         </div>
 
         {formData.satelliteDataFile && (

@@ -33,6 +33,7 @@ interface AreaResult {
 }
 
 export function MapInterface({ polygon, setPolygon, multiPolygons, location, onAreaCalculated }: MapInterfaceProps) {
+  // v0: Fixed multi-polygon rendering with proper data structure handling
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const polygonLayerRef = useRef<any>(null)
