@@ -329,9 +329,25 @@ export function MapInterface({ polygon, setPolygon, multiPolygons, location, onA
     setIsCalculating(true)
     try {
       // Prepare request body with support for multi-polygon with holes
-      const requestBody = multiPolygonData && multiPolygonData.length > 0
-        ? { multiPolygons: multiPolygonData }
-        : { polygon: polygonCoords }
+      let requestBody: any
+      
+      if (multiPolygonData && multiPolygonData.length > 0) {
+        // Convert MultiPolygonData format to array format for API
+        const convertedMultiPolygons = multiPolygonData.map(polygonData => {
+          if (!polygonData || typeof polygonData !== 'object') return null
+          if ('outerRing' in polygonData && Array.isArray(polygonData.outerRing)) {
+            // Extract outerRing as the main polygon coordinates
+            return polygonData.outerRing
+          }
+          return null
+        }).filter(Boolean)
+        
+        requestBody = convertedMultiPolygons.length > 0 
+          ? { multiPolygons: convertedMultiPolygons }
+          : { polygon: polygonCoords }
+      } else {
+        requestBody = { polygon: polygonCoords }
+      }
 
       const response = await fetch("/api/geo/calculate-area", {
         method: "POST",

@@ -154,13 +154,23 @@ export function BlueCarbonForm() {
         const parsed = await parseSatelliteDataFile(file)
         console.log("[v0] Parsed satellite data:", parsed)
         
+        // Extract coastal-specific data from parsed satellite data
+        const tidalZone = parsed.coastalData?.tidalRange ? 'intertidal' : parsed.tidalZone || ''
+        const salinity = parsed.coastalData?.salinity || parsed.salinityType || ''
+        const waterDepth = parsed.coastalData?.tidalRange || parsed.waterDepth || ''
+        const sedimentDepth = parsed.coastalData?.soilCarbonDepth || parsed.sedimentDepthEstimate || ''
+        
         setFormData(prev => ({
           ...prev,
-          dataLuasan: parsed.area_ha?.toString() || "",
-          dataKoordinat: parsed.center_coordinates?.join(", ") || "",
-          tidalZoneType: parsed.tidalZone || "",
-          ecosystemType: parsed.ecosystemType || "",
+          dataLuasan: parsed.area_ha?.toString() || parsed.area?.hectares?.toString() || "",
+          dataKoordinat: parsed.center_coordinates?.join(", ") || parsed.coordinates?.join(", ") || "",
+          tidalZoneType: tidalZone,
+          ecosystemType: parsed.ecosystemType || parsed.forestType || "",
+          sedimentDepthEstimate: sedimentDepth,
+          salinityType: salinity,
+          waterDepth: waterDepth,
           vegetationDescription: parsed.vegetationDescription || "",
+          vegetationCoverage: parsed.canopyCoverPercent?.toString() || "",
         }))
       } catch (error) {
         console.error("[v0] Error parsing satellite file:", error)
@@ -627,13 +637,63 @@ export function BlueCarbonForm() {
         </div>
       </Card>
 
+      {/* Section E: Form Completeness */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2 mb-6">
+          <h2 className="text-2xl font-bold">Section E: Form Completeness Summary</h2>
+          <Badge variant="outline" className="ml-auto">Step 5 of 5</Badge>
+        </div>
+
+        <Card className={`p-6 ${validationErrors.length === 0 ? "bg-cyan-500/5 border-cyan-500/30" : "bg-amber-500/5 border-amber-500/30"}`}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className={`font-semibold text-lg ${validationErrors.length === 0 ? "text-cyan-900 dark:text-cyan-400" : "text-amber-900 dark:text-amber-400"}`}>
+                Form Status
+              </h3>
+              <p className={`text-sm ${validationErrors.length === 0 ? "text-cyan-800 dark:text-cyan-300" : "text-amber-800 dark:text-amber-300"}`}>
+                {validationErrors.length === 0 ? "✓ All required fields completed - ready to submit" : `⚠ ${validationErrors.length} fields missing`}
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-4xl font-bold">{Math.round((requiredFields.filter((field) => {
+                if (field === "satelliteDataFile" || field === "landOwnershipProof" || field === "dataKebenaran") {
+                  return formData[field as keyof typeof formData] !== null
+                }
+                const value = formData[field as keyof typeof formData]
+                return value && String(value).trim() !== ""
+              }).length / requiredFields.length) * 100)}%</div>
+              <p className="text-xs text-muted-foreground">Complete</p>
+            </div>
+          </div>
+
+          {validationErrors.length > 0 && (
+            <div className="mt-4 p-4 bg-amber-100/50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+              <p className="text-sm font-medium text-amber-900 dark:text-amber-200 mb-2">Missing Fields:</p>
+              <ul className="space-y-1">
+                {validationErrors.map((error, idx) => (
+                  <li key={idx} className="text-xs text-amber-800 dark:text-amber-300">• {error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </Card>
+      </section>
+
+      {/* Run Verification Button */}
       <Button
         onClick={handleSubmit}
-        disabled={isSubmitting}
+        disabled={validationErrors.length > 0 || isSubmitting}
         size="lg"
         className="w-full"
       >
-        {isSubmitting ? "Submitting..." : "Submit Verification"}
+        {isSubmitting ? (
+          <>
+            <span className="inline-block animate-spin mr-2">⏳</span>
+            Processing Verification...
+          </>
+        ) : (
+          "Run Verification"
+        )}
       </Button>
     </div>
   )
