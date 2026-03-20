@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { MapInterface } from '@/components/satellite/map-interface'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -519,8 +520,15 @@ export default function BlueCarbonSatelliteAnalysisPage() {
 
             {/* Map Display */}
             {polygon.length > 0 && (
-              <div className="mt-6 p-4 rounded-lg border border-border/30 bg-card/50 text-center text-muted-foreground">
-                <p>Map interface is under maintenance. Polygon data available from uploaded satellite files.</p>
+              <div className="mt-6">
+                <MapInterface 
+                  polygon={polygon} 
+                  setPolygon={setPolygon}
+                  multiPolygons={multiPolygons}
+                  location={locationInput?.latitude && locationInput?.longitude 
+                    ? { latitude: locationInput.latitude, longitude: locationInput.longitude, radius: "10" }
+                    : { latitude: "1.35", longitude: "103.8", radius: "10" }}
+                />
               </div>
             )}
 

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowRight, Waves, MapPin, Gauge, Check } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
+import { MapInterface } from "@/components/satellite/map-interface"
 
 export default function BlueCarbonPage() {
   const [polygon, setPolygon] = useState<Array<[number, number]>>([])
@@ -151,12 +152,14 @@ export default function BlueCarbonPage() {
           
           {showMap && (
             <Card className="border-border/50 bg-card/50 p-6 overflow-hidden">
-              <div className="text-center py-12 text-muted-foreground">
-                <p>Map interface is under maintenance. Please proceed directly to verification.</p>
-              </div>
+              <MapInterface
+                polygon={polygon}
+                setPolygon={setPolygon}
+                location={location}
+              />
               <div className="mt-6 flex gap-4 justify-between">
                 <Button variant="outline" onClick={() => setShowMap(false)}>
-                  Close
+                  Close Map
                 </Button>
                 <Link href="/verification/blue-carbon/create">
                   <Button className="gap-2">
