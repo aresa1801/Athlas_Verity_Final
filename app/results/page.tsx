@@ -126,16 +126,36 @@ export default function ResultsPage() {
       // Use actual AGB from satellite data if available, otherwise use estimation
       const finalAGB = biomassAgb > 0 ? biomassAgb : agbResult.agb_tpha_final
       
-      console.log("[v0] Final values - Area:", area, "ha, AGB:", finalAGB, "t/ha")
+      // Calculate dynamic leakage based on deforestation risk level and area
+      let leakage = 5 // Default
+      const riskLevel = parsedData.deforestationRiskLevel?.toLowerCase() || ""
+      
+      // Area-based leakage (takes priority if higher)
+      if (area > 100000) {
+        leakage = 20 // Above 100,000 ha: 20%
+      } else if (area > 50000) {
+        leakage = 10 // Above 50,000 ha: 10%
+      } else {
+        // Risk level-based leakage for areas <= 50,000 ha
+        if (riskLevel === "low" || riskLevel === "very low") {
+          leakage = 5
+        } else if (riskLevel === "medium") {
+          leakage = 10
+        } else if (riskLevel === "high") {
+          leakage = 20
+        }
+      }
+      
+      console.log("[v0] Final values - Area:", area, "ha, AGB:", finalAGB, "t/ha, Risk Level:", riskLevel, ", Leakage:", leakage + "%")
 
-      // Update carbon inputs with actual data
+      // Update carbon inputs with actual data and dynamic leakage
       setCarbonInputs({
         agb_per_ha: finalAGB,
         carbon_fraction: 0.47,
         area_ha: area,
         baseline_emission: 1.8,
         duration_years: 10,
-        leakage: 5,
+        leakage: leakage,
         buffer_pool: 20,
         integrity_class: "IC-A",
         validator_consensus: 0.93,
@@ -496,7 +516,7 @@ export default function ResultsPage() {
               <div style="margin-top: 15px;" class="grid-item">
                 <div class="label">Project Description</div>
                 <div class="value" style="line-height: 1.8;">
-                  ${projectData?.projectName ? `Project "${projectData.projectName}" encompasses approximately ${carbonInputs.area_ha.toFixed(2)} hectares of forest ecosystem with ${projectData?.forestType || 'tropical forest'} classification. The project is focused on carbon offset generation through forest protection and restoration activities. With an estimated carbon stock of ${(carbonInputs.agb_per_ha * carbonInputs.area_ha * 0.47).toFixed(2)} tC and dominant species of ${projectData?.dominantSpecies || 'mixed species'}, this project demonstrates significant biodiversity value and carbon sequestration potential. The vegetation is characterized by ${projectData?.vegetationDescription || 'dense forest cover with healthy canopy structure'}. Located in ${projectData?.country || 'a carbon-rich region'}, the project contributes to global climate change mitigation efforts.` : "N/A"}
+                  ${projectData?.projectName ? `Project "${projectData.projectName}" located in ${projectData?.projectLocation || 'the project area'}, encompasses approximately ${carbonInputs.area_ha.toFixed(2)} hectares of forest ecosystem with ${projectData?.forestType || 'tropical forest'} classification. The project is focused on carbon offset generation through forest protection and restoration activities. With an estimated carbon stock of ${(carbonInputs.agb_per_ha * carbonInputs.area_ha * 0.47).toFixed(2)} tC and dominant species of ${projectData?.dominantSpecies || 'mixed species'}, this project demonstrates significant biodiversity value and carbon sequestration potential. The vegetation is characterized by ${projectData?.vegetationDescription || 'dense forest cover with healthy canopy structure'}. Located in ${projectData?.country || 'a carbon-rich region'}, the project contributes to global climate change mitigation efforts.` : "N/A"}
                 </div>
               </div>
             </div>
@@ -750,10 +770,6 @@ export default function ResultsPage() {
               </div>
             </div>
 
-            <div class="section">
-              <h2>Immutable Proof-Chain Hash</h2>
-              <p style="word-break: break-all; background: rgba(255, 255, 255, 0.02); padding: 15px; border-radius: 4px; font-family: monospace; font-size: 10px; border: 1px solid rgba(61, 214, 140, 0.1); color: #3DD68C;">${mockValidationResult.proof_chain}</p>
-            </div>
           </div>
 
           <!-- PAGE 8: VEGETATION CLASSIFICATION -->
