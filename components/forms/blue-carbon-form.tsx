@@ -150,7 +150,7 @@ export function BlueCarbonForm() {
     // Validate file type - only ZIP files allowed for satellite data
     if (fieldName === 'satelliteDataFile') {
       if (!file.name.endsWith('.zip') || file.type !== 'application/zip') {
-        setValidationErrors(["Satellite data must be a ZIP file from green-carbon analysis page"])
+        setValidationErrors(["Only ZIP files from Blue Carbon Analysis page are supported"])
         e.target.value = ''
         return
       }
@@ -192,8 +192,8 @@ export function BlueCarbonForm() {
         
         setValidationErrors([])
       } catch (error) {
-        console.error("[v0] Error parsing satellite file:", error)
-        setValidationErrors(["Invalid satellite data ZIP file. Please ensure it's exported from green-carbon analysis page."])
+        console.error("[v0] Error parsing satellite ZIP:", error)
+        setValidationErrors(["Invalid ZIP file from Blue Carbon Analysis. Please verify the file was downloaded from the analysis page."])
         e.target.value = ''
       }
     }
@@ -391,11 +391,11 @@ export function BlueCarbonForm() {
             <input
               type="file"
               onChange={(e) => handleFileUpload(e, 'satelliteDataFile')}
-              accept=".json,.geojson,.csv"
+              accept=".zip"
               className="hidden"
             />
           </label>
-          <p className="text-xs text-muted-foreground mt-2">Supported: GeoJSON, CSV, JSON</p>
+          <p className="text-xs text-muted-foreground mt-2">Supported: ZIP file from Blue Carbon Analysis page only</p>
         </div>
 
         {formData.satelliteDataFile && (
