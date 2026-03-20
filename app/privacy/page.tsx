@@ -110,11 +110,6 @@ export default function Privacy() {
                     Verification
                   </Link>
                 </li>
-                <li>
-                  <Link href="/satellite" className="hover:text-accent transition-colors">
-                    Satellite Data
-                  </Link>
-                </li>
               </ul>
             </div>
             <div>

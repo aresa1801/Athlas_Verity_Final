@@ -330,12 +330,6 @@ export default function Home() {
                     History
                   </Link>
                 </li>
-                <li>
-                  <Link href="/satellite" className="hover:text-emerald-400 transition-colors duration-300 flex items-center gap-2">
-                    <span className="w-1 h-1 bg-emerald-400 rounded-full" />
-                    Satellite
-                  </Link>
-                </li>
               </ul>
             </div>
 
