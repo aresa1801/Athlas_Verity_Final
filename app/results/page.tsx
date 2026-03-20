@@ -589,7 +589,7 @@ export default function ResultsPage() {
                 </div>
                 <div class="grid-item">
                   <div class="label">Verification Status</div>
-                  <div style="color: #3DD68C; font-weight: 600;">✓ Verified</div>
+                  <div style="color: ${primaryColor}; font-weight: 600;">✓ Verified</div>
                 </div>
               </div>
             </div>
@@ -767,8 +767,8 @@ export default function ResultsPage() {
                 <span class="metric-label">8. Integrity Class Adjustment (${(carbonCalculation.integrity_class_factor * 100).toFixed(1)}%)</span>
                 <span class="metric-value">-${carbonCalculation.integrity_class_adjustment_tco2.toLocaleString()}</span>
               </div>
-              <div class="metric-row" style="border: none; padding-top: 15px; border-top: 2px solid #3DD68C; margin-top: 15px; font-size: 16px;">
-                <span class="metric-label" style="color: #3DD68C; font-weight: 700;">Final Verified Reduction</span>
+                <div class="metric-row" style="border: none; padding-top: 15px; border-top: 2px solid ${primaryColor}; margin-top: 15px; font-size: 16px;">
+                <span class="metric-label" style="color: ${primaryColor}; font-weight: 700;">Final Verified Reduction</span>
                 <span class="metric-value" style="font-size: 18px;">${carbonCalculation.final_verified_reduction_tco2.toLocaleString()}</span>
               </div>
             </div>
@@ -887,7 +887,7 @@ export default function ResultsPage() {
               </div>
               <div class="metric-row">
                 <span class="metric-label">Vegetation Health Status</span>
-                <span class="metric-value" style="color: #3DD68C; font-weight: 600;">✓ Excellent</span>
+                <span class="metric-value" style="color: ${primaryColor}; font-weight: 600;">✓ Excellent</span>
               </div>
             </div>
           </div>
@@ -899,7 +899,7 @@ export default function ResultsPage() {
             
             <div class="section">
               <h2>Ecosystem Overview</h2>
-              <div style="background: rgba(61, 214, 140, 0.1); padding: 15px; border-radius: 6px; border-left: 4px solid #3DD68C; margin: 15px 0;">
+              <div style="background: rgba(${primaryColorRgba}, 0.1); padding: 15px; border-radius: 6px; border-left: 4px solid ${primaryColor}; margin: 15px 0;">
                 <p style="color: #E0E0E0; line-height: 1.8;">
                   ${(() => {
                     const ndvi = projectData?.satelliteData?.features?.ndvi || projectData?.ndviValue || 0.65
@@ -955,7 +955,7 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
               </div>
               <div class="metric-row">
                 <span class="metric-label">Structural Complexity</span>
-                <span class="metric-value" style="color: #3DD68C;">Very High (Multi-strata)</span>
+                <span class="metric-value" style="color: ${primaryColor};">Very High (Multi-strata)</span>
               </div>
             </div>
 
@@ -1002,7 +1002,7 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
               </div>
               <div class="metric-row">
                 <span class="metric-label">Conservation Priority</span>
-                <span class="metric-value" style="color: #3DD68C; font-weight: 600;">High</span>
+                <span class="metric-value" style="color: ${primaryColor}; font-weight: 600;">High</span>
               </div>
               <div class="metric-row">
                 <span class="metric-label">Carbon Sequestration Capacity</span>
@@ -1012,7 +1012,7 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
 
             <div class="section">
               <h2>Vegetation Health Assessment</h2>
-              <div style="background: rgba(61, 214, 140, 0.1); padding: 15px; border-radius: 6px; border-left: 4px solid #3DD68C; margin: 15px 0;">
+              <div style="background: rgba(${primaryColorRgba}, 0.1); padding: 15px; border-radius: 6px; border-left: 4px solid ${primaryColor}; margin: 15px 0;">
                 <p style="color: #E0E0E0; line-height: 1.8;">
                   The vegetation exhibits optimal health status with no significant signs of stress, disease, or degradation. 
                   Spectral signatures consistent with vigorous photosynthetic activity across all canopy layers. 
@@ -1070,15 +1070,15 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
                   This document contains sensitive project and verification data. Recipients are obligated to maintain appropriate confidentiality and restrict access to authorized personnel only.
                 </p>
 
-                <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(61, 214, 140, 0.2); font-style: italic; color: #B0B0B0;">
+                <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(${primaryColorRgba}, 0.2); font-style: italic; color: #B0B0B0;">
                   By accessing this verification report, you acknowledge that you have read, understood, and agree to be bound by the terms and limitations outlined in this disclaimer. If you do not agree with any provision herein, you must discontinue the use of this report immediately.
                 </p>
 
-                <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid rgba(61, 214, 140, 0.2); text-align: center; font-size: 12px; color: #888;">
+                <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid rgba(${primaryColorRgba}, 0.2); text-align: center; font-size: 12px; color: #888;">
                   <p style="margin-bottom: 8px; font-style: italic;">Generated on ${new Date().toLocaleString()}</p>
-                  <p style="margin-bottom: 8px; font-weight: 500; color: #3DD68C;">Athlas Verity Platform - Powered by CarbonFi Labs System</p>
+                  <p style="margin-bottom: 8px; font-weight: 500; color: ${primaryColor};">Athlas Verity Platform - Powered by CarbonFi Labs System</p>
                   <p style="margin-bottom: 15px; color: #FFD700;">This report contains sensitive verification data. Please handle with appropriate confidentiality.</p>
-                  <p style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(61, 214, 140, 0.1); color: #666;">© 2025 Athlas Verity - Environmental Impact Verification Platform. All rights reserved.</p>
+                  <p style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(${primaryColorRgba}, 0.1); color: #666;">© 2025 Athlas Verity - Environmental Impact Verification Platform. All rights reserved.</p>
                 </div>
               </div>
             </div>

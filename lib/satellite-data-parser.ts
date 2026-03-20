@@ -5,19 +5,45 @@ export interface ParsedSatelliteData {
   // Geospatial data
   area: string // in hectares (formatted)
   areaHa?: number // numeric area value for calculations
+  area_ha?: number // alternate naming for compatibility
+  center_coordinates?: string[] // alternate naming for compatibility
   coordinates: string // center coordinates
   
   // Vegetation data
   forestType?: string
+  ecosystemType?: string
   dominantSpecies?: string
   vegetationDescription?: string
   averageTreeHeight?: string
   canopyCover?: string
+  canopyCoverPercent?: string
   
   // Analysis metrics
   ndvi?: number
   biomass?: string
   carbonEstimate?: string
+  
+  // Blue Carbon specific data
+  tidalZone?: string
+  tidalZoneType?: string
+  coastalData?: {
+    isCoastal?: boolean
+    distance?: string
+    tidalRange?: string
+    salinity?: string
+    waveHeight?: string
+    sedimentType?: string
+    soilCarbonDepth?: string
+    inundationFrequency?: string
+    waterQuality?: string
+    pH?: string
+    bulkDensity?: string
+    organicMatter?: string
+  }
+  salinityType?: string
+  waterDepth?: string
+  sedimentDepthEstimate?: string
+  soilType?: string
   
   // Metadata
   dataSource?: string[]
@@ -230,7 +256,7 @@ async function parseSatelliteDataJSON(file: File): Promise<ParsedSatelliteData> 
 }
 
 /**
- * Parse analysis export format directly (from green-carbon-analysis page download)
+ * Parse analysis export format directly (from green-carbon-analysis or blue-carbon-analysis page download)
  */
 function parseAnalysisExportFormat(data: any): ParsedSatelliteData {
   const area = data.area?.hectares || 0
@@ -238,6 +264,7 @@ function parseAnalysisExportFormat(data: any): ParsedSatelliteData {
   const coordinates = `${centerCoords.latitude}, ${centerCoords.longitude}`
 
   const forestType = data.forestType || 'Unknown'
+  const ecosystemType = data.ecosystemType || data.forestType || ''
   const dominantSpecies = data.dominantSpecies || ''
   const averageTreeHeight = data.averageTreeHeight || ''
   const vegetationDescription = data.vegetationDescription || ''
@@ -247,27 +274,48 @@ function parseAnalysisExportFormat(data: any): ParsedSatelliteData {
   
   const dataSources = [data.satelliteSource || 'Satellite Analysis']
 
+  // Extract blue carbon specific coastal data
+  const coastalData = data.coastalData || data.satellite?.coastalData || {}
+  const tidalZoneType = data.tidalZoneType || coastalData.tidalZone || (coastalData.tidalRange ? 'intertidal' : '')
+  const salinityType = data.salinityType || coastalData.salinity || ''
+  const waterDepth = data.waterDepth || coastalData.tidalRange || ''
+  const sedimentDepthEstimate = data.sedimentDepthEstimate || coastalData.soilCarbonDepth || ''
+  const soilType = data.soilType || ''
+
   console.log("[v0] Parsed analysis export format:", {
     area,
     coordinates,
     forestType,
+    ecosystemType,
     dominantSpecies,
-    averageTreeHeight,
     ndvi,
+    coastalData,
   })
 
   return {
     area: `${area.toFixed(2)} ha`,
     areaHa: area,
+    area_ha: area, // For compatibility
     coordinates,
+    center_coordinates: [String(centerCoords.latitude), String(centerCoords.longitude)], // For compatibility
     forestType: formatString(forestType),
+    ecosystemType: formatString(ecosystemType),
     dominantSpecies: formatString(dominantSpecies),
     vegetationDescription: formatString(vegetationDescription),
     averageTreeHeight: String(averageTreeHeight).trim(),
     canopyCover: data.satellite?.cloudCover ? `${100 - data.satellite.cloudCover}%` : '85-95%',
+    canopyCoverPercent: data.vegetationClassification?.canopyCoverPercent?.toString() || data.satellite?.canopyCover || '',
     biomass: formatString(data.satellite?.biomass || data.carbonData?.agb || ''),
     carbonEstimate: formatString(data.satellite?.carbonEstimate || data.carbonData?.totalCarbonStock || ''),
     ndvi: ndvi,
+    // Blue carbon specific fields
+    tidalZone: tidalZoneType,
+    tidalZoneType: tidalZoneType,
+    coastalData: coastalData,
+    salinityType: salinityType,
+    waterDepth: waterDepth,
+    sedimentDepthEstimate: sedimentDepthEstimate,
+    soilType: soilType,
     dataSource: dataSources,
     analysisDate: new Date(data.timestamp).toISOString().split('T')[0],
     polygonCount: data.polygonInfo?.count || 1,
