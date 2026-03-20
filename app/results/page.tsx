@@ -1085,13 +1085,18 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
 
           if (!uploadResponse.ok) {
             try {
-              const errorData = await uploadResponse.json()
-              console.error("[v0] Google Drive upload failed with status:", uploadResponse.status)
-              console.error("[v0] Error details:", errorData)
-              alert(`Failed to upload PDF to Google Drive: ${errorData.details || "Unknown error"}`)
-            } catch {
-              const errorText = await uploadResponse.text()
-              console.error("[v0] Google Drive upload failed with status:", uploadResponse.status, errorText)
+              const responseText = await uploadResponse.text()
+              try {
+                const errorData = JSON.parse(responseText)
+                console.error("[v0] Google Drive upload failed with status:", uploadResponse.status)
+                console.error("[v0] Error details:", errorData)
+                alert(`Failed to upload PDF to Google Drive: ${errorData.details || "Unknown error"}`)
+              } catch {
+                console.error("[v0] Google Drive upload failed with status:", uploadResponse.status, responseText)
+                alert(`Failed to upload PDF to Google Drive: HTTP ${uploadResponse.status}`)
+              }
+            } catch (readError) {
+              console.error("[v0] Failed to read error response:", readError)
               alert(`Failed to upload PDF to Google Drive: HTTP ${uploadResponse.status}`)
             }
             return
@@ -1099,10 +1104,10 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
 
           let uploadResult
           try {
-            uploadResult = await uploadResponse.json()
-          } catch (parseError) {
             const responseText = await uploadResponse.text()
-            console.error("[v0] Failed to parse upload response as JSON:", responseText)
+            uploadResult = JSON.parse(responseText)
+          } catch (parseError) {
+            console.error("[v0] Failed to parse upload response as JSON:", parseError)
             alert(`Error: Invalid response from server`)
             return
           }
@@ -1138,7 +1143,6 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
           />
         </Link>
         <div className="flex items-center gap-4">
-          <div className="text-sm text-muted-foreground">Athlas Verity Impact Verification</div>
           <WalletConnect />
         </div>
       </nav>

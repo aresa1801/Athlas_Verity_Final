@@ -1,22 +1,32 @@
 "use client"
 
+import React from "react"
+import { useRouter } from "next/navigation"
+import { COUNTRIES } from '@/lib/countries'
+import { parseSatelliteDataFile } from '@/lib/satellite-data-parser'
 import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle, CheckCircle2, HelpCircle, MapPin } from "lucide-react"
+import { AlertCircle, CheckCircle2, HelpCircle, MapPin, Upload } from "lucide-react"
 import { EnhancedMapInterface } from "@/components/geospatial/enhanced-map-interface"
 import { BlueCarbonGeospatialSection } from "@/components/verification/blue-carbon-geospatial-section"
 
 interface BlueCarbonFormData {
   // Section A
   projectName: string
+  ownerName: string
+  ownerEmail: string
+  ownerPhone: string
+  projectLocation: string
   country: string
   baselineYear: string
   methodologyRef: string
 
-  // Section B
-  polygon: Array<[number, number]>
+  // Section B - Satellite Data
+  satelliteDataFile: File | null
+  dataLuasan: string
+  dataKoordinat: string
   tidalZoneType: string
   ecosystemType: string
 
@@ -24,25 +34,42 @@ interface BlueCarbonFormData {
   sedimentDepthEstimate: string
   soilType: string
   salinityType: string
+  waterDepth: string
+  vegetationCoverage: string
 
-  // Section E
+  // Section D
   coastalProtectionStatus: string
   humanDisturbanceLevel: string
+  legalProtectionStatus: string
+  
+  // Supporting documents
+  polygon: Array<[number, number]>
+  landOwnershipProof: File | null
+  dataKebenaran: File | null
 }
 
 const FIELD_TOOLTIPS = {
-  projectName: "Name of your blue carbon project for identification",
-  country: "Country where the coastal ecosystem is located",
-  baselineYear: "Reference year for ecosystem condition baseline",
-  methodologyRef: "Blue carbon methodology (Verra/IPCC guidelines)",
-  polygon: "Define coastal ecosystem boundaries - critical for area and carbon stock calculation",
+  projectName: "Name of your blue carbon offset project for identification in the verification system",
+  ownerName: "Full name of the project owner or organization responsible for the project",
+  ownerEmail: "Email address of the project owner for contact and communication purposes",
+  ownerPhone: "Phone number of the project owner for contact purposes",
+  projectLocation: "Specific location or name of the coastal project site (e.g., Sundarbans, Mangrove Forest Area)",
+  country: "Country where the coastal ecosystem is located - used for baseline and regulatory context",
+  baselineYear: "Reference year for ecosystem condition baseline - critical for additionality calculations",
+  methodologyRef: "Blue carbon methodology (Verra/IPCC guidelines) - determines validation rules",
+  satelliteDataFile: "Satellite data file for coastal ecosystem analysis and carbon stock estimation",
+  dataLuasan: "Total project area in hectares from satellite data analysis",
+  dataKoordinat: "Geographic coordinates of the project site from satellite data",
   tidalZoneType: "Tidal zone classification (intertidal/subtidal) - affects sediment carbon modeling",
   ecosystemType: "Ecosystem type (mangrove/seagrass/salt-marsh) - determines carbon storage potential",
   sedimentDepthEstimate: "Estimated active sediment depth - required for SOC (Soil Organic Carbon) calculation",
   soilType: "Soil classification - affects carbon storage coefficient",
   salinityType: "Salinity level (fresh/brackish/marine) - influences carbon cycling",
+  waterDepth: "Average water depth in the project area - affects ecosystem classification",
+  vegetationCoverage: "Percentage or description of vegetation coverage - indicates ecosystem health",
   coastalProtectionStatus: "Whether ecosystem provides coastal protection benefits",
   humanDisturbanceLevel: "Level of human impacts (fishing, pollution) - affects integrity scoring",
+  legalProtectionStatus: "Legal protection or conservation status of the coastal area",
 }
 
 type TooltipKey = keyof typeof FIELD_TOOLTIPS
@@ -57,19 +84,34 @@ const Tooltip = ({ text }: { text: string }) => (
 )
 
 export function BlueCarbonForm() {
+  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const [formData, setFormData] = useState<BlueCarbonFormData>({
     projectName: "",
+    ownerName: "",
+    ownerEmail: "",
+    ownerPhone: "",
+    projectLocation: "",
     country: "",
     baselineYear: "",
     methodologyRef: "verra",
-    polygon: [],
+    satelliteDataFile: null,
+    dataLuasan: "",
+    dataKoordinat: "",
     tidalZoneType: "",
     ecosystemType: "",
     sedimentDepthEstimate: "",
     soilType: "",
     salinityType: "",
+    waterDepth: "",
+    vegetationCoverage: "",
     coastalProtectionStatus: "",
     humanDisturbanceLevel: "",
+    legalProtectionStatus: "",
+    polygon: [],
+    landOwnershipProof: null,
+    dataKebenaran: null,
   })
 
   const [validationErrors, setValidationErrors] = useState<string[]>([])
@@ -93,10 +135,14 @@ export function BlueCarbonForm() {
     const errors: string[] = []
 
     if (!formData.projectName.trim()) errors.push("Project name is required")
+    if (!formData.ownerName.trim()) errors.push("Owner name is required")
+    if (!formData.ownerEmail.trim()) errors.push("Owner email is required")
+    if (!formData.ownerPhone.trim()) errors.push("Owner phone number is required")
+    if (!formData.projectLocation.trim()) errors.push("Project location is required")
     if (!formData.country) errors.push("Country is required")
     if (!formData.baselineYear) errors.push("Baseline year is required")
     if (!formData.methodologyRef) errors.push("Methodology reference is required")
-    if (formData.polygon.length < 3) errors.push("Polygon must have at least 3 points")
+    if (!formData.satelliteDataFile) errors.push("Satellite data file is required")
     if (!formData.tidalZoneType) errors.push("Tidal zone type is required")
     if (!formData.ecosystemType) errors.push("Ecosystem type is required")
     if (!formData.sedimentDepthEstimate || parseFloat(formData.sedimentDepthEstimate) <= 0)
