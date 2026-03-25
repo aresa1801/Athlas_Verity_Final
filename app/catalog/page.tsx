@@ -10,103 +10,22 @@ export const metadata = {
 }
 
 export default function CatalogPage() {
-  const projects = [
-    {
-      id: 1,
-      name: "Amazon Rainforest Preservation Fund",
-      type: "Green Carbon",
-      icon: Leaf,
-      country: "Brazil",
-      area: "125,000 Ha",
-      credits: "5.2M tCO₂e",
-      verified: "98.7%",
-      description: "Large-scale forest protection initiative preventing deforestation across the Amazon basin.",
-      status: "verified",
-    },
-    {
-      id: 2,
-      name: "Indonesian Peat Restoration Initiative",
-      type: "Green Carbon",
-      icon: Leaf,
-      country: "Indonesia",
-      area: "45,230 Ha",
-      credits: "2.1M tCO₂e",
-      verified: "95.2%",
-      description: "Restoration of degraded peatlands to prevent future carbon emissions.",
-      status: "verified",
-    },
-    {
-      id: 3,
-      name: "Southeast Asia Mangrove Expansion",
-      type: "Blue Carbon",
-      icon: Droplet,
-      country: "Vietnam",
-      area: "8,450 Ha",
-      credits: "312k tCO₂e",
-      verified: "92.3%",
-      description: "Coastal mangrove reforestation providing blue carbon sequestration and biodiversity benefits.",
-      status: "verified",
-    },
-    {
-      id: 4,
-      name: "African Savanna Restoration",
-      type: "Green Carbon",
-      icon: Leaf,
-      country: "Kenya",
-      area: "67,890 Ha",
-      credits: "1.8M tCO₂e",
-      verified: "91.5%",
-      description: "Savanna ecosystem restoration with agroforestry integration for sustainable livelihoods.",
-      status: "verified",
-    },
-    {
-      id: 5,
-      name: "Renewable Solar Farm Network",
-      type: "Renewable Energy",
-      icon: Zap,
-      country: "India",
-      area: "500 MW",
-      credits: "225k tCO₂e/year",
-      verified: "96.8%",
-      description: "Large-scale solar photovoltaic installations displacing fossil fuel generation.",
-      status: "verified",
-    },
-    {
-      id: 6,
-      name: "Coastal Seagrass Protection Program",
-      type: "Blue Carbon",
-      icon: Droplet,
-      country: "Australia",
-      area: "12,890 Ha",
-      credits: "456k tCO₂e",
-      verified: "89.2%",
-      description: "Seagrass meadow protection and restoration supporting marine carbon sequestration.",
-      status: "pending-review",
-    },
-    {
-      id: 7,
-      name: "Madagascar Forest Corridor Initiative",
-      type: "Green Carbon",
-      icon: Leaf,
-      country: "Madagascar",
-      area: "34,560 Ha",
-      credits: "920k tCO₂e",
-      verified: "88.4%",
-      description: "Tropical forest protection connecting fragmented ecosystem areas.",
-      status: "verified",
-    },
-    {
-      id: 8,
-      name: "Wind Energy Complex - Latin America",
-      type: "Renewable Energy",
-      icon: Zap,
-      country: "Chile",
-      area: "350 MW",
-      credits: "140k tCO₂e/year",
-      verified: "94.6%",
-      description: "Multi-turbine wind farm replacing coal-fired generation in the region.",
-      status: "verified",
-    },
+  const projects: typeof mockProjects = []
+
+  const mockProjects = [
+    // Placeholder structure for verified projects from user submissions
+    // {
+    //   id: 1,
+    //   name: "Project Name",
+    //   type: "Green Carbon" | "Blue Carbon" | "Renewable Energy",
+    //   icon: IconComponent,
+    //   country: "Country",
+    //   area: "Area Ha/MW",
+    //   credits: "Credits tCO₂e",
+    //   verified: "Percentage%",
+    //   description: "Project description",
+    //   status: "verified" | "pending-review",
+    // }
   ]
 
   const getStatusColor = (status: string) => {
@@ -180,71 +99,96 @@ export default function CatalogPage() {
           </Badge>
         </div>
 
-        {/* Projects Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((project) => {
-            const IconComponent = project.icon
-            return (
-              <Card
-                key={project.id}
-                className="border-border/50 bg-card/30 hover:bg-card/50 transition-all duration-200 cursor-pointer group overflow-hidden"
-              >
-                <div className="p-6 space-y-4">
-                  {/* Header */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className={`p-2 rounded-lg ${getTypeColor(project.type).replace("border-", "").replace("text-", "bg-")}`}>
-                        <IconComponent className="w-5 h-5" />
+        {/* Projects Grid or Empty State */}
+        {projects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-6 rounded-lg border border-border/30 bg-card/20">
+            <div className="text-center space-y-4">
+              <h3 className="text-xl font-semibold text-foreground">No Verified Projects Yet</h3>
+              <p className="text-muted-foreground max-w-md">
+                The catalog is empty. Submit your carbon credit project for verification to see it featured here.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
+                <Link href="/verification/green-carbon">
+                  <Button className="gap-2">
+                    <Leaf className="w-4 h-4" />
+                    Create Green Carbon Project
+                  </Button>
+                </Link>
+                <Link href="/verification/blue-carbon">
+                  <Button variant="outline" className="gap-2 bg-transparent">
+                    <Droplet className="w-4 h-4" />
+                    Create Blue Carbon Project
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {projects.map((project) => {
+              const IconComponent = project.icon
+              return (
+                <Card
+                  key={project.id}
+                  className="border-border/50 bg-card/30 hover:bg-card/50 transition-all duration-200 cursor-pointer group overflow-hidden"
+                >
+                  <div className="p-6 space-y-4">
+                    {/* Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className={`p-2 rounded-lg ${getTypeColor(project.type).replace("border-", "").replace("text-", "bg-")}`}>
+                          <IconComponent className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-semibold text-foreground truncate group-hover:text-accent transition-colors">
+                            {project.name}
+                          </h3>
+                          <p className="text-xs text-muted-foreground">{project.country}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-foreground truncate group-hover:text-accent transition-colors">
-                          {project.name}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">{project.country}</p>
+                    </div>
+
+                    {/* Type and Status Badges */}
+                    <div className="flex flex-wrap gap-2">
+                      <Badge className={`text-xs ${getTypeColor(project.type)}`}>{project.type}</Badge>
+                      <Badge className={`text-xs ${getStatusColor(project.status)}`}>
+                        {project.status === "verified" ? "Verified" : "Pending Review"}
+                      </Badge>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
+
+                    {/* Metrics */}
+                    <div className="grid grid-cols-3 gap-3 py-3 border-y border-border/30">
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Area</p>
+                        <p className="text-sm font-semibold text-foreground">{project.area}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Credits</p>
+                        <p className="text-sm font-semibold text-foreground">{project.credits}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Verified</p>
+                        <p className="text-sm font-semibold text-emerald-600">{project.verified}</p>
                       </div>
                     </div>
+
+                    {/* View Details Link */}
+                    <Link
+                      href={`/project/${project.id}`}
+                      className="flex items-center justify-center gap-2 w-full py-2 px-3 rounded-lg bg-accent/10 hover:bg-accent/20 text-accent transition-colors text-sm font-medium"
+                    >
+                      View Details
+                      <ChevronRight className="w-4 h-4" />
+                    </Link>
                   </div>
-
-                  {/* Type and Status Badges */}
-                  <div className="flex flex-wrap gap-2">
-                    <Badge className={`text-xs ${getTypeColor(project.type)}`}>{project.type}</Badge>
-                    <Badge className={`text-xs ${getStatusColor(project.status)}`}>
-                      {project.status === "verified" ? "Verified" : "Pending Review"}
-                    </Badge>
-                  </div>
-
-                  {/* Description */}
-                  <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
-
-                  {/* Metrics */}
-                  <div className="grid grid-cols-3 gap-3 py-3 border-y border-border/30">
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Area</p>
-                      <p className="text-sm font-semibold text-foreground">{project.area}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Credits</p>
-                      <p className="text-sm font-semibold text-foreground">{project.credits}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wider">Verified</p>
-                      <p className="text-sm font-semibold text-emerald-600">{project.verified}</p>
-                    </div>
-                  </div>
-
-                  {/* View Details Link */}
-                  <Link
-                    href={`/project/${project.id}`}
-                    className="flex items-center justify-center gap-2 w-full py-2 px-3 rounded-lg bg-accent/10 hover:bg-accent/20 text-accent transition-colors text-sm font-medium"
-                  >
-                    View Details
-                    <ChevronRight className="w-4 h-4" />
-                  </Link>
-                </div>
-              </Card>
-            )
-          })}
-        </div>
+                </Card>
+              )
+            })}
+          </div>
+        )}
 
         {/* Footer CTA */}
         <div className="mt-12 text-center p-8 rounded-lg bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border border-border/30">

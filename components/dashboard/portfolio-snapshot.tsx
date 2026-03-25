@@ -7,31 +7,31 @@ export function PortfolioSnapshot() {
   const portfolioMetrics = [
     {
       label: "Total CO₂e Credits",
-      value: "2,450,000",
+      value: "0",
       unit: "tCO₂e",
-      trend: "+12.5%",
-      status: "verified",
+      trend: "—",
+      status: "pending",
     },
     {
       label: "Portfolio Value",
-      value: "$61.2M",
+      value: "$0",
       unit: "USD",
-      trend: "+8.3%",
-      status: "stable",
+      trend: "—",
+      status: "pending",
     },
     {
       label: "Verification Score",
-      value: "98.7",
+      value: "—",
       unit: "/100",
-      trend: "+0.2",
-      status: "excellent",
+      trend: "—",
+      status: "pending",
     },
     {
       label: "Active Projects",
-      value: "24",
+      value: "0",
       unit: "projects",
-      trend: "+3",
-      status: "active",
+      trend: "—",
+      status: "pending",
     },
   ]
 
@@ -39,14 +39,14 @@ export function PortfolioSnapshot() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-foreground">Portfolio Snapshot</h2>
-        <p className="text-sm text-muted-foreground mt-1">Real-time overview of your carbon credit portfolio</p>
+        <p className="text-sm text-muted-foreground mt-1">Your portfolio is empty. Create your first project to get started.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {portfolioMetrics.map((metric, idx) => (
           <Card
             key={idx}
-            className="relative overflow-hidden bg-gradient-to-br from-card to-card/50 border-border/50 p-5 hover:border-accent/50 transition-all"
+            className="relative overflow-hidden bg-gradient-to-br from-card to-card/50 border-border/50 p-5 hover:border-accent/50 transition-all opacity-60"
           >
             <div className="flex items-start justify-between">
               <div className="flex-1">
@@ -58,12 +58,12 @@ export function PortfolioSnapshot() {
                   <span className="text-xs text-muted-foreground">{metric.unit}</span>
                 </div>
                 <div className="flex items-center gap-1 mt-3">
-                  <TrendingUp className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs font-semibold text-emerald-500">{metric.trend}</span>
+                  <TrendingUp className="w-4 h-4 text-slate-500" />
+                  <span className="text-xs font-semibold text-slate-500">{metric.trend}</span>
                 </div>
               </div>
               <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                <div className={`w-3 h-3 rounded-full ${metric.status === "verified" ? "bg-emerald-500" : "bg-blue-500"}`} />
+                <div className="w-3 h-3 rounded-full bg-slate-500" />
               </div>
             </div>
           </Card>
