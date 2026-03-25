@@ -63,13 +63,13 @@ export default function About() {
               <h4 className="text-sm font-semibold mb-3">Platform</h4>
               <ul className="text-xs text-muted-foreground space-y-2">
                 <li>
-                  <Link href="/upload" className="hover:text-accent transition-colors">
+                  <Link href="/verification/green-carbon" className="hover:text-accent transition-colors">
                     Verification
                   </Link>
                 </li>
                 <li>
-                  <Link href="/satellite" className="hover:text-accent transition-colors">
-                    Satellite Data
+                  <Link href="/dashboard" className="hover:text-accent transition-colors">
+                    Dashboard
                   </Link>
                 </li>
               </ul>

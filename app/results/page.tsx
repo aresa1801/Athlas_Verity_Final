@@ -12,6 +12,7 @@ import DatasetVisualization from "@/components/dataset-visualization"
 import CarbonReductionSummaryCard from "@/components/carbon-reduction-summary-card"
 import CarbonAccountingTable from "@/components/carbon-accounting-table"
 import { calculateCarbonReduction, type CarbonCalculationInputs } from "@/lib/carbon-calculator"
+import { calculateBlueCarbonCredits, type BlueCarbonInputs } from "@/lib/blue-carbon-calculator"
 import { WalletConnect } from "@/components/wallet-connect"
 import html2canvas from "html2canvas"
 import { jsPDF } from "jspdf"
@@ -48,6 +49,7 @@ export default function ResultsPage() {
   const [projectData, setProjectData] = useState<ResultsData | null>(null)
   const [aiCarbonData, setAiCarbonData] = useState<any>(null)
   const [agbEstimation, setAgbEstimation] = useState<AGBEstimationResult | null>(null)
+  const [blueCarbonResult, setBlueCarbonResult] = useState<any>(null)
   const [isCalculating, setIsCalculating] = useState(false)
 
   const [carbonInputs, setCarbonInputs] = useState<CarbonCalculationInputs>({
@@ -197,6 +199,62 @@ export default function ResultsPage() {
         integrity_class: "IC-A",
         validator_consensus: 0.93,
       })
+
+      // Check if this is a blue carbon project
+      const isBlueCarbonProject = parsedData.tidalZoneType || parsedData.ecosystemType?.toLowerCase().includes('mangrove') || 
+                                  parsedData.ecosystemType?.toLowerCase().includes('seagrass') || parsedData.salinityType
+
+      // If blue carbon project, calculate using blue carbon methodology
+      if (isBlueCarbonProject) {
+        console.log("[v0] Blue Carbon project detected, using blue carbon calculator")
+        
+        // Parse ecosystem type
+        let ecosystemType: "mangrove" | "seagrass" | "salt_marsh" = "mangrove"
+        if (parsedData.ecosystemType?.toLowerCase().includes('seagrass')) {
+          ecosystemType = "seagrass"
+        } else if (parsedData.ecosystemType?.toLowerCase().includes('marsh')) {
+          ecosystemType = "salt_marsh"
+        }
+
+        // Parse water depth
+        const waterDepthStr = parsedData.waterDepth || "2"
+        const waterDepth = parseFloat(waterDepthStr) || 2
+
+        // Parse sediment depth
+        const sedimentDepthStr = parsedData.sedimentDepthEstimate || "100"
+        const sedimentDepth = parseFloat(sedimentDepthStr) || 100
+
+        // Create blue carbon inputs
+        const blueCarbonInputs: BlueCarbonInputs = {
+          area_ha: area,
+          ecosystem_type: ecosystemType,
+          country: parsedData.country || "Unknown",
+          baseline_year: parseInt(parsedData.baselineYear) || 2020,
+          tidal_zone_type: parsedData.tidalZoneType || "intertidal",
+          salinity_type: parsedData.salinityType || "marine",
+          water_depth_m: waterDepth,
+          sediment_depth_cm: sedimentDepth,
+          agb_t_ha: finalAGB,
+          bgb_ratio: 0.45, // Standard mangrove BGB/AGB ratio
+          dead_wood_t_ha: finalAGB * 0.08,
+          litter_t_ha: finalAGB * 0.03,
+          soc_t_ha: finalAGB * 3.5, // SOC is 3-4x biomass for coastal ecosystems
+          soc_depth_m: 1.0,
+          bulk_density_g_cm3: 0.8, // Typical for mangrove soils
+          organic_matter_percent: 8, // 8% organic matter
+          baseline_emission_t_co2_ha_year: 1.5,
+          degradation_rate_percent: 0,
+          duration_years: 10,
+          leakage_percent: leakage,
+          buffer_pool_percent: 20,
+          integrity_class: "IC-A",
+          uncertainty_discount: 5,
+        }
+
+        const blueCarbonResult = calculateBlueCarbonCredits(blueCarbonInputs)
+        setBlueCarbonResult(blueCarbonResult)
+        console.log("[v0] Blue Carbon calculation complete:", blueCarbonResult)
+      }
 
       // Set AI carbon data structure for display with actual data
       setAiCarbonData({
@@ -547,12 +605,56 @@ export default function ResultsPage() {
             <p style="color: ${primaryColor}; font-size: 16px; margin-bottom: 40px;">Generated via Athlas Verity AI System</p>
             
             <div class="section">
-              <h2>Project Information</h2>
+              <h2>Project Location Detail</h2>
+              <div class="value">${projectData?.projectLocation || "N/A"}, ${projectData?.country || "N/A"}</div>
+            </div>
+
+            ${isBlueCarbonProject ? `
+            <div class="section">
+              <h2>Coastal Ecosystem Details (Section C)</h2>
               <div class="grid">
                 <div class="grid-item">
-                  <div class="label">Project Name</div>
-                  <div class="value">${projectData?.projectName || "N/A"}</div>
+                  <div class="label">Tidal Zone Type</div>
+                  <div class="value">${projectData?.tidalZoneType || "N/A"}</div>
                 </div>
+                <div class="grid-item">
+                  <div class="label">Ecosystem Type</div>
+                  <div class="value">${projectData?.ecosystemType || "N/A"}</div>
+                </div>
+              </div>
+              <div class="grid" style="margin-top: 15px;">
+                <div class="grid-item">
+                  <div class="label">Sediment Depth Estimate</div>
+                  <div class="value">${projectData?.sedimentDepthEstimate || "N/A"}</div>
+                </div>
+                <div class="grid-item">
+                  <div class="label">Soil Type</div>
+                  <div class="value">${projectData?.soilType || "N/A"}</div>
+                </div>
+              </div>
+              <div class="grid" style="margin-top: 15px;">
+                <div class="grid-item">
+                  <div class="label">Salinity Type</div>
+                  <div class="value">${projectData?.salinityType || "N/A"}</div>
+                </div>
+                <div class="grid-item">
+                  <div class="label">Water Depth</div>
+                  <div class="value">${projectData?.waterDepth || "N/A"}</div>
+                </div>
+              </div>
+              <div class="grid" style="margin-top: 15px;">
+                <div class="grid-item">
+                  <div class="label">Vegetation Coverage</div>
+                  <div class="value">${projectData?.vegetationCoverage || "N/A"}</div>
+                </div>
+                <div class="grid-item">
+                  <div class="label">Vegetation Description</div>
+                  <div class="value">${projectData?.vegetationDescription || "N/A"}</div>
+                </div>
+              </div>
+            </div>
+            ` : ''}
+          </div>
                 <div class="grid-item">
                   <div class="label">Carbon Offset Type</div>
                   <div class="value">${isBlueCarbonProject ? "Blue Carbon" : "Green Carbon"}</div>
@@ -644,6 +746,36 @@ export default function ResultsPage() {
             <h1>Verification Results & Scores</h1>
             <p style="color: #B0B0B0; margin-bottom: 30px;">Athlas Verity AI System Validation Metrics</p>
 
+            ${isBlueCarbonProject ? `
+            <div class="section">
+              <h2>Blue Carbon Ecosystem Parameters</h2>
+              <div class="metric-row">
+                <span class="metric-label">Carbon Sequestration Rate (SOC)</span>
+                <span class="metric-value">${((carbonInputs.agb_per_ha * carbonInputs.carbon_fraction) / 10).toFixed(2)} tC/ha/year</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Coastal Protection Status</span>
+                <span class="metric-value">${projectData?.coastalProtectionStatus || "N/A"}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Human Disturbance Level</span>
+                <span class="metric-value">${projectData?.humanDisturbanceLevel || "N/A"}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Legal Protection Status</span>
+                <span class="metric-value">${projectData?.legalProtectionStatus || "N/A"}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Baseline Year</span>
+                <span class="metric-value">${projectData?.baselineYear || "N/A"}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Methodology Reference</span>
+                <span class="metric-value">${projectData?.methodologyRef || "Verra VCS"}</span>
+              </div>
+            </div>
+            ` : ''}
+
             <div class="section">
               <h2>Integrity & Quality Scores</h2>
               <div class="grid">
@@ -697,14 +829,116 @@ export default function ResultsPage() {
 
           <!-- PAGE 4: CARBON CALCULATIONS -->
           <div class="page page-break">
+            ${blueCarbonResult ? `
+            <h1>Blue Carbon Calculations (IPCC/Verra Compliant)</h1>
+            <p style="color: #B0B0B0; margin-bottom: 30px;">International Standards-Based Carbon Accounting with AGB, BGB & SOC</p>
+            
+            <div class="section">
+              <h2>Final Verified Credits (Blue Carbon)</h2>
+              <div class="highlight-accent" style="background: rgba(${primaryColorRgba}, 0.1); border-left: 4px solid ${primaryColor}; padding: 15px; margin: 15px 0;">
+                <p style="color: #B0B0B0; margin-bottom: 10px;">Total Verified Blue Carbon Credits</p>
+                <div class="final-value" style="color: ${primaryColor};">${blueCarbonResult.net_verified_credits_tco2.toLocaleString()}</div>
+                <p style="color: #B0B0B0;">tonnes CO₂ equivalent over ${parseInt(projectData?.baselineYear || "2020") + 10 - parseInt(projectData?.baselineYear || "2020")} years</p>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2>Biomass Pool Breakdown (per hectare)</h2>
+              <table>
+                <tr>
+                  <th>Carbon Pool</th>
+                  <th>Amount (tC/ha)</th>
+                  <th>Notes</th>
+                </tr>
+                <tr>
+                  <td>Aboveground Biomass (AGB)</td>
+                  <td>${blueCarbonResult.agb_tc_ha.toFixed(2)}</td>
+                  <td>Mangrove/Seagrass vegetation</td>
+                </tr>
+                <tr>
+                  <td>Belowground Biomass (BGB)</td>
+                  <td>${blueCarbonResult.bgb_tc_ha.toFixed(2)}</td>
+                  <td>Roots and subsurface biomass</td>
+                </tr>
+                <tr>
+                  <td>Dead Wood</td>
+                  <td>${blueCarbonResult.dead_wood_tc_ha.toFixed(2)}</td>
+                  <td>Dead trees and branches</td>
+                </tr>
+                <tr>
+                  <td>Litter</td>
+                  <td>${blueCarbonResult.litter_tc_ha.toFixed(2)}</td>
+                  <td>Decomposing plant material</td>
+                </tr>
+                <tr>
+                  <td>Soil Organic Carbon (SOC)</td>
+                  <td>${blueCarbonResult.soc_tc_ha.toFixed(2)}</td>
+                  <td>Critical blue carbon sink</td>
+                </tr>
+                <tr style="background: rgba(${primaryColorRgba}, 0.05); font-weight: 600;">
+                  <td>TOTAL Carbon Stock</td>
+                  <td>${blueCarbonResult.total_biomass_tc_ha.toFixed(2)}</td>
+                  <td>All pools combined</td>
+                </tr>
+              </table>
+            </div>
+
+            <div class="section">
+              <h2>Carbon Sequestration & Baseline</h2>
+              <div class="metric-row">
+                <span class="metric-label">Annual Sequestration Rate</span>
+                <span class="metric-value">${blueCarbonResult.annual_sequestration_rate_tco2_ha.toFixed(2)} tCO2/ha/year</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Total Project Sequestration</span>
+                <span class="metric-value">${blueCarbonResult.total_project_sequestration_tco2.toLocaleString()} tCO2</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Baseline Emissions</span>
+                <span class="metric-value">${blueCarbonResult.baseline_emissions_tco2.toLocaleString()} tCO2</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Gross Removals</span>
+                <span class="metric-value">${blueCarbonResult.gross_removals_tco2.toLocaleString()} tCO2</span>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2>Deductions & Adjustments</h2>
+              <div class="metric-row">
+                <span class="metric-label">Leakage Adjustment</span>
+                <span class="metric-value">-${blueCarbonResult.leakage_adjustment_tco2.toLocaleString()} tCO2</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Buffer Pool Reserve</span>
+                <span class="metric-value">-${blueCarbonResult.buffer_pool_tco2.toLocaleString()} tCO2</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Uncertainty Discount</span>
+                <span class="metric-value">-${blueCarbonResult.uncertainty_discount_tco2.toLocaleString()} tCO2</span>
+              </div>
+            </div>
+
+            <div class="section">
+              <h2>Ecosystem Co-Benefits</h2>
+              <div class="metric-row">
+                <span class="metric-label">Coastal Protection Value</span>
+                <span class="metric-value">${blueCarbonResult.coastal_protection_value}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Biodiversity Benefit</span>
+                <span class="metric-value">${blueCarbonResult.biodiversity_benefit}</span>
+              </div>
+            </div>
+            ` : `
             <h1>Carbon Reduction Calculations</h1>
             <p style="color: #B0B0B0; margin-bottom: 30px;">Step-by-Step Carbon Accounting & Verification</p>
             
             <div class="section">
               <h2>Final Verified Carbon Reduction</h2>
-              <div class="highlight-green">
+              <div class="highlight-accent" style="background: rgba(${primaryColorRgba}, 0.1); border-left: 4px solid ${primaryColor}; padding: 15px; margin: 15px 0;">
                 <p style="color: #B0B0B0; margin-bottom: 10px;">Total Net Reduction (Verified)</p>
-                <div class="final-value">${carbonCalculation.final_verified_reduction_tco2.toLocaleString()}</div>
+                <div class="final-value" style="color: ${primaryColor};">${carbonCalculation.final_verified_reduction_tco2.toLocaleString()}</div>
                 <p style="color: #B0B0B0;">tonnes CO₂ equivalent</p>
               </div>
             </div>
@@ -714,7 +948,8 @@ export default function ResultsPage() {
               <div class="metric-row">
                 <span class="metric-label">Aboveground Biomass (AGB)</span>
                 <span class="metric-value">${carbonCalculation.agb_per_ha.toFixed(2)} t/ha</span>
-              </div>
+              </div>`}
+            
               <div class="metric-row">
                 <span class="metric-label">Carbon Fraction</span>
                 <span class="metric-value">${carbonCalculation.carbon_fraction.toFixed(2)}</span>
