@@ -547,12 +547,56 @@ export default function ResultsPage() {
             <p style="color: ${primaryColor}; font-size: 16px; margin-bottom: 40px;">Generated via Athlas Verity AI System</p>
             
             <div class="section">
-              <h2>Project Information</h2>
+              <h2>Project Location Detail</h2>
+              <div class="value">${projectData?.projectLocation || "N/A"}, ${projectData?.country || "N/A"}</div>
+            </div>
+
+            ${isBlueCarbonProject ? `
+            <div class="section">
+              <h2>Coastal Ecosystem Details (Section C)</h2>
               <div class="grid">
                 <div class="grid-item">
-                  <div class="label">Project Name</div>
-                  <div class="value">${projectData?.projectName || "N/A"}</div>
+                  <div class="label">Tidal Zone Type</div>
+                  <div class="value">${projectData?.tidalZoneType || "N/A"}</div>
                 </div>
+                <div class="grid-item">
+                  <div class="label">Ecosystem Type</div>
+                  <div class="value">${projectData?.ecosystemType || "N/A"}</div>
+                </div>
+              </div>
+              <div class="grid" style="margin-top: 15px;">
+                <div class="grid-item">
+                  <div class="label">Sediment Depth Estimate</div>
+                  <div class="value">${projectData?.sedimentDepthEstimate || "N/A"}</div>
+                </div>
+                <div class="grid-item">
+                  <div class="label">Soil Type</div>
+                  <div class="value">${projectData?.soilType || "N/A"}</div>
+                </div>
+              </div>
+              <div class="grid" style="margin-top: 15px;">
+                <div class="grid-item">
+                  <div class="label">Salinity Type</div>
+                  <div class="value">${projectData?.salinityType || "N/A"}</div>
+                </div>
+                <div class="grid-item">
+                  <div class="label">Water Depth</div>
+                  <div class="value">${projectData?.waterDepth || "N/A"}</div>
+                </div>
+              </div>
+              <div class="grid" style="margin-top: 15px;">
+                <div class="grid-item">
+                  <div class="label">Vegetation Coverage</div>
+                  <div class="value">${projectData?.vegetationCoverage || "N/A"}</div>
+                </div>
+                <div class="grid-item">
+                  <div class="label">Vegetation Description</div>
+                  <div class="value">${projectData?.vegetationDescription || "N/A"}</div>
+                </div>
+              </div>
+            </div>
+            ` : ''}
+          </div>
                 <div class="grid-item">
                   <div class="label">Carbon Offset Type</div>
                   <div class="value">${isBlueCarbonProject ? "Blue Carbon" : "Green Carbon"}</div>
@@ -643,6 +687,36 @@ export default function ResultsPage() {
           <div class="page page-break">
             <h1>Verification Results & Scores</h1>
             <p style="color: #B0B0B0; margin-bottom: 30px;">Athlas Verity AI System Validation Metrics</p>
+
+            ${isBlueCarbonProject ? `
+            <div class="section">
+              <h2>Blue Carbon Ecosystem Parameters</h2>
+              <div class="metric-row">
+                <span class="metric-label">Carbon Sequestration Rate (SOC)</span>
+                <span class="metric-value">${((carbonInputs.agb_per_ha * carbonInputs.carbon_fraction) / 10).toFixed(2)} tC/ha/year</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Coastal Protection Status</span>
+                <span class="metric-value">${projectData?.coastalProtectionStatus || "N/A"}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Human Disturbance Level</span>
+                <span class="metric-value">${projectData?.humanDisturbanceLevel || "N/A"}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Legal Protection Status</span>
+                <span class="metric-value">${projectData?.legalProtectionStatus || "N/A"}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Baseline Year</span>
+                <span class="metric-value">${projectData?.baselineYear || "N/A"}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Methodology Reference</span>
+                <span class="metric-value">${projectData?.methodologyRef || "Verra VCS"}</span>
+              </div>
+            </div>
+            ` : ''}
 
             <div class="section">
               <h2>Integrity & Quality Scores</h2>
