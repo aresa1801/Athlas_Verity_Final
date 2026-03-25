@@ -3,6 +3,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Leaf, Zap } from "lucide-react"
 import { WalletConnect } from "@/components/wallet-connect"
+import { AuthCard } from "@/components/auth-card"
 
 export function MainHeader() {
   return (
@@ -111,8 +112,9 @@ export function MainHeader() {
           </Link>
         </div>
 
-        {/* Wallet Connect - Right Side */}
-        <div className="flex-shrink-0 ml-auto">
+        {/* Auth & Wallet - Right Side */}
+        <div className="flex-shrink-0 ml-auto flex items-center gap-3">
+          <AuthCard />
           <WalletConnect />
         </div>
       </nav>

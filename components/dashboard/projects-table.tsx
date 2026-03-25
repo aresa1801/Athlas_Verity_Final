@@ -7,47 +7,20 @@ import { ChevronRight, Filter } from "lucide-react"
 import Link from "next/link"
 
 export function ProjectsTable() {
-  const projects = [
-    {
-      id: 1,
-      name: "Amazon Reforestation Initiative",
-      type: "Green Carbon",
-      area: "45,230 Ha",
-      credits: "2.1M tCO₂e",
-      verified: "98.5%",
-      status: "verified",
-      lastUpdate: "2 hours ago",
-    },
-    {
-      id: 2,
-      name: "Mangrove Restoration Program",
-      type: "Blue Carbon",
-      area: "8,450 Ha",
-      credits: "189k tCO₂e",
-      verified: "92.3%",
-      status: "pending-review",
-      lastUpdate: "1 day ago",
-    },
-    {
-      id: 3,
-      name: "Solar Farm Expansion",
-      type: "Renewable Energy",
-      area: "250 MW",
-      credits: "125k tCO₂e/year",
-      verified: "95.8%",
-      status: "verified",
-      lastUpdate: "3 hours ago",
-    },
-    {
-      id: 4,
-      name: "Coastal Seagrass Conservation",
-      type: "Blue Carbon",
-      area: "12,890 Ha",
-      credits: "456k tCO₂e",
-      verified: "87.2%",
-      status: "in-progress",
-      lastUpdate: "5 hours ago",
-    },
+  const projects: typeof mockProjects = []
+
+  const mockProjects = [
+    // Placeholder structure for real projects - will be populated from user submissions
+    // {
+    //   id: 1,
+    //   name: "Project Name",
+    //   type: "Green Carbon" | "Blue Carbon" | "Renewable Energy",
+    //   area: "Area Ha",
+    //   credits: "Credits tCO₂e",
+    //   verified: "Percentage%",
+    //   status: "verified" | "pending-review" | "in-progress",
+    //   lastUpdate: "Time ago",
+    // }
   ]
 
   const getStatusColor = (status: string) => {
@@ -90,76 +63,90 @@ export function ProjectsTable() {
       </div>
 
       <Card className="border-border/50 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border/50 bg-accent/5">
-                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Project Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Area / Capacity
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Credits
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Verified
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {projects.map((project) => (
-                <tr key={project.id} className="border-b border-border/30 hover:bg-accent/5 transition-colors">
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className="font-medium text-foreground">{project.name}</p>
-                      <p className="text-xs text-muted-foreground">{project.lastUpdate}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant="outline" className={getTypeColor(project.type)}>
-                      {project.type}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-foreground">{project.area}</td>
-                  <td className="px-6 py-4 text-sm font-semibold text-foreground">{project.credits}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-2 bg-slate-700 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                          style={{ width: `${parseFloat(project.verified)}%` }}
-                        />
-                      </div>
-                      <span className="text-xs font-semibold text-foreground">{project.verified}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge className={getStatusColor(project.status)}>{project.status.replace("-", " ")}</Badge>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Link href={`/project/${project.id}`}>
-                      <Button variant="ghost" size="sm" className="gap-1">
-                        <span>View</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </Link>
-                  </td>
+        {projects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 px-6">
+            <div className="text-center space-y-3">
+              <p className="text-muted-foreground">No active projects yet</p>
+              <p className="text-sm text-muted-foreground">
+                Create your first carbon verification project to get started
+              </p>
+              <Link href="/verification/green-carbon">
+                <Button className="mt-4">Create Project</Button>
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border/50 bg-accent/5">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Project Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Area / Capacity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Credits
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Verified
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Action
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {projects.map((project) => (
+                  <tr key={project.id} className="border-b border-border/30 hover:bg-accent/5 transition-colors">
+                    <td className="px-6 py-4">
+                      <div>
+                        <p className="font-medium text-foreground">{project.name}</p>
+                        <p className="text-xs text-muted-foreground">{project.lastUpdate}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="outline" className={getTypeColor(project.type)}>
+                        {project.type}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-foreground">{project.area}</td>
+                    <td className="px-6 py-4 text-sm font-semibold text-foreground">{project.credits}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-2 bg-slate-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                            style={{ width: `${parseFloat(project.verified)}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-semibold text-foreground">{project.verified}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge className={getStatusColor(project.status)}>{project.status.replace("-", " ")}</Badge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Link href={`/project/${project.id}`}>
+                        <Button variant="ghost" size="sm" className="gap-1">
+                          <span>View</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   )
