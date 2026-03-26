@@ -50,6 +50,7 @@ export default function ResultsPage() {
   const [aiCarbonData, setAiCarbonData] = useState<any>(null)
   const [agbEstimation, setAgbEstimation] = useState<AGBEstimationResult | null>(null)
   const [blueCarbonResult, setBlueCarbonResult] = useState<any>(null)
+  const [projectMapImage, setProjectMapImage] = useState<string>("")
   const [isCalculating, setIsCalculating] = useState(false)
 
   const [carbonInputs, setCarbonInputs] = useState<CarbonCalculationInputs>({
@@ -274,6 +275,74 @@ export default function ResultsPage() {
           scientific_basis: agbResult.scientific_references,
         },
       })
+
+      // Generate map for green carbon projects
+      if (!isBlueCarbonProject) {
+        try {
+          // Parse center coordinates
+          const coordStr = parsedData.dataKoordinat || "0, 0"
+          const coordParts = coordStr.split(',').map(c => parseFloat(c.trim()))
+          const centerLat = coordParts[0] || 0
+          const centerLon = coordParts[1] || 0
+
+          // Create canvas-based map
+          const canvas = document.createElement('canvas')
+          canvas.width = 600
+          canvas.height = 400
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            // Background
+            ctx.fillStyle = '#e8f4f8'
+            ctx.fillRect(0, 0, 600, 400)
+
+            // Grid
+            ctx.strokeStyle = '#d0e8f2'
+            ctx.lineWidth = 1
+            for (let i = 0; i < 600; i += 50) {
+              ctx.beginPath()
+              ctx.moveTo(i, 0)
+              ctx.lineTo(i, 400)
+              ctx.stroke()
+            }
+            for (let i = 0; i < 400; i += 50) {
+              ctx.beginPath()
+              ctx.moveTo(0, i)
+              ctx.lineTo(600, i)
+              ctx.stroke()
+            }
+
+            // Draw center marker
+            const markerX = 300
+            const markerY = 200
+            ctx.fillStyle = '#22C55E'
+            ctx.beginPath()
+            ctx.arc(markerX, markerY, 8, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.strokeStyle = '#16A34A'
+            ctx.lineWidth = 2
+            ctx.stroke()
+
+            // Title
+            ctx.fillStyle = '#1e293b'
+            ctx.font = 'bold 14px Arial'
+            ctx.textAlign = 'center'
+            ctx.fillText(parsedData.projectName || 'Project Area', 300, 50)
+
+            // Legend text
+            ctx.fillStyle = '#64748b'
+            ctx.font = '12px Arial'
+            ctx.fillText(`Latitude: ${centerLat.toFixed(6)}°`, 300, 70)
+            ctx.fillText(`Longitude: ${centerLon.toFixed(6)}°`, 300, 90)
+            ctx.fillText(`Area: ${area.toFixed(2)} ha`, 300, 110)
+
+            const mapDataUrl = canvas.toDataURL('image/png')
+            setProjectMapImage(mapDataUrl)
+            console.log("[v0] Map image generated for green carbon project")
+          }
+        } catch (error) {
+          console.error("[v0] Error generating map:", error)
+        }
+      }
     }
   }, [])
 
@@ -603,6 +672,38 @@ export default function ResultsPage() {
           <div class="page">
             <h1>Athlas Verity Impact Verification & Carbon Reduction Report</h1>
             <p style="color: ${primaryColor}; font-size: 16px; margin-bottom: 40px;">Generated via Athlas Verity AI System</p>
+            
+            ${!isBlueCarbonProject && projectMapImage ? `
+            <div class="section" style="display: flex; gap: 20px; margin-bottom: 30px;">
+              <!-- Map Image -->
+              <div style="flex: 1;">
+                <img src="${projectMapImage}" alt="Project Area Map" style="width: 100%; height: auto; border: 1px solid ${primaryColor}; border-radius: 6px;">
+              </div>
+              
+              <!-- Legend -->
+              <div style="flex: 0 0 200px; background: rgba(${primaryColorRgba}, 0.05); padding: 15px; border-radius: 6px; border-left: 4px solid ${primaryColor};">
+                <h3 style="margin: 0 0 12px 0; font-size: 13px; font-weight: 600; color: ${primaryColor};">Project Location</h3>
+                <div style="font-size: 11px; color: #B0B0B0; line-height: 1.6;">
+                  <div style="margin-bottom: 8px;">
+                    <strong>Project:</strong>
+                    <div style="color: #E2E8F0;">${projectData?.projectName || "N/A"}</div>
+                  </div>
+                  <div style="margin-bottom: 8px;">
+                    <strong>Latitude:</strong>
+                    <div style="color: #E2E8F0;">${parseFloat(projectData?.dataKoordinat?.split(',')[0] || '0').toFixed(6)}°</div>
+                  </div>
+                  <div style="margin-bottom: 8px;">
+                    <strong>Longitude:</strong>
+                    <div style="color: #E2E8F0;">${parseFloat(projectData?.dataKoordinat?.split(',')[1] || '0').toFixed(6)}°</div>
+                  </div>
+                  <div style="border-top: 1px solid rgba(${primaryColorRgba}, 0.2); padding-top: 8px; margin-top: 8px;">
+                    <strong>Area:</strong>
+                    <div style="color: ${primaryColor}; font-weight: 600;">${projectData?.dataLuasan || "N/A"} hectares</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            ` : ''}
             
             <div class="section">
               <h2>Project Location Detail</h2>
@@ -1411,9 +1512,12 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-6 py-12">
-        <Link href="/upload" className="flex items-center gap-2 text-accent hover:text-accent/80 mb-8">
+        <Link 
+          href={isBlueCarbonProject ? "/verification/blue-carbon/create" : "/verification/green-carbon/create"}
+          className="flex items-center gap-2 text-accent hover:text-accent/80 mb-8"
+        >
           <ArrowLeft className="w-4 h-4" />
-          Upload Another Dataset
+          {isBlueCarbonProject ? "Create Another Blue Carbon Project" : "Upload Another Dataset"}
         </Link>
 
         <h2 className="text-4xl font-bold mb-2">Validation Complete</h2>
