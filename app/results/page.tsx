@@ -767,136 +767,85 @@ export default function ResultsPage() {
         <body>
           <!-- PAGE 1: PROJECT OVERVIEW -->
           <div class="page">
-            <h1>Athlas Verity Impact Verification & Carbon Reduction Report</h1>
-            <p style="color: ${primaryColor}; font-size: 16px; margin-bottom: 40px;">Generated via Athlas Verity AI System</p>
-            
+            <!-- Header Section -->
+            <div style="margin-bottom: 50px;">
+              <h1 style="margin-bottom: 10px; font-size: 36px;">Athlas Verity Impact Verification</h1>
+              <p style="color: ${primaryColor}; font-size: 18px; font-weight: 500; margin-bottom: 5px;">Carbon Reduction Report</p>
+              <p style="color: #94a3b8; font-size: 13px; margin-top: 15px;">Generated via Athlas Verity AI System | ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            </div>
+
+            <!-- Map & Legend Section -->
             ${!isBlueCarbonProject && projectMapImage ? `
-            <div class="section" style="display: flex; gap: 20px; margin-bottom: 30px; align-items: flex-start;">
-              <!-- Map Container -->
-              <div style="flex: 1.2; min-width: 0;">
-                <img src="${projectMapImage}" alt="Project Polygon Map" style="width: 100%; height: auto; border: 2px solid ${primaryColor}; border-radius: 8px; display: block;">
-              </div>
-              
-              <!-- Legend Container -->
-              <div style="flex: 0.8; background: rgba(${primaryColorRgba}, 0.08); padding: 20px; border-radius: 8px; border-left: 4px solid ${primaryColor}; height: fit-content;">
-                <h3 style="margin: 0 0 16px 0; font-size: 14px; font-weight: 700; color: ${primaryColor}; text-transform: uppercase; letter-spacing: 0.5px;">Project Boundary</h3>
+            <div style="margin-bottom: 50px; page-break-inside: avoid;">
+              <div class="section" style="display: flex; gap: 25px; align-items: flex-start; background: transparent; border: none; padding: 0; margin-bottom: 0;">
+                <!-- Map Container -->
+                <div style="flex: 1.3; min-width: 0;">
+                  <img src="${projectMapImage}" alt="Project Polygon Map" style="width: 100%; height: auto; border: 2px solid ${primaryColor}; border-radius: 10px; display: block; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                </div>
                 
-                <div style="font-size: 12px; line-height: 1.8; color: #B0B0B0;">
-                  <div style="margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
-                    <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 4px;">Project Name</div>
-                    <div style="color: #E2E8F0; word-wrap: break-word;">${projectData?.projectName || "N/A"}</div>
-                  </div>
+                <!-- Legend Container -->
+                <div style="flex: 1; background: rgba(${primaryColorRgba}, 0.1); padding: 28px; border-radius: 10px; border-left: 5px solid ${primaryColor}; height: fit-content; border: 1px solid rgba(${primaryColorRgba}, 0.25);">
+                  <h3 style="margin: 0 0 20px 0; font-size: 13px; font-weight: 700; color: ${primaryColor}; text-transform: uppercase; letter-spacing: 1px;">Project Boundary</h3>
                   
-                  <div style="margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
-                    <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 4px;">Latitude</div>
-                    <div style="color: #E2E8F0; font-family: monospace;">${projectData?.coordinates?.[0]?.latitude ? Number.parseFloat(projectData.coordinates[0].latitude).toFixed(6) : "N/A"}°</div>
-                  </div>
-                  
-                  <div style="margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
-                    <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 4px;">Longitude</div>
-                    <div style="color: #E2E8F0; font-family: monospace;">${projectData?.coordinates?.[0]?.longitude ? Number.parseFloat(projectData.coordinates[0].longitude).toFixed(6) : "N/A"}°</div>
-                  </div>
-                  
-                  <div style="padding-top: 4px;">
-                    <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 4px;">Total Area</div>
-                    <div style="color: ${primaryColor}; font-weight: 700; font-size: 13px;">${carbonInputs.area_ha.toFixed(2)} ha</div>
+                  <div style="font-size: 12px; line-height: 2; color: #cbd5e1;">
+                    <div style="margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                      <div style="font-weight: 700; color: ${primaryColor}; margin-bottom: 6px; font-size: 11px; text-transform: uppercase;">Project Name</div>
+                      <div style="color: #f1f5f9; word-wrap: break-word; font-size: 13px;">${projectData?.projectName || "N/A"}</div>
+                    </div>
+                    
+                    <div style="margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                      <div style="font-weight: 700; color: ${primaryColor}; margin-bottom: 6px; font-size: 11px; text-transform: uppercase;">Latitude</div>
+                      <div style="color: #f1f5f9; font-family: 'Courier New', monospace; letter-spacing: 0.5px; font-size: 12px;">${projectData?.coordinates?.[0]?.latitude ? Number.parseFloat(projectData.coordinates[0].latitude).toFixed(6) : "N/A"}°</div>
+                    </div>
+                    
+                    <div style="margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                      <div style="font-weight: 700; color: ${primaryColor}; margin-bottom: 6px; font-size: 11px; text-transform: uppercase;">Longitude</div>
+                      <div style="color: #f1f5f9; font-family: 'Courier New', monospace; letter-spacing: 0.5px; font-size: 12px;">${projectData?.coordinates?.[0]?.longitude ? Number.parseFloat(projectData.coordinates[0].longitude).toFixed(6) : "N/A"}°</div>
+                    </div>
+                    
+                    <div style="padding-top: 8px;">
+                      <div style="font-weight: 700; color: ${primaryColor}; margin-bottom: 6px; font-size: 11px; text-transform: uppercase;">Total Area</div>
+                      <div style="color: ${primaryColor}; font-weight: 700; font-size: 16px;">${carbonInputs.area_ha.toFixed(2)} <span style="font-size: 12px;">hectares</span></div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
             ` : ''}
-            
-            <div class="section">
-              <h2>Project Location Detail</h2>
-              <div class="value">${projectData?.projectLocation || "N/A"}, ${projectData?.country || "N/A"}</div>
-            </div>
 
-            ${isBlueCarbonProject ? `
-            <div class="section">
-              <h2>Coastal Ecosystem Details (Section C)</h2>
-              <div class="grid">
-                <div class="grid-item">
-                  <div class="label">Tidal Zone Type</div>
-                  <div class="value">${projectData?.tidalZoneType || "N/A"}</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Ecosystem Type</div>
-                  <div class="value">${projectData?.ecosystemType || "N/A"}</div>
-                </div>
-              </div>
-              <div class="grid" style="margin-top: 15px;">
-                <div class="grid-item">
-                  <div class="label">Sediment Depth Estimate</div>
-                  <div class="value">${projectData?.sedimentDepthEstimate || "N/A"}</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Soil Type</div>
-                  <div class="value">${projectData?.soilType || "N/A"}</div>
+            <!-- Project Information Sections -->
+            <div style="page-break-inside: avoid;">
+              <div class="section" style="margin-bottom: 20px;">
+                <h2>Project Location</h2>
+                <div class="grid">
+                  <div class="grid-item">
+                    <div class="label">Location</div>
+                    <div class="value">${projectData?.projectLocation || "N/A"}</div>
+                  </div>
+                  <div class="grid-item">
+                    <div class="label">Country</div>
+                    <div class="value">${projectData?.country || "N/A"}</div>
+                  </div>
                 </div>
               </div>
-              <div class="grid" style="margin-top: 15px;">
-                <div class="grid-item">
-                  <div class="label">Salinity Type</div>
-                  <div class="value">${projectData?.salinityType || "N/A"}</div>
+
+              <div class="section">
+                <h2>Project Classification</h2>
+                <div class="grid">
+                  <div class="grid-item">
+                    <div class="label">Carbon Offset Type</div>
+                    <div class="value">${isBlueCarbonProject ? "Blue Carbon" : "Green Carbon"}</div>
+                  </div>
+                  <div class="grid-item">
+                    <div class="label">Verification Status</div>
+                    <div style="color: ${primaryColor}; font-weight: 700;">✓ Verified</div>
+                  </div>
                 </div>
-                <div class="grid-item">
-                  <div class="label">Water Depth</div>
-                  <div class="value">${projectData?.waterDepth || "N/A"}</div>
-                </div>
-              </div>
-              <div class="grid" style="margin-top: 15px;">
-                <div class="grid-item">
-                  <div class="label">Vegetation Coverage</div>
-                  <div class="value">${projectData?.vegetationCoverage || "N/A"}</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Vegetation Description</div>
-                  <div class="value">${projectData?.vegetationDescription || "N/A"}</div>
-                </div>
-              </div>
-            </div>
-            ` : ''}
-          </div>
-                <div class="grid-item">
-                  <div class="label">Carbon Offset Type</div>
-                  <div class="value">${isBlueCarbonProject ? "Blue Carbon" : "Green Carbon"}</div>
-                </div>
-              </div>
-              <div style="margin-top: 15px;" class="grid-item">
-                <div class="label">Project Description</div>
-                <div class="value" style="line-height: 1.8;">
-                  ${projectData?.projectName ? `Project "${projectData.projectName}" located in ${projectData?.projectLocation || 'the project area'}, encompasses approximately ${carbonInputs.area_ha.toFixed(2)} hectares of ${isBlueCarbonProject ? 'coastal ecosystem' : 'forest ecosystem'} with ${projectData?.forestType || 'tropical ecosystem'} classification. ${isBlueCarbonProject ? `The project focuses on blue carbon sequestration through ${projectData?.ecosystemType || 'coastal wetland'} conservation. Tidal zone type: ${projectData?.tidalZoneType || 'variable'}, Ecosystem: ${projectData?.ecosystemType || 'mixed coastal species'}.` : 'The project is focused on carbon offset generation through forest protection and restoration activities.'} With an estimated carbon stock of ${(carbonInputs.agb_per_ha * carbonInputs.area_ha * 0.47).toFixed(2)} tC and dominant species of ${projectData?.dominantSpecies || 'mixed species'}, this project demonstrates significant biodiversity value and carbon sequestration potential. ${isBlueCarbonProject ? `Coastal parameters: Water depth (${projectData?.waterDepth || 'N/A'}), Salinity (${projectData?.salinityType || 'N/A'}), Sediment depth (${projectData?.sedimentDepthEstimate || 'N/A'}).` : 'The vegetation is characterized by dense forest cover with healthy canopy structure.'} Located in ${projectData?.country || 'a carbon-rich region'}, the project contributes to global climate change mitigation efforts.` : "N/A"}
-                </div>
-              </div>
-              <div style="margin-top: 15px;" class="grid-item">
-                <div class="label">Project Location Detail</div>
-                <div class="value">${projectData?.projectLocation || "N/A"}, ${projectData?.country || "N/A"}</div>
               </div>
             </div>
 
-            <div class="section">
-              <h2>Project Owner Information</h2>
-              <div class="grid">
-                <div class="grid-item">
-                  <div class="label">Owner Name</div>
-                  <div class="value">${projectData?.ownerName || "N/A"}</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Email Address</div>
-                  <div class="value">${projectData?.ownerEmail || "N/A"}</div>
-                </div>
-              </div>
-              <div class="grid" style="margin-top: 15px;">
-                <div class="grid-item">
-                  <div class="label">Phone Number</div>
-                  <div class="value">${projectData?.ownerPhone || "N/A"}</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Verification Status</div>
-                  <div style="color: ${primaryColor}; font-weight: 600;">✓ Verified</div>
-                </div>
-              </div>
-            </div>
+            <!-- Whitespace for professional appearance -->
+            <div style="margin-top: 40px; height: 30px;"></div>
           </div>
 
           <!-- PAGE 2: CARBON ASSET COORDINATES -->
