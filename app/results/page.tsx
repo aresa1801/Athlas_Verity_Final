@@ -768,82 +768,108 @@ export default function ResultsPage() {
           <!-- PAGE 1: PROJECT OVERVIEW -->
           <div class="page">
             <!-- Header Section -->
-            <div style="margin-bottom: 50px;">
-              <h1 style="margin-bottom: 10px; font-size: 36px;">Athlas Verity Impact Verification</h1>
-              <p style="color: ${primaryColor}; font-size: 18px; font-weight: 500; margin-bottom: 5px;">Carbon Reduction Report</p>
-              <p style="color: #94a3b8; font-size: 13px; margin-top: 15px;">Generated via Athlas Verity AI System | ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <div style="margin-bottom: 30px;">
+              <h1 style="margin-bottom: 8px; font-size: 32px;">Athlas Verity Impact Verification</h1>
+              <p style="color: ${primaryColor}; font-size: 16px; font-weight: 500; margin-bottom: 3px;">Carbon Reduction Report</p>
+              <p style="color: #94a3b8; font-size: 12px; margin-top: 10px;">Generated via Athlas Verity AI System | ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
             </div>
 
-            <!-- Map & Legend Section -->
+            <!-- Main Content Container -->
             ${!isBlueCarbonProject && projectMapImage ? `
-            <div style="margin-bottom: 50px; page-break-inside: avoid;">
-              <div class="section" style="display: flex; gap: 25px; align-items: flex-start; background: transparent; border: none; padding: 0; margin-bottom: 0;">
-                <!-- Map Container -->
-                <div style="flex: 1.3; min-width: 0;">
-                  <img src="${projectMapImage}" alt="Project Polygon Map" style="width: 100%; height: auto; border: 2px solid ${primaryColor}; border-radius: 10px; display: block; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="margin-bottom: 30px; page-break-inside: avoid; display: flex; gap: 20px;">
+              <!-- Map Container -->
+              <div style="flex: 0.9; min-width: 0;">
+                <img src="${projectMapImage}" alt="Project Polygon Map" style="width: 100%; height: auto; border: 2px solid ${primaryColor}; border-radius: 8px; display: block;">
+              </div>
+              
+              <!-- Right Column - Legend & Info -->
+              <div style="flex: 1.1; display: flex; flex-direction: column; gap: 15px;">
+                <!-- Legend -->
+                <div style="background: rgba(${primaryColorRgba}, 0.1); padding: 18px; border-radius: 8px; border-left: 4px solid ${primaryColor}; border: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                  <h3 style="margin: 0 0 12px 0; font-size: 12px; font-weight: 700; color: ${primaryColor}; text-transform: uppercase; letter-spacing: 0.5px;">Project Boundary</h3>
+                  <div style="font-size: 11px; line-height: 1.8; color: #cbd5e1;">
+                    <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                      <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 3px; font-size: 10px; text-transform: uppercase;">Name</div>
+                      <div style="color: #f1f5f9; font-size: 11px;">${projectData?.projectName || "N/A"}</div>
+                    </div>
+                    <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                      <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 3px; font-size: 10px; text-transform: uppercase;">Latitude</div>
+                      <div style="color: #f1f5f9; font-family: monospace; font-size: 10px;">${projectData?.coordinates?.[0]?.latitude ? Number.parseFloat(projectData.coordinates[0].latitude).toFixed(6) : "N/A"}°</div>
+                    </div>
+                    <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                      <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 3px; font-size: 10px; text-transform: uppercase;">Longitude</div>
+                      <div style="color: #f1f5f9; font-family: monospace; font-size: 10px;">${projectData?.coordinates?.[0]?.longitude ? Number.parseFloat(projectData.coordinates[0].longitude).toFixed(6) : "N/A"}°</div>
+                    </div>
+                    <div style="padding-top: 4px;">
+                      <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 3px; font-size: 10px; text-transform: uppercase;">Area</div>
+                      <div style="color: ${primaryColor}; font-weight: 700; font-size: 12px;">${carbonInputs.area_ha.toFixed(2)} ha</div>
+                    </div>
+                  </div>
                 </div>
                 
-                <!-- Legend Container -->
-                <div style="flex: 1; background: rgba(${primaryColorRgba}, 0.1); padding: 28px; border-radius: 10px; border-left: 5px solid ${primaryColor}; height: fit-content; border: 1px solid rgba(${primaryColorRgba}, 0.25);">
-                  <h3 style="margin: 0 0 20px 0; font-size: 13px; font-weight: 700; color: ${primaryColor}; text-transform: uppercase; letter-spacing: 1px;">Project Boundary</h3>
-                  
-                  <div style="font-size: 12px; line-height: 2; color: #cbd5e1;">
-                    <div style="margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
-                      <div style="font-weight: 700; color: ${primaryColor}; margin-bottom: 6px; font-size: 11px; text-transform: uppercase;">Project Name</div>
-                      <div style="color: #f1f5f9; word-wrap: break-word; font-size: 13px;">${projectData?.projectName || "N/A"}</div>
+                <!-- Project Owner Info Box -->
+                <div style="background: rgba(${primaryColorRgba}, 0.08); padding: 16px; border-radius: 8px; border: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                  <h3 style="margin: 0 0 10px 0; font-size: 12px; font-weight: 700; color: ${primaryColor}; text-transform: uppercase; letter-spacing: 0.5px;">Owner</h3>
+                  <div style="font-size: 11px; line-height: 1.8; color: #cbd5e1;">
+                    <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                      <div style="font-weight: 600; color: #94a3b8; margin-bottom: 2px; font-size: 9px; text-transform: uppercase;">Name</div>
+                      <div style="color: #f1f5f9; font-size: 11px;">${projectData?.ownerName || "N/A"}</div>
                     </div>
-                    
-                    <div style="margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
-                      <div style="font-weight: 700; color: ${primaryColor}; margin-bottom: 6px; font-size: 11px; text-transform: uppercase;">Latitude</div>
-                      <div style="color: #f1f5f9; font-family: 'Courier New', monospace; letter-spacing: 0.5px; font-size: 12px;">${projectData?.coordinates?.[0]?.latitude ? Number.parseFloat(projectData.coordinates[0].latitude).toFixed(6) : "N/A"}°</div>
+                    <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                      <div style="font-weight: 600; color: #94a3b8; margin-bottom: 2px; font-size: 9px; text-transform: uppercase;">Email</div>
+                      <div style="color: #f1f5f9; font-size: 10px; word-break: break-all;">${projectData?.ownerEmail || "N/A"}</div>
                     </div>
-                    
-                    <div style="margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
-                      <div style="font-weight: 700; color: ${primaryColor}; margin-bottom: 6px; font-size: 11px; text-transform: uppercase;">Longitude</div>
-                      <div style="color: #f1f5f9; font-family: 'Courier New', monospace; letter-spacing: 0.5px; font-size: 12px;">${projectData?.coordinates?.[0]?.longitude ? Number.parseFloat(projectData.coordinates[0].longitude).toFixed(6) : "N/A"}°</div>
+                    <div style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                      <div style="font-weight: 600; color: #94a3b8; margin-bottom: 2px; font-size: 9px; text-transform: uppercase;">Phone</div>
+                      <div style="color: #f1f5f9; font-size: 11px;">${projectData?.ownerPhone || "N/A"}</div>
                     </div>
-                    
-                    <div style="padding-top: 8px;">
-                      <div style="font-weight: 700; color: ${primaryColor}; margin-bottom: 6px; font-size: 11px; text-transform: uppercase;">Total Area</div>
-                      <div style="color: ${primaryColor}; font-weight: 700; font-size: 16px;">${carbonInputs.area_ha.toFixed(2)} <span style="font-size: 12px;">hectares</span></div>
+                    <div style="padding-top: 4px;">
+                      <div style="color: ${primaryColor}; font-weight: 700; font-size: 11px;">✓ Verified & Confirmed</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-            ` : ''}
+            ` : `
+            <!-- Project Information (No Map) -->
+            <div style="display: flex; gap: 20px; margin-bottom: 20px; page-break-inside: avoid;">
+              <div style="flex: 1;">
+                <div class="section" style="margin-bottom: 15px;">
+                  <h2 style="font-size: 16px; margin-bottom: 12px;">Project Location</h2>
+                  <div class="grid">
+                    <div class="grid-item">
+                      <div class="label">Location</div>
+                      <div class="value">${projectData?.projectLocation || "N/A"}</div>
+                    </div>
+                    <div class="grid-item">
+                      <div class="label">Country</div>
+                      <div class="value">${projectData?.country || "N/A"}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style="flex: 1;">
+                <div class="section">
+                  <h2 style="font-size: 16px; margin-bottom: 12px;">Classification</h2>
+                  <div class="grid">
+                    <div class="grid-item">
+                      <div class="label">Type</div>
+                      <div class="value">${isBlueCarbonProject ? "Blue Carbon" : "Green Carbon"}</div>
+                    </div>
+                    <div class="grid-item">
+                      <div class="label">Status</div>
+                      <div style="color: ${primaryColor}; font-weight: 700;">✓ Verified</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            `}
 
-            <!-- Project Information Sections -->
+            <!-- Project Owner Section -->
+            ${isBlueCarbonProject || !projectMapImage ? `
             <div style="page-break-inside: avoid;">
-              <div class="section" style="margin-bottom: 20px;">
-                <h2>Project Location</h2>
-                <div class="grid">
-                  <div class="grid-item">
-                    <div class="label">Location</div>
-                    <div class="value">${projectData?.projectLocation || "N/A"}</div>
-                  </div>
-                  <div class="grid-item">
-                    <div class="label">Country</div>
-                    <div class="value">${projectData?.country || "N/A"}</div>
-                  </div>
-                </div>
-              </div>
-
               <div class="section">
-                <h2>Project Classification</h2>
-                <div class="grid">
-                  <div class="grid-item">
-                    <div class="label">Carbon Offset Type</div>
-                    <div class="value">${isBlueCarbonProject ? "Blue Carbon" : "Green Carbon"}</div>
-                  </div>
-                  <div class="grid-item">
-                    <div class="label">Verification Status</div>
-                    <div style="color: ${primaryColor}; font-weight: 700;">✓ Verified</div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="section" style="margin-top: 30px;">
                 <h2>Project Owner</h2>
                 <div class="grid">
                   <div class="grid-item">
@@ -862,14 +888,12 @@ export default function ResultsPage() {
                   </div>
                   <div class="grid-item">
                     <div class="label">Verification Confirmation</div>
-                    <div style="color: ${primaryColor}; font-weight: 700; font-size: 14px;">✓ Verified & Confirmed</div>
+                    <div style="color: ${primaryColor}; font-weight: 700;">✓ Verified & Confirmed</div>
                   </div>
                 </div>
               </div>
             </div>
-
-            <!-- Whitespace for professional appearance -->
-            <div style="margin-top: 40px; height: 30px;"></div>
+            ` : ''}`}
           </div>
 
           <!-- PAGE 2: CARBON ASSET COORDINATES -->
