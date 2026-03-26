@@ -50,6 +50,7 @@ export default function ResultsPage() {
   const [aiCarbonData, setAiCarbonData] = useState<any>(null)
   const [agbEstimation, setAgbEstimation] = useState<AGBEstimationResult | null>(null)
   const [blueCarbonResult, setBlueCarbonResult] = useState<any>(null)
+  const [isBlueCarbonProject, setIsBlueCarbonProject] = useState(false)
   const [isCalculating, setIsCalculating] = useState(false)
 
   const [carbonInputs, setCarbonInputs] = useState<CarbonCalculationInputs>({
@@ -201,11 +202,12 @@ export default function ResultsPage() {
       })
 
       // Check if this is a blue carbon project
-      const isBlueCarbonProject = parsedData.tidalZoneType || parsedData.ecosystemType?.toLowerCase().includes('mangrove') || 
+      const isBlueCarbon = parsedData.tidalZoneType || parsedData.ecosystemType?.toLowerCase().includes('mangrove') || 
                                   parsedData.ecosystemType?.toLowerCase().includes('seagrass') || parsedData.salinityType
+      setIsBlueCarbonProject(isBlueCarbon)
 
       // If blue carbon project, calculate using blue carbon methodology
-      if (isBlueCarbonProject) {
+      if (isBlueCarbon) {
         console.log("[v0] Blue Carbon project detected, using blue carbon calculator")
         
         // Parse ecosystem type
@@ -1411,7 +1413,10 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-7xl mx-auto px-6 py-12">
-        <Link href="/upload" className="flex items-center gap-2 text-accent hover:text-accent/80 mb-8">
+        <Link 
+          href={isBlueCarbonProject ? "/verification/blue-carbon/create" : "/verification/green-carbon/create"}
+          className="flex items-center gap-2 text-accent hover:text-accent/80 mb-8"
+        >
           <ArrowLeft className="w-4 h-4" />
           Upload Another Dataset
         </Link>
