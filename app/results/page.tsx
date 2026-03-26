@@ -842,6 +842,30 @@ export default function ResultsPage() {
                   </div>
                 </div>
               </div>
+
+              <div class="section" style="margin-top: 30px;">
+                <h2>Project Owner</h2>
+                <div class="grid">
+                  <div class="grid-item">
+                    <div class="label">Owner Name</div>
+                    <div class="value">${projectData?.ownerName || "N/A"}</div>
+                  </div>
+                  <div class="grid-item">
+                    <div class="label">Email Address</div>
+                    <div class="value" style="word-break: break-all;">${projectData?.ownerEmail || "N/A"}</div>
+                  </div>
+                </div>
+                <div class="grid" style="margin-top: 15px;">
+                  <div class="grid-item">
+                    <div class="label">Contact Number</div>
+                    <div class="value">${projectData?.ownerPhone || "N/A"}</div>
+                  </div>
+                  <div class="grid-item">
+                    <div class="label">Verification Confirmation</div>
+                    <div style="color: ${primaryColor}; font-weight: 700; font-size: 14px;">✓ Verified & Confirmed</div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Whitespace for professional appearance -->
