@@ -281,14 +281,20 @@ export default function ResultsPage() {
       // Generate polygon map for green carbon projects only
       if (!isBlueCarbon && parsedData.coordinates && parsedData.coordinates.length > 0) {
         try {
+          // Convert coordinates to ensure they are numbers
+          const numericCoordinates = parsedData.coordinates.map((coord: any) => ({
+            latitude: typeof coord.latitude === "string" ? parseFloat(coord.latitude) : coord.latitude,
+            longitude: typeof coord.longitude === "string" ? parseFloat(coord.longitude) : coord.longitude,
+          }))
+          
           const mapCanvas = generatePolygonMap(
-            parsedData.coordinates as Array<{ latitude: number; longitude: number }>,
+            numericCoordinates,
             parsedData.projectName || "Project Area",
             area
           )
+          
           if (mapCanvas) {
             setProjectMapImage(mapCanvas)
-            console.log("[v0] Polygon map generated for PDF")
           }
         } catch (error) {
           console.error("[v0] Error generating polygon map:", error)
@@ -582,6 +588,22 @@ export default function ResultsPage() {
       return
     }
 
+    // Ensure map is generated if not already
+    if (!isBlueCarbonProject && projectData.coordinates && projectData.coordinates.length > 0 && !projectMapImage) {
+      console.log("[v0] Map not yet generated, generating now...")
+      const numericCoordinates = projectData.coordinates.map((coord: any) => ({
+        latitude: typeof coord.latitude === "string" ? parseFloat(coord.latitude) : coord.latitude,
+        longitude: typeof coord.longitude === "string" ? parseFloat(coord.longitude) : coord.longitude,
+      }))
+      
+      const area = projectData.dataLuasan ? parseFloat(projectData.dataLuasan) : 0
+      const mapCanvas = generatePolygonMap(numericCoordinates, projectData.projectName || "Project Area", area)
+      if (mapCanvas) {
+        setProjectMapImage(mapCanvas)
+        console.log("[v0] Map generated on demand for PDF export")
+      }
+    }
+
     // Detect if this is a blue carbon project
     const isBlueCarbonProject = projectData.tidalZoneType || projectData.ecosystemType?.toLowerCase().includes('mangrove') || projectData.ecosystemType?.toLowerCase().includes('seagrass') || projectData.salinityType
     
@@ -789,12 +811,24 @@ export default function ResultsPage() {
                   
                   <div style="margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
                     <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 4px;">Latitude</div>
-                    <div style="color: #E2E8F0; font-family: monospace;">${projectData?.coordinates?.[0]?.latitude ? Number.parseFloat(projectData.coordinates[0].latitude).toFixed(6) : "N/A"}°</div>
+                    <div style="color: #E2E8F0; font-family: monospace;">${
+                      projectData?.coordinates?.[0]?.latitude 
+                        ? typeof projectData.coordinates[0].latitude === "string"
+                          ? parseFloat(projectData.coordinates[0].latitude).toFixed(6)
+                          : (projectData.coordinates[0].latitude as number).toFixed(6)
+                        : "N/A"
+                    }°</div>
                   </div>
                   
                   <div style="margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
                     <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 4px;">Longitude</div>
-                    <div style="color: #E2E8F0; font-family: monospace;">${projectData?.coordinates?.[0]?.longitude ? Number.parseFloat(projectData.coordinates[0].longitude).toFixed(6) : "N/A"}°</div>
+                    <div style="color: #E2E8F0; font-family: monospace;">${
+                      projectData?.coordinates?.[0]?.longitude 
+                        ? typeof projectData.coordinates[0].longitude === "string"
+                          ? parseFloat(projectData.coordinates[0].longitude).toFixed(6)
+                          : (projectData.coordinates[0].longitude as number).toFixed(6)
+                        : "N/A"
+                    }°</div>
                   </div>
                   
                   <div style="padding-top: 4px;">
