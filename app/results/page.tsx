@@ -51,6 +51,7 @@ export default function ResultsPage() {
   const [agbEstimation, setAgbEstimation] = useState<AGBEstimationResult | null>(null)
   const [blueCarbonResult, setBlueCarbonResult] = useState<any>(null)
   const [isBlueCarbonProject, setIsBlueCarbonProject] = useState(false)
+  const [projectMapImage, setProjectMapImage] = useState<string>("")
   const [isCalculating, setIsCalculating] = useState(false)
 
   const [carbonInputs, setCarbonInputs] = useState<CarbonCalculationInputs>({
@@ -276,6 +277,23 @@ export default function ResultsPage() {
           scientific_basis: agbResult.scientific_references,
         },
       })
+
+      // Generate polygon map for green carbon projects only
+      if (!isBlueCarbon && parsedData.coordinates && parsedData.coordinates.length > 0) {
+        try {
+          const mapCanvas = generatePolygonMap(
+            parsedData.coordinates as Array<{ latitude: number; longitude: number }>,
+            parsedData.projectName || "Project Area",
+            area
+          )
+          if (mapCanvas) {
+            setProjectMapImage(mapCanvas)
+            console.log("[v0] Polygon map generated for PDF")
+          }
+        } catch (error) {
+          console.error("[v0] Error generating polygon map:", error)
+        }
+      }
     }
   }, [])
 
@@ -329,6 +347,152 @@ export default function ResultsPage() {
       console.error("[v0] AI carbon calculation error:", error)
     } finally {
       setIsCalculating(false)
+    }
+  }
+
+  const generatePolygonMap = (
+    coordinates: Array<{ latitude: number; longitude: number }>,
+    projectName: string,
+    areaHa: number
+  ): string | null => {
+    try {
+      if (coordinates.length < 2) return null
+
+      // Canvas dimensions
+      const width = 800
+      const height = 600
+      const padding = 60
+      const innerWidth = width - padding * 2
+      const innerHeight = height - padding * 2
+
+      // Create canvas
+      const canvas = document.createElement("canvas")
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext("2d")
+      if (!ctx) return null
+
+      // Background
+      ctx.fillStyle = "#0f172a"
+      ctx.fillRect(0, 0, width, height)
+
+      // Title
+      ctx.fillStyle = "#64748b"
+      ctx.font = "14px Arial"
+      ctx.textAlign = "left"
+      ctx.fillText("Project Polygon Map", 20, 30)
+
+      // Find bounds
+      const lats = coordinates.map((c) => c.latitude)
+      const lons = coordinates.map((c) => c.longitude)
+      const minLat = Math.min(...lats)
+      const maxLat = Math.max(...lats)
+      const minLon = Math.min(...lons)
+      const maxLon = Math.max(...lons)
+
+      const latRange = maxLat - minLat || 0.001
+      const lonRange = maxLon - minLon || 0.001
+      const scale = Math.max(innerWidth / lonRange, innerHeight / latRange) * 0.9
+
+      // Convert coordinates to canvas points
+      const centerLon = (minLon + maxLon) / 2
+      const centerLat = (minLat + maxLat) / 2
+      const canvasPoints = coordinates.map((coord) => ({
+        x: padding + innerWidth / 2 + (coord.longitude - centerLon) * scale,
+        y: padding + innerHeight / 2 - (coord.latitude - centerLat) * scale,
+      }))
+
+      // Draw grid
+      ctx.strokeStyle = "#1e293b"
+      ctx.lineWidth = 1
+      for (let i = 0; i <= 10; i++) {
+        const y = padding + (innerHeight / 10) * i
+        ctx.beginPath()
+        ctx.moveTo(padding, y)
+        ctx.lineTo(width - padding, y)
+        ctx.stroke()
+
+        const x = padding + (innerWidth / 10) * i
+        ctx.beginPath()
+        ctx.moveTo(x, padding)
+        ctx.lineTo(x, height - padding)
+        ctx.stroke()
+      }
+
+      // Draw polygon
+      ctx.fillStyle = "rgba(34, 197, 94, 0.2)"
+      ctx.strokeStyle = "#22C55E"
+      ctx.lineWidth = 2.5
+      ctx.beginPath()
+      ctx.moveTo(canvasPoints[0].x, canvasPoints[0].y)
+      for (let i = 1; i < canvasPoints.length; i++) {
+        ctx.lineTo(canvasPoints[i].x, canvasPoints[i].y)
+      }
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+
+      // Draw vertices
+      ctx.fillStyle = "#22C55E"
+      canvasPoints.forEach((point) => {
+        ctx.beginPath()
+        ctx.arc(point.x, point.y, 4, 0, Math.PI * 2)
+        ctx.fill()
+      })
+
+      // Draw center point
+      const centerX = padding + innerWidth / 2
+      const centerY = padding + innerHeight / 2
+      ctx.fillStyle = "#3B82F6"
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, 5, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Axes
+      ctx.strokeStyle = "#475569"
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(centerX, padding)
+      ctx.lineTo(centerX, height - padding)
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.moveTo(padding, centerY)
+      ctx.lineTo(width - padding, centerY)
+      ctx.stroke()
+
+      // Labels
+      ctx.fillStyle = "#94a3b8"
+      ctx.font = "11px Arial"
+      ctx.textAlign = "center"
+
+      // Latitude labels
+      ctx.fillText(`${maxLat.toFixed(3)}°`, padding - 40, padding + 5)
+      ctx.fillText(`${centerLat.toFixed(3)}°`, padding - 40, centerY + 5)
+      ctx.fillText(`${minLat.toFixed(3)}°`, padding - 40, height - padding + 5)
+
+      // Longitude labels
+      ctx.textAlign = "center"
+      ctx.fillText(`${minLon.toFixed(3)}°`, padding + 5, height - padding + 20)
+      ctx.fillText(`${centerLon.toFixed(3)}°`, centerX, height - padding + 20)
+      ctx.fillText(`${maxLon.toFixed(3)}°`, width - padding - 5, height - padding + 20)
+
+      // Info box
+      ctx.fillStyle = "rgba(15, 23, 42, 0.9)"
+      ctx.fillRect(padding, height - padding + 30, innerWidth, 50)
+      ctx.strokeStyle = "#22C55E"
+      ctx.lineWidth = 1.5
+      ctx.strokeRect(padding, height - padding + 30, innerWidth, 50)
+
+      ctx.fillStyle = "#e2e8f0"
+      ctx.font = "bold 11px Arial"
+      ctx.textAlign = "left"
+      ctx.fillText(`Area: ${areaHa.toFixed(2)} ha | Vertices: ${coordinates.length}`, padding + 10, height - padding + 50)
+
+      return canvas.toDataURL("image/png")
+    } catch (error) {
+      console.error("[v0] Error in generatePolygonMap:", error)
+      return null
     }
   }
 
@@ -605,6 +769,42 @@ export default function ResultsPage() {
           <div class="page">
             <h1>Athlas Verity Impact Verification & Carbon Reduction Report</h1>
             <p style="color: ${primaryColor}; font-size: 16px; margin-bottom: 40px;">Generated via Athlas Verity AI System</p>
+            
+            ${!isBlueCarbonProject && projectMapImage ? `
+            <div class="section" style="display: flex; gap: 20px; margin-bottom: 30px; align-items: flex-start;">
+              <!-- Map Container -->
+              <div style="flex: 1.2; min-width: 0;">
+                <img src="${projectMapImage}" alt="Project Polygon Map" style="width: 100%; height: auto; border: 2px solid ${primaryColor}; border-radius: 8px; display: block;">
+              </div>
+              
+              <!-- Legend Container -->
+              <div style="flex: 0.8; background: rgba(${primaryColorRgba}, 0.08); padding: 20px; border-radius: 8px; border-left: 4px solid ${primaryColor}; height: fit-content;">
+                <h3 style="margin: 0 0 16px 0; font-size: 14px; font-weight: 700; color: ${primaryColor}; text-transform: uppercase; letter-spacing: 0.5px;">Project Boundary</h3>
+                
+                <div style="font-size: 12px; line-height: 1.8; color: #B0B0B0;">
+                  <div style="margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                    <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 4px;">Project Name</div>
+                    <div style="color: #E2E8F0; word-wrap: break-word;">${projectData?.projectName || "N/A"}</div>
+                  </div>
+                  
+                  <div style="margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                    <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 4px;">Latitude</div>
+                    <div style="color: #E2E8F0; font-family: monospace;">${projectData?.coordinates?.[0]?.latitude ? Number.parseFloat(projectData.coordinates[0].latitude).toFixed(6) : "N/A"}°</div>
+                  </div>
+                  
+                  <div style="margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(${primaryColorRgba}, 0.2);">
+                    <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 4px;">Longitude</div>
+                    <div style="color: #E2E8F0; font-family: monospace;">${projectData?.coordinates?.[0]?.longitude ? Number.parseFloat(projectData.coordinates[0].longitude).toFixed(6) : "N/A"}°</div>
+                  </div>
+                  
+                  <div style="padding-top: 4px;">
+                    <div style="font-weight: 600; color: ${primaryColor}; margin-bottom: 4px;">Total Area</div>
+                    <div style="color: ${primaryColor}; font-weight: 700; font-size: 13px;">${carbonInputs.area_ha.toFixed(2)} ha</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            ` : ''}
             
             <div class="section">
               <h2>Project Location Detail</h2>
