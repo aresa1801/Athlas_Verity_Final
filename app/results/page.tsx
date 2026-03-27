@@ -19,6 +19,7 @@ import { jsPDF } from "jspdf"
 import Image from "next/image"
 import { estimateAGB, type AGBEstimationResult } from "@/lib/agb-estimation-engine"
 import { BlueCarbonResultsDisplay } from "@/components/verification/blue-carbon-results-display"
+import type { BlueCarbonResult } from "@/lib/blue-carbon-calculator"
 
 interface FormData {
   projectName: string
@@ -50,7 +51,7 @@ export default function ResultsPage() {
   const [projectData, setProjectData] = useState<ResultsData | null>(null)
   const [aiCarbonData, setAiCarbonData] = useState<any>(null)
   const [agbEstimation, setAgbEstimation] = useState<AGBEstimationResult | null>(null)
-  const [blueCarbonResult, setBlueCarbonResult] = useState<any>(null)
+  const [blueCarbonResult, setBlueCarbonResult] = useState<BlueCarbonResult | null>(null)
   const [isBlueCarbonProject, setIsBlueCarbonProject] = useState(false)
   const [projectMapImage, setProjectMapImage] = useState<string>("")
   const [isCalculating, setIsCalculating] = useState(false)
@@ -302,8 +303,10 @@ export default function ResultsPage() {
         },
       })
 
-      // Generate polygon map for green carbon projects only
-      if (!isBlueCarbon && parsedData.coordinates && parsedData.coordinates.length > 0) {
+      // Generate polygon map for green carbon projects only (not for blue carbon)
+      const shouldGenerateMap = !(parsedData.tidalZoneType || parsedData.ecosystemType?.toLowerCase().includes('mangrove') || 
+                                  parsedData.ecosystemType?.toLowerCase().includes('seagrass') || parsedData.salinityType)
+      if (shouldGenerateMap && parsedData.coordinates && parsedData.coordinates.length > 0) {
         try {
           const mapCanvas = generatePolygonMap(
             parsedData.coordinates as Array<{ latitude: number; longitude: number }>,
