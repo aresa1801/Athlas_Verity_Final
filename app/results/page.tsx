@@ -86,40 +86,51 @@ export default function ResultsPage() {
     if (data) {
       const parsedData = JSON.parse(data) as ResultsData
       
-      // Extract coordinates from satellite data
-      if (parsedData.satelliteData?.rawGeoJSON?.features && !parsedData.coordinates) {
+      // Extract coordinates from satellite data if not already present
+      if (!parsedData.coordinates || parsedData.coordinates.length === 0) {
         const coordinates: Array<{ latitude: number; longitude: number }> = []
-        const features = parsedData.satelliteData.rawGeoJSON.features
         
-        features.forEach((feature: any) => {
-          if (feature.geometry?.type === 'Point' && feature.geometry.coordinates) {
-            const [lon, lat] = feature.geometry.coordinates
-            if (lat && lon) {
-              coordinates.push({ latitude: lat, longitude: lon })
-            }
-          } else if (feature.geometry?.type === 'Polygon' && feature.geometry.coordinates) {
-            const ring = feature.geometry.coordinates[0]
-            ring.forEach(([lon, lat]: [number, number]) => {
+        // Try to extract from rawGeoJSON if available
+        if (parsedData.satelliteData?.rawGeoJSON?.features) {
+          const features = parsedData.satelliteData.rawGeoJSON.features
+          
+          features.forEach((feature: any) => {
+            if (feature.geometry?.type === 'Point' && feature.geometry.coordinates) {
+              const [lon, lat] = feature.geometry.coordinates
               if (lat && lon) {
                 coordinates.push({ latitude: lat, longitude: lon })
               }
-            })
-          } else if (feature.geometry?.type === 'MultiPolygon' && feature.geometry.coordinates) {
-            feature.geometry.coordinates.forEach((polygon: any[]) => {
-              const ring = polygon[0]
+            } else if (feature.geometry?.type === 'Polygon' && feature.geometry.coordinates) {
+              const ring = feature.geometry.coordinates[0]
               ring.forEach(([lon, lat]: [number, number]) => {
                 if (lat && lon) {
                   coordinates.push({ latitude: lat, longitude: lon })
                 }
               })
-            })
-          }
-        })
+            } else if (feature.geometry?.type === 'MultiPolygon' && feature.geometry.coordinates) {
+              feature.geometry.coordinates.forEach((polygon: any[]) => {
+                const ring = polygon[0]
+                ring.forEach(([lon, lat]: [number, number]) => {
+                  if (lat && lon) {
+                    coordinates.push({ latitude: lat, longitude: lon })
+                  }
+                })
+              })
+            }
+          })
+        }
         
         if (coordinates.length > 0) {
           parsedData.coordinates = coordinates
           console.log("[v0] Extracted", coordinates.length, "coordinates from satellite data")
         }
+      }
+      
+      console.log("[v0] Coordinates available for PDF:", {
+        count: parsedData.coordinates?.length || 0,
+        sample: parsedData.coordinates?.[0],
+        allCoordinates: parsedData.coordinates
+      })
       }
       
       setProjectData(parsedData)
@@ -632,6 +643,13 @@ export default function ResultsPage() {
     }
 
     const filledCoordinates = (projectData?.coordinates || []).filter((c) => c?.latitude && c?.longitude) || []
+    
+    console.log("[v0] PDF Generation - FilledCoordinates:", {
+      total: filledCoordinates.length,
+      projectDataCoordinates: projectData?.coordinates?.length || 0,
+      sample: filledCoordinates[0],
+      all: filledCoordinates
+    })
 
     const printContent = `
       <!DOCTYPE html>
