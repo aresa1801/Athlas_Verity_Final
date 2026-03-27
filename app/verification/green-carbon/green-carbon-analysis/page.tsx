@@ -456,30 +456,13 @@ export default function SatelliteAnalysisPage() {
     const data = {
       projectName: 'Satellite Analysis Project',
       timestamp: new Date().toISOString(),
-      analysisVersion: 'v3.0',
+      analysisVersion: 'v2.0',
       
-      // Complete analysis results from AI
-      analysisResults: {
-        carbonEstimation: analysisResults.carbonEstimation,
-        vegetationClassification: analysisResults.vegetationClassification,
-        coastalData: analysisResults.coastalData,
-      },
-      
-      // Geospatial data - COMPREHENSIVE COORDINATES
+      // Geospatial data
       area: { hectares: areaInfo.hectares, km2: areaInfo.km2 },
-      polygonCoordinates: polygon.map(([lat, lng], idx) => ({
-        point: idx + 1,
-        latitude: Number(lat.toFixed(6)),
-        longitude: Number(lng.toFixed(6)),
-        status: 'Verified'
-      })),
-      polygonCoordinatesArray: polygon, // Keep original format for GeoJSON
+      polygonCoordinates: polygon,
       polygonInfo,
-      centerCoordinates: { 
-        latitude: Number(centerLat.toFixed(6)), 
-        longitude: Number(centerLng.toFixed(6)) 
-      },
-      bounds: bounds,
+      centerCoordinates: { latitude: centerLat, longitude: centerLng },
       
       // Vegetation and Forest data (AUTO-FILL FIELDS)
       forestType: analysisResults.vegetationClassification.forestType,
@@ -487,7 +470,7 @@ export default function SatelliteAnalysisPage() {
       averageTreeHeight: '25-30', // This should come from AGB calculation
       vegetationDescription: '', // Will be generated in form
       
-      // Satellite data - COMPLETE SPECTRAL ANALYSIS
+      // Satellite data
       satellite: {
         ndvi: analysisResults.vegetationClassification.ndvi,
         cloudCover: 15,
@@ -499,7 +482,7 @@ export default function SatelliteAnalysisPage() {
         confidence: analysisResults.carbonEstimation.confidence
       },
       
-      // Carbon data - COMPLETE CARBON ANALYSIS
+      // Carbon data (FOR CARBON REDUCTION CALCULATION)
       carbonData: {
         agb: biomassNum,
         agbUnit: 'tC/ha',
@@ -511,23 +494,14 @@ export default function SatelliteAnalysisPage() {
         confidence: analysisResults.carbonEstimation.confidence
       },
       
-      // Location info with full details
+      // Location info
       location: locationInput || 'Unknown',
-      locationInput: locationInput,
       dateRange,
       satelliteSource,
-      uploadedFileName: uploadedFile?.name || 'Unknown',
-      
-      // Multi-polygon support
-      multiPolygons: multiPolygons || undefined
+      uploadedFileName: uploadedFile?.name || 'Unknown'
     }
     
-    console.log("[v0] Exporting complete analysis data package with coordinates:", {
-      pointCount: data.polygonCoordinates.length,
-      centerLat: data.centerCoordinates.latitude,
-      centerLng: data.centerCoordinates.longitude,
-      analysisResultsIncluded: !!data.analysisResults
-    })
+    console.log("[v0] Exporting complete analysis data package:", data)
     
     try {
       const blob = await generateSatelliteDataZIP(data)

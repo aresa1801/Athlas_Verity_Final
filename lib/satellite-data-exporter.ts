@@ -12,42 +12,18 @@ export interface SatelliteExportData {
   dominantSpecies?: string
   averageTreeHeight?: string
   vegetationDescription?: string
-  polygonCoordinates: Array<[number, number]> | Array<{ point: number; latitude: number; longitude: number; status: string }>
-  polygonCoordinatesArray?: Array<[number, number]>
-  bounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
+  polygonCoordinates: Array<[number, number]>
   centerCoordinates?: { latitude: number; longitude: number }
-  locationInput?: { latitude: string; longitude: string }
   multiPolygons?: Array<{
     outerRing: Array<[number, number]>
     innerRings: Array<Array<[number, number]>>
   }>
   polygonInfo?: { count: number; holes: number }
-  dateRange?: { start?: string; end?: string; startDate?: string; endDate?: string }
-  location?: string | { latitude: string; longitude: string }
+  dateRange?: { startDate?: string; endDate?: string }
+  location?: string
   satelliteSource?: string
   uploadedFile?: string
   uploadedFileName?: string
-  
-  // Complete analysis results from AI analysis
-  analysisResults?: {
-    carbonEstimation: {
-      agb: number | string
-      unit: string
-      confidence: number
-      totalCarbon: number | string
-      methodology: string
-    }
-    vegetationClassification: {
-      dominantSpecies: string
-      forestType: string
-      ndvi: number
-    }
-    coastalData?: {
-      isCoastal: boolean
-      distance: string
-    }
-  }
-  
   satellite: {
     ndvi: number
     cloudCover: number
@@ -164,78 +140,43 @@ export async function generateSatelliteDataZIP(data: SatelliteExportData): Promi
  * Generate manifest/README content
  */
 function generateManifest(data: SatelliteExportData): string {
-  return `SATELLITE DATA PACKAGE - COMPLETE ANALYSIS RESULTS
-=====================================================
+  return `SATELLITE DATA PACKAGE
+======================
 Project: ${data.projectName}
 Generated: ${data.timestamp}
-Analysis Version: ${data.analysisVersion || 'v1.0'}
 
-PACKAGE CONTENTS:
-1. satellite_analysis.json - Complete processed satellite analysis data (MASTER FILE)
-2. satellite_analysis.csv - Summary table format for spreadsheets
-3. polygon_coordinates.geojson - Polygon geometry in GeoJSON format for mapping
-4. polygon_coordinates.txt - Plain text coordinate list with analysis results
+CONTENTS:
+1. satellite_analysis.json - Complete processed satellite analysis data
+2. satellite_analysis.csv - Summary table format
+3. polygon_coordinates.geojson - Polygon geometry in GeoJSON format
+4. polygon_coordinates.txt - Plain text coordinate list
 5. README.txt - This file
 
-COMPLETE DATA FIELDS INCLUDED:
-- Project metadata (name, date, location, bounds)
-- Geospatial data (area, polygon count, holes, multipolygons)
-- Complete coordinate data with verification status:
-  * Center coordinates (latitude, longitude)
-  * All polygon boundary points with point numbers
-  * Inner rings/holes if applicable
-- Satellite spectral analysis (NDVI, cloud cover, vegetation class)
-- AI analysis results (forest type, dominant species, confidence)
-- Carbon estimation (AGB, carbon stock, total carbon, CO2e)
-- Analysis methodology and quality metrics
-- Multi-polygon support with full geometry data
+DATA FIELDS INCLUDED:
+- Project metadata (name, date range, location)
+- Area calculations (hectares, km2, polygon count)
+- Satellite data (NDVI, cloud cover, vegetation type)
+- Carbon estimation (AGB, carbon stock, total carbon)
+- Analysis methodology and confidence scores
+- Polygon coordinates and geometry (outer rings + inner holes)
+- Satellite source information
 
-SATELLITE ANALYSIS RESULTS INCLUDED:
-${data.analysisResults ? `- Forest Type: ${data.analysisResults.vegetationClassification.forestType}
-- Dominant Species: ${data.analysisResults.vegetationClassification.dominantSpecies}
-- NDVI: ${data.analysisResults.vegetationClassification.ndvi.toFixed(3)}
-- AGB: ${data.analysisResults.carbonEstimation.agb} ${data.analysisResults.carbonEstimation.unit}
-- Total Carbon: ${data.analysisResults.carbonEstimation.totalCarbon}
-- Confidence: ${(Number(data.analysisResults.carbonEstimation.confidence) * 100).toFixed(1)}%
-- Methodology: ${data.analysisResults.carbonEstimation.methodology}` : '- No analysis results available'}
+All data is ready to populate:
+- Green Carbon Verification form
+- Blue Carbon Verification form  
+- Coastal Geospatial assessments
+- Sediment & Ecology assessments
 
-COORDINATE DATA FORMAT:
-The polygonCoordinates field contains all verified asset points in format:
-{
-  "point": 1-N,
-  "latitude": decimal degrees,
-  "longitude": decimal degrees,
-  "status": "Verified"
-}
+Use satellite_analysis.json for programmatic access (recommended)
+Use satellite_analysis.csv for spreadsheet applications
+Use polygon_coordinates.geojson for mapping applications
 
-All coordinates are validated against satellite imagery and are ready for:
-- Green Carbon Verification form (Carbon Asset Coordinates section)
-- PDF Validation Report (Geospatial Coverage Verification section)
-- Direct import into GIS applications
-
-USAGE IN VERIFICATION WORKFLOW:
+USAGE IN VERIFICATION FORMS:
 1. Download and extract this ZIP file
-2. Open satellite_analysis.json in a text editor or JSON viewer
-3. Verify coordinate points in polygon_coordinates.txt
-4. Use polygon_coordinates.geojson for visualization in mapping tools
-5. Copy coordinate data from "polygonCoordinates" field to verification form
-6. Confirmation: All coordinates are satellite-verified and ready for validation
-
-HOW TO USE IN FORMS:
-Green Carbon Verification Form:
-- Area field: Copy value from "area.hectares"
-- Coordinates field: Copy "polygonCoordinates" array
-- Forest Type: Copy from "forestType"
-- Dominant Species: Copy from "dominantSpecies"
-- All data auto-populated from satellite analysis
-
-PDF Report Generation:
-- All coordinate data is automatically pulled from "polygonCoordinates"
-- Analysis results populate the Verification Results section
-- Carbon calculations use "carbonData" fields
-- Multi-polygon geometries are supported
-
-For support, contact: support@athlas-verity.io
+2. Open satellite_analysis.json in a text editor
+3. Copy the polygonCoordinates array to the form's coordinate field
+4. Copy area value to the area field
+5. Copy other metadata as needed
 `
 }
 
@@ -352,56 +293,21 @@ function generateGeoJSONFile(data: SatelliteExportData): string {
 }
 
 /**
- * Generate plain text coordinates file with complete geospatial and analysis data
+ * Generate plain text coordinates file
  */
 function generateCoordinatesFile(data: SatelliteExportData): string {
   const lines = [
-    `PROJECT INFORMATION`,
-    `===================`,
     `Project: ${data.projectName}`,
-    `Generated: ${data.timestamp}`,
-    `Analysis Version: ${data.analysisVersion || 'v1.0'}`,
-    '',
-    `GEOSPATIAL DATA`,
-    `===============`,
     `Polygon Count: ${data.polygonInfo?.count || 1}`,
     `Area: ${data.area.hectares.toFixed(2)} ha (${data.area.km2.toFixed(4)} km²)`,
     '',
-    `CENTER COORDINATES`,
-    `==================`,
-    `Latitude: ${data.centerCoordinates?.latitude ?? 'N/A'}`,
-    `Longitude: ${data.centerCoordinates?.longitude ?? 'N/A'}`,
-    '',
+    'OUTER RING COORDINATES (Latitude, Longitude):',
+    '-------------------------------------------'
   ]
-
-  // Handle both array and object formats for coordinates
-  if (Array.isArray(data.polygonCoordinates) && data.polygonCoordinates.length > 0) {
-    const firstCoord = data.polygonCoordinates[0]
-    
-    if (typeof firstCoord === 'object' && 'point' in firstCoord) {
-      // New format with point objects
-      lines.push('POLYGON COORDINATES (OUTER RING):')
-      lines.push('==================================')
-      lines.push('Point# | Latitude       | Longitude      | Status')
-      lines.push('-------|----------------|----------------|----------')
-      
-      data.polygonCoordinates.forEach((coord: any) => {
-        const lat = typeof coord.latitude === 'number' ? coord.latitude.toFixed(6) : coord.latitude
-        const lng = typeof coord.longitude === 'number' ? coord.longitude.toFixed(6) : coord.longitude
-        lines.push(`${String(coord.point).padEnd(6)}| ${String(lat).padEnd(15)}| ${String(lng).padEnd(15)}| ${coord.status || 'Verified'}`)
-      })
-    } else {
-      // Original array format [lat, lng]
-      lines.push('OUTER RING COORDINATES (Latitude, Longitude):')
-      lines.push('-------------------------------------------')
-      
-      data.polygonCoordinates.forEach((coord: any, idx: number) => {
-        if (Array.isArray(coord)) {
-          lines.push(`${idx + 1}. ${coord[0].toFixed(6)}, ${coord[1].toFixed(6)}`)
-        }
-      })
-    }
-  }
+  
+  data.polygonCoordinates.forEach((coord, idx) => {
+    lines.push(`${idx + 1}. ${coord[0].toFixed(6)}, ${coord[1].toFixed(6)}`)
+  })
   
   // Add inner rings if available
   if (data.multiPolygons && data.multiPolygons[0]?.innerRings.length > 0) {
@@ -415,20 +321,6 @@ function generateCoordinatesFile(data: SatelliteExportData): string {
         lines.push(`  ${idx + 1}. ${coord[0].toFixed(6)}, ${coord[1].toFixed(6)}`)
       })
     })
-  }
-
-  // Add analysis results if available
-  if (data.analysisResults) {
-    lines.push('')
-    lines.push('SATELLITE ANALYSIS RESULTS')
-    lines.push('===========================')
-    lines.push(`Forest Type: ${data.analysisResults.vegetationClassification.forestType}`)
-    lines.push(`Dominant Species: ${data.analysisResults.vegetationClassification.dominantSpecies}`)
-    lines.push(`NDVI: ${data.analysisResults.vegetationClassification.ndvi.toFixed(3)}`)
-    lines.push(`AGB: ${data.analysisResults.carbonEstimation.agb} ${data.analysisResults.carbonEstimation.unit}`)
-    lines.push(`Total Carbon: ${data.analysisResults.carbonEstimation.totalCarbon}`)
-    lines.push(`Methodology: ${data.analysisResults.carbonEstimation.methodology}`)
-    lines.push(`Confidence: ${(Number(data.analysisResults.carbonEstimation.confidence) * 100).toFixed(1)}%`)
   }
   
   return lines.join('\n')
