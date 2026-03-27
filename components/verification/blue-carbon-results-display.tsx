@@ -12,8 +12,17 @@ interface BlueCarbonResultsDisplayProps {
 }
 
 export function BlueCarbonResultsDisplay({ data, projectArea, projectDuration = 10 }: BlueCarbonResultsDisplayProps) {
-  const totalCarbonStock = data.total_carbon_stock_tc
-  const netCredits = data.net_verified_credits_tco2
+  // Validate input data
+  if (!data || Object.keys(data).length === 0) {
+    return (
+      <Card className="border-border/50 bg-card/30 p-6">
+        <p className="text-muted-foreground text-center">No blue carbon data available</p>
+      </Card>
+    )
+  }
+
+  const totalCarbonStock = data.total_carbon_stock_tc || 0
+  const netCredits = data.net_verified_credits_tco2 || 0
 
   return (
     <div className="space-y-6">
@@ -22,30 +31,30 @@ export function BlueCarbonResultsDisplay({ data, projectArea, projectDuration = 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">Net Verified Credits</p>
-            <p className="text-4xl font-bold text-emerald-600">{netCredits.toLocaleString()}</p>
+            <p className="text-4xl font-bold text-emerald-600">{Math.round(netCredits).toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">tCO₂e over {projectDuration} years</p>
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">Total Carbon Stock</p>
-            <p className="text-3xl font-bold text-blue-600">{totalCarbonStock.toLocaleString()}</p>
+            <p className="text-3xl font-bold text-blue-600">{Math.round(totalCarbonStock).toLocaleString()}</p>
             <p className="text-xs text-muted-foreground">tC (all pools)</p>
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">Project Area</p>
-            <p className="text-3xl font-bold text-cyan-600">{projectArea.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-cyan-600">{(projectArea || 0).toFixed(1)}</p>
             <p className="text-xs text-muted-foreground">hectares</p>
           </div>
         </div>
       </Card>
 
       {/* Biomass Pool Breakdown */}
-      <Card className="border-border/50 bg-card/30 p-6">
-        <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+      <Card className="border-border/50 bg-card/30 p-4 md:p-6">
+        <h3 className="text-base md:text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
           Biomass Pool Breakdown (tC/ha)
         </h3>
         <div className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* AGB */}
             <div className="border border-border/30 rounded-lg p-4 bg-background/20">
               <div className="flex justify-between items-start mb-2">
@@ -95,7 +104,7 @@ export function BlueCarbonResultsDisplay({ data, projectArea, projectDuration = 
             </div>
 
             {/* SOC */}
-            <div className="border border-border/30 rounded-lg p-4 bg-background/20 md:col-span-2">
+            <div className="border border-green-500/30 rounded-lg p-4 bg-green-500/5 sm:col-span-2 lg:col-span-1">
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <p className="text-sm font-medium text-foreground">Soil Organic Carbon (SOC)</p>
@@ -108,11 +117,11 @@ export function BlueCarbonResultsDisplay({ data, projectArea, projectDuration = 
           </div>
 
           {/* Total Biomass */}
-          <div className="border-t border-border/30 pt-4 mt-4">
+          <div className="border-t border-border/30 pt-4 mt-4 col-span-1 sm:col-span-2 lg:col-span-3">
             <div className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/30 rounded-lg p-4">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <p className="text-sm font-medium text-foreground">Total Biomass Carbon</p>
-                <p className="text-3xl font-bold text-emerald-600">{data.total_biomass_tc_ha.toFixed(2)} tC/ha</p>
+                <p className="text-2xl sm:text-3xl font-bold text-emerald-600">{data.total_biomass_tc_ha.toFixed(2)} tC/ha</p>
               </div>
             </div>
           </div>
@@ -135,19 +144,19 @@ export function BlueCarbonResultsDisplay({ data, projectArea, projectDuration = 
 
             <div className="border border-border/30 rounded-lg p-4">
               <p className="text-sm text-muted-foreground mb-2">Total Project Sequestration</p>
-              <p className="text-2xl font-bold text-emerald-600">{data.total_project_sequestration_tco2.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-emerald-600">{Math.round(data.total_project_sequestration_tco2).toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">tCO₂ (over {projectDuration} years)</p>
             </div>
 
             <div className="border border-border/30 rounded-lg p-4">
               <p className="text-sm text-muted-foreground mb-2">Baseline Emissions</p>
-              <p className="text-2xl font-bold text-red-600">{data.baseline_emissions_tco2.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-red-600">{Math.round(data.baseline_emissions_tco2).toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">tCO₂ (reference scenario)</p>
             </div>
 
             <div className="border border-border/30 rounded-lg p-4">
               <p className="text-sm text-muted-foreground mb-2">Gross Removals</p>
-              <p className="text-2xl font-bold text-cyan-600">{data.gross_removals_tco2.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-cyan-600">{Math.round(data.gross_removals_tco2).toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">tCO₂ (after baseline)</p>
             </div>
           </div>
@@ -160,12 +169,30 @@ export function BlueCarbonResultsDisplay({ data, projectArea, projectDuration = 
           <AlertCircle className="w-5 h-5 text-amber-600" />
           Adjustments & Verification Deductions
         </h3>
-        <div className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="border border-red-500/30 bg-red-500/10 rounded-lg p-4">
               <p className="text-sm text-muted-foreground mb-2">Leakage Adjustment</p>
-              <p className="text-xl font-bold text-red-600">-{data.leakage_adjustment_tco2.toLocaleString()}</p>
+              <p className="text-xl font-bold text-red-600">-{Math.round(data.leakage_adjustment_tco2).toLocaleString()}</p>
               <p className="text-xs text-muted-foreground">tCO₂</p>
+            </div>
+
+            <div className="border border-orange-500/30 bg-orange-500/10 rounded-lg p-4">
+              <p className="text-sm text-muted-foreground mb-2">Buffer Pool Deduction</p>
+              <p className="text-xl font-bold text-orange-600">-{Math.round(data.buffer_pool_tco2).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">tCO₂</p>
+            </div>
+
+            <div className="border border-amber-500/30 bg-amber-500/10 rounded-lg p-4">
+              <p className="text-sm text-muted-foreground mb-2">Uncertainty Discount</p>
+              <p className="text-xl font-bold text-amber-600">-{Math.round(data.uncertainty_discount_tco2).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">tCO₂</p>
+            </div>
+
+            <div className="border border-emerald-500/30 bg-emerald-500/10 rounded-lg p-4">
+              <p className="text-sm text-muted-foreground mb-2">Net Verified Credits</p>
+              <p className="text-xl font-bold text-emerald-600">{Math.round(netCredits).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">tCO₂e (final)</p>
             </div>
 
             <div className="border border-orange-500/30 bg-orange-500/10 rounded-lg p-4">
@@ -182,8 +209,8 @@ export function BlueCarbonResultsDisplay({ data, projectArea, projectDuration = 
 
             <div className="border border-emerald-500/30 bg-emerald-500/10 rounded-lg p-4">
               <p className="text-sm text-muted-foreground mb-2">Net Verified Credits</p>
-              <p className="text-xl font-bold text-emerald-600">{netCredits.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">tCO₂e</p>
+              <p className="text-xl font-bold text-emerald-600">{Math.round(netCredits).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">tCO₂e (net)</p>
             </div>
           </div>
 
@@ -193,23 +220,23 @@ export function BlueCarbonResultsDisplay({ data, projectArea, projectDuration = 
               <tbody>
                 <tr className="border-b border-border/30">
                   <td className="py-2 text-muted-foreground">Gross Removals</td>
-                  <td className="py-2 text-right font-medium">{data.gross_removals_tco2.toLocaleString()} tCO₂</td>
+                  <td className="py-2 text-right font-medium">{Math.round(data.gross_removals_tco2).toLocaleString()} tCO₂</td>
                 </tr>
                 <tr className="border-b border-border/30 text-red-600">
-                  <td className="py-2">Leakage ({-((data.leakage_adjustment_tco2 / data.gross_removals_tco2) * 100).toFixed(1)}%)</td>
-                  <td className="py-2 text-right font-medium">-{data.leakage_adjustment_tco2.toLocaleString()}</td>
+                  <td className="py-2">Leakage ({Math.abs(((data.leakage_adjustment_tco2 / data.gross_removals_tco2) * 100)).toFixed(1)}%)</td>
+                  <td className="py-2 text-right font-medium">-{Math.round(data.leakage_adjustment_tco2).toLocaleString()}</td>
                 </tr>
                 <tr className="border-b border-border/30 text-orange-600">
-                  <td className="py-2">Buffer Pool ({-((data.buffer_pool_tco2 / data.gross_removals_tco2) * 100).toFixed(1)}%)</td>
-                  <td className="py-2 text-right font-medium">-{data.buffer_pool_tco2.toLocaleString()}</td>
+                  <td className="py-2">Buffer Pool ({Math.abs(((data.buffer_pool_tco2 / data.gross_removals_tco2) * 100)).toFixed(1)}%)</td>
+                  <td className="py-2 text-right font-medium">-{Math.round(data.buffer_pool_tco2).toLocaleString()}</td>
                 </tr>
                 <tr className="border-b border-border/30 text-amber-600">
-                  <td className="py-2">Uncertainty ({-((data.uncertainty_discount_tco2 / data.gross_removals_tco2) * 100).toFixed(1)}%)</td>
-                  <td className="py-2 text-right font-medium">-{data.uncertainty_discount_tco2.toLocaleString()}</td>
+                  <td className="py-2">Uncertainty ({Math.abs(((data.uncertainty_discount_tco2 / data.gross_removals_tco2) * 100)).toFixed(1)}%)</td>
+                  <td className="py-2 text-right font-medium">-{Math.round(data.uncertainty_discount_tco2).toLocaleString()}</td>
                 </tr>
                 <tr className="bg-emerald-500/10">
                   <td className="py-3 font-bold text-foreground">Final Verified Credits</td>
-                  <td className="py-3 text-right font-bold text-emerald-600 text-lg">{netCredits.toLocaleString()} tCO₂e</td>
+                  <td className="py-3 text-right font-bold text-emerald-600 text-lg">{Math.round(netCredits).toLocaleString()} tCO₂e</td>
                 </tr>
               </tbody>
             </table>
