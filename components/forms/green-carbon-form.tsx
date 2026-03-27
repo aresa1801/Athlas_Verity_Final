@@ -380,6 +380,17 @@ export function GreenCarbonForm() {
             elevation: 500,
             sar_backscatter: 0.3,
           }
+        },
+        // Include polygon coordinates for PDF report - converted to format expected by PDF
+        coordinates: formData.polygonCoordinates ? formData.polygonCoordinates.map((coord: any) => ({
+          latitude: coord.latitude || coord.lat,
+          longitude: coord.longitude || coord.lng,
+          point: coord.point,
+          status: coord.status
+        })) : [],
+        analysisResults: formData.analysisResults,
+        satelliteAnalysisData: formData.satelliteAnalysisData,
+      }
         }
       }
 
@@ -387,11 +398,21 @@ export function GreenCarbonForm() {
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('projectFormData', JSON.stringify(formDataWithSatellite))
         sessionStorage.setItem('verificationData', JSON.stringify(verificationData))
+        // Also store polygon coordinates separately for easier access
+        if (formData.polygonCoordinates && formData.polygonCoordinates.length > 0) {
+          sessionStorage.setItem('polygonCoordinates', JSON.stringify(formData.polygonCoordinates))
+          console.log("[v0] Polygon coordinates stored in session:", {
+            count: formData.polygonCoordinates.length,
+            sample: formData.polygonCoordinates[0]
+          })
+        }
       }
       
       console.log("[v0] Verification data stored in session:", { 
         area: areaHa, 
         ndvi: formData.ndviValue,
+        polygonCoordinates: formData.polygonCoordinates?.length || 0,
+        coordinates: formDataWithSatellite.coordinates,
         formData: formDataWithSatellite 
       })
       
