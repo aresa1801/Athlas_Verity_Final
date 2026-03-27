@@ -9,6 +9,14 @@ export interface ParsedSatelliteData {
   center_coordinates?: string[] // alternate naming for compatibility
   coordinates: string // center coordinates
   
+  // Polygon coordinates - satellite verified asset points
+  polygonCoordinates?: Array<{
+    point: number
+    latitude: number
+    longitude: number
+    status: string
+  }>
+  
   // Vegetation data
   forestType?: string
   ecosystemType?: string
@@ -22,6 +30,23 @@ export interface ParsedSatelliteData {
   ndvi?: number
   biomass?: string
   carbonEstimate?: string
+  
+  // Analysis results
+  analysisResults?: {
+    carbonEstimation?: {
+      agb?: string | number
+      unit?: string
+      confidence?: number
+      totalCarbon?: string | number
+      methodology?: string
+    }
+    vegetationClassification?: {
+      dominantSpecies?: string
+      forestType?: string
+      ndvi?: number
+    }
+    coastalData?: any
+  }
   
   // Blue Carbon specific data
   tidalZone?: string
@@ -269,8 +294,13 @@ function parseAnalysisExportFormat(data: any): ParsedSatelliteData {
   const averageTreeHeight = data.averageTreeHeight || ''
   const vegetationDescription = data.vegetationDescription || ''
   
-  // Extract NDVI from satellite object
-  const ndvi = parseFloat(data.satellite?.ndvi || data.ndvi || '0.68')
+  // Extract NDVI from satellite or analysis results object
+  const ndvi = parseFloat(
+    data.satellite?.ndvi || 
+    data.analysisResults?.vegetationClassification?.ndvi ||
+    data.ndvi || 
+    '0.68'
+  )
   
   const dataSources = [data.satelliteSource || 'Satellite Analysis']
 
@@ -290,6 +320,7 @@ function parseAnalysisExportFormat(data: any): ParsedSatelliteData {
     dominantSpecies,
     ndvi,
     coastalData,
+    polygonCoordinates: Array.isArray(data.polygonCoordinates) ? data.polygonCoordinates.length : 0,
   })
 
   return {
@@ -305,8 +336,8 @@ function parseAnalysisExportFormat(data: any): ParsedSatelliteData {
     averageTreeHeight: String(averageTreeHeight).trim(),
     canopyCover: data.satellite?.cloudCover ? `${100 - data.satellite.cloudCover}%` : '85-95%',
     canopyCoverPercent: data.vegetationClassification?.canopyCoverPercent?.toString() || data.satellite?.canopyCover || '',
-    biomass: formatString(data.satellite?.biomass || data.carbonData?.agb || ''),
-    carbonEstimate: formatString(data.satellite?.carbonEstimate || data.carbonData?.totalCarbonStock || ''),
+    biomass: formatString(data.satellite?.biomass || data.carbonData?.agb || data.analysisResults?.carbonEstimation?.agb || ''),
+    carbonEstimate: formatString(data.satellite?.carbonEstimate || data.carbonData?.totalCarbonStock || data.analysisResults?.carbonEstimation?.totalCarbon || ''),
     ndvi: ndvi,
     // Blue carbon specific fields
     tidalZone: tidalZoneType,
@@ -388,10 +419,49 @@ function parseGeoJSONWithMetadata(
     polygonCount = geojson.features?.length || 1
   }
 
+  // Handle new polygon coordinates format (with point metadata)
+  let formattedPolygonCoordinates: Array<{
+    point: number
+    latitude: number
+    longitude: number
+    status: string
+  }> | undefined = undefined
+  
+  // Check if geojson contains pre-formatted polygon coordinates
+  if (Array.isArray(geojson.polygonCoordinates) && geojson.polygonCoordinates.length > 0) {
+    const firstCoord = geojson.polygonCoordinates[0]
+    if (typeof firstCoord === 'object' && 'point' in firstCoord && 'latitude' in firstCoord) {
+      // Already in the correct format
+      formattedPolygonCoordinates = geojson.polygonCoordinates.map((coord: any) => ({
+        point: coord.point || 1,
+        latitude: typeof coord.latitude === 'string' ? parseFloat(coord.latitude) : coord.latitude,
+        longitude: typeof coord.longitude === 'string' ? parseFloat(coord.longitude) : coord.longitude,
+        status: coord.status || 'Verified'
+      }))
+    } else if (Array.isArray(firstCoord) && firstCoord.length === 2) {
+      // Array format [lat, lng] - convert to object format
+      formattedPolygonCoordinates = polygonCoordinates.map((coord, idx) => ({
+        point: idx + 1,
+        latitude: typeof coord[0] === 'string' ? parseFloat(coord[0]) : coord[0],
+        longitude: typeof coord[1] === 'string' ? parseFloat(coord[1]) : coord[1],
+        status: 'Verified'
+      }))
+    }
+  } else if (polygonCoordinates.length > 0) {
+    // Convert extracted polygon coordinates to object format
+    formattedPolygonCoordinates = polygonCoordinates.map((coord, idx) => ({
+      point: idx + 1,
+      latitude: typeof coord[0] === 'string' ? parseFloat(coord[0]) : coord[0],
+      longitude: typeof coord[1] === 'string' ? parseFloat(coord[1]) : coord[1],
+      status: 'Verified'
+    }))
+  }
+
   const result: ParsedSatelliteData = {
     area: `${area.toFixed(2)} ha`,
     areaHa: area, // Add numeric area for calculations
     coordinates,
+    ...(formattedPolygonCoordinates && { polygonCoordinates: formattedPolygonCoordinates }),
     forestType: formatString(forestType),
     dominantSpecies: formatString(dominantSpecies),
     vegetationDescription: formatString(vegetationDescription),
@@ -408,6 +478,7 @@ function parseGeoJSONWithMetadata(
 
   console.log("[v0] Parsed satellite data:", result)
   console.log("[v0] Polygon coordinates extracted:", polygonCoordinates.length, "points")
+  console.log("[v0] Polygon coordinates formatted:", formattedPolygonCoordinates?.length, "points with metadata")
   console.log("[v0] Dominant Species:", dominantSpecies, "Tree Height:", averageTreeHeight)
   return result
 }

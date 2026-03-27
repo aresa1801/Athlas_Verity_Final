@@ -34,6 +34,16 @@ interface GreenCarbonFormData {
   vegetationClassification?: string
   vegetationDescription?: string
   ndviValue?: number
+  
+  // Satellite data - polygon coordinates and analysis results
+  polygonCoordinates?: Array<{
+    point: number
+    latitude: number
+    longitude: number
+    status: string
+  }>
+  analysisResults?: any
+  satelliteAnalysisData?: any
 
   // Section D (formerly E)
   deforestationRiskLevel: string
@@ -290,16 +300,22 @@ export function GreenCarbonForm() {
           vegetationClassification: vegClassification,
           vegetationDescription: finalDescription,
           ndviValue: parseFloat(ndviValue),
+          // Store polygon coordinates and analysis results from parsed data
+          ...(parsedData.polygonCoordinates && { polygonCoordinates: parsedData.polygonCoordinates }),
+          ...(parsedData.analysisResults && { analysisResults: parsedData.analysisResults }),
+          ...(parsedData.rawGeoJSON && { satelliteAnalysisData: parsedData.rawGeoJSON }),
         }
         
         console.log("[v0] About to update form with data:", updatedData)
+        console.log("[v0] Polygon coordinates count:", parsedData.polygonCoordinates?.length || 0)
+        console.log("[v0] Analysis results included:", !!parsedData.analysisResults)
         
         setFormData((prev) => ({
           ...prev,
           ...updatedData
         }))
         
-        console.log("[v0] Form updated - All fields should now be populated")
+        console.log("[v0] Form updated - All fields and satellite data should now be populated")
       } catch (error) {
         console.error("[v0] Error parsing satellite data:", error)
         alert(`Error reading satellite data: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -380,18 +396,27 @@ export function GreenCarbonForm() {
             elevation: 500,
             sar_backscatter: 0.3,
           }
-        }
+        },
+        // Include polygon coordinates for PDF report
+        coordinates: formData.polygonCoordinates || [],
+        analysisResults: formData.analysisResults,
+        satelliteAnalysisData: formData.satelliteAnalysisData,
       }
 
       // Store verification data in session for results page
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('projectFormData', JSON.stringify(formDataWithSatellite))
         sessionStorage.setItem('verificationData', JSON.stringify(verificationData))
+        // Also store polygon coordinates separately for easier access
+        if (formData.polygonCoordinates && formData.polygonCoordinates.length > 0) {
+          sessionStorage.setItem('polygonCoordinates', JSON.stringify(formData.polygonCoordinates))
+        }
       }
       
       console.log("[v0] Verification data stored in session:", { 
         area: areaHa, 
         ndvi: formData.ndviValue,
+        polygonCoordinates: formData.polygonCoordinates?.length || 0,
         formData: formDataWithSatellite 
       })
       
