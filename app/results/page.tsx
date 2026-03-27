@@ -338,6 +338,7 @@ export default function ResultsPage() {
     } else if (projectType === "blue-carbon") {
       // Fallback for blue carbon demo when no sessionStorage data exists
       console.log("[v0] No sessionStorage data but blue-carbon type requested, creating demo data")
+      console.log("[v0] Blue Carbon Demo Mode: ACTIVATED")
       
       setIsBlueCarbonProject(true)
       
@@ -407,7 +408,6 @@ export default function ResultsPage() {
       })
       
       console.log("[v0] Demo blue carbon data loaded:", demoBlueCarbonResult)
-    }
     }
   }, [])
 
@@ -697,12 +697,12 @@ export default function ResultsPage() {
     }
 
     // Detect if this is a blue carbon project
-    const isBlueCarbonProject = projectData.tidalZoneType || projectData.ecosystemType?.toLowerCase().includes('mangrove') || projectData.ecosystemType?.toLowerCase().includes('seagrass') || projectData.salinityType
-    
-    // Use blue colors for blue carbon, green for others
-    const primaryColor = isBlueCarbonProject ? "#0EA5E9" : "#3DD68C"
-    const primaryColorRgba = isBlueCarbonProject ? "14, 165, 233" : "61, 214, 140"
-    const primaryTextColor = isBlueCarbonProject ? "text-cyan-900 dark:text-cyan-400" : "text-emerald-900 dark:text-emerald-400"
+  // Only recalculate if we have projectData (for PDF styling purposes)
+  const detectedBlueCarbonProject = projectData && (projectData.tidalZoneType || projectData.ecosystemType?.toLowerCase().includes('mangrove') || projectData.ecosystemType?.toLowerCase().includes('seagrass') || projectData.salinityType)
+  
+  const primaryColor = isBlueCarbonProject || detectedBlueCarbonProject ? "#0EA5E9" : "#3DD68C"
+  const primaryColorRgba = isBlueCarbonProject || detectedBlueCarbonProject ? "14, 165, 233" : "61, 214, 140"
+  const primaryTextColor = isBlueCarbonProject || detectedBlueCarbonProject ? "text-cyan-900 dark:text-cyan-400" : "text-emerald-900 dark:text-emerald-400"
 
     const carbonOffsetTypes: Record<string, string> = {
       reforestation: "Reforestation",

@@ -324,7 +324,6 @@ export function BlueCarbonResultsDisplay({ data, projectArea, projectDuration = 
               </tbody>
             </table>
           </div>
-        </div>
       </Card>
 
       {/* Co-benefits */}
