@@ -41,8 +41,18 @@ interface ResultsData extends FormData {
     biomass_agb_mean?: number
     co2_tCO2?: number
     carbon_tC?: number
+    rawGeoJSON?: any
   }
   calculatedAreaHa?: number
+  // Blue carbon specific properties
+  ecosystemType?: string
+  tidalZoneType?: string
+  salinityType?: string
+  waterDepth?: string
+  sedimentDepthEstimate?: string
+  deforestationRiskLevel?: string
+  country?: string
+  baselineYear?: string
 }
 
 export default function ResultsPage() {
@@ -85,6 +95,11 @@ export default function ResultsPage() {
 
   useEffect(() => {
     const data = sessionStorage.getItem("projectFormData")
+    
+    // Get query parameters
+    const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "")
+    const projectType = params.get("type")
+    
     if (data) {
       const parsedData = JSON.parse(data) as ResultsData
       
@@ -133,7 +148,6 @@ export default function ResultsPage() {
         sample: parsedData.coordinates?.[0],
         allCoordinates: parsedData.coordinates
       })
-      }
       
       setProjectData(parsedData)
 
@@ -321,6 +335,78 @@ export default function ResultsPage() {
           console.error("[v0] Error generating polygon map:", error)
         }
       }
+    } else if (projectType === "blue-carbon") {
+      // Fallback for blue carbon demo when no sessionStorage data exists
+      console.log("[v0] No sessionStorage data but blue-carbon type requested, creating demo data")
+      
+      setIsBlueCarbonProject(true)
+      
+      // Create demo blue carbon project data
+      const demoBlueCarbonData: ResultsData = {
+        projectName: "Demo Blue Carbon Project - Mangrove Restoration",
+        projectDescription: "Coastal mangrove restoration and conservation project",
+        ownerName: "Demo User",
+        ownerEmail: "demo@example.com",
+        ownerPhone: "+1-555-0000",
+        carbonOffsetType: "blue-carbon",
+        coordinates: [
+          { latitude: "-6.9", longitude: "110.4" },
+          { latitude: "-6.95", longitude: "110.4" },
+          { latitude: "-6.95", longitude: "110.45" },
+          { latitude: "-6.9", longitude: "110.45" },
+        ],
+        ecosystemType: "mangrove",
+        tidalZoneType: "intertidal",
+        salinityType: "marine",
+      }
+      
+      setProjectData(demoBlueCarbonData)
+      
+      // Set demo satellite data with blue carbon project characteristics
+      const demoBlueCarbonInputs: BlueCarbonInputs = {
+        area_ha: 50,
+        ecosystem_type: "mangrove",
+        country: "Indonesia",
+        baseline_year: 2020,
+        tidal_zone_type: "intertidal",
+        salinity_type: "marine",
+        water_depth_m: 2.5,
+        sediment_depth_cm: 100,
+        agb_t_ha: 85, // Typical mangrove AGB
+        bgb_ratio: 0.45,
+        dead_wood_t_ha: 6.8,
+        litter_t_ha: 2.55,
+        soc_t_ha: 297.5, // High soil carbon for mangroves
+        soc_depth_m: 1.0,
+        bulk_density_g_cm3: 0.8,
+        organic_matter_percent: 8,
+        baseline_emission_t_co2_ha_year: 1.5,
+        degradation_rate_percent: 0,
+        duration_years: 10,
+        leakage_percent: 5,
+        buffer_pool_percent: 20,
+        integrity_class: "IC-A",
+        uncertainty_discount: 5,
+      }
+      
+      // Calculate blue carbon result
+      const demoBlueCarbonResult = calculateBlueCarbonCredits(demoBlueCarbonInputs)
+      setBlueCarbonResult(demoBlueCarbonResult)
+      
+      // Update carbon inputs for display
+      setCarbonInputs({
+        agb_per_ha: 85,
+        carbon_fraction: 0.47,
+        area_ha: 50,
+        baseline_emission: 1.8,
+        duration_years: 10,
+        leakage: 5,
+        buffer_pool: 20,
+        integrity_class: "IC-A",
+        validator_consensus: 0.93,
+      })
+      
+      console.log("[v0] Demo blue carbon data loaded:", demoBlueCarbonResult)
     }
   }, [])
 
@@ -1645,9 +1731,23 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
           Upload Another Dataset
         </Link>
 
-        <h2 className="text-4xl font-bold mb-2">Validation Complete</h2>
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-4xl font-bold">Validation Complete</h2>
+          {isBlueCarbonProject && !projectData?.projectName?.includes("Demo") && (
+            <span className="inline-block px-3 py-1 bg-cyan-500/20 text-cyan-600 text-sm font-medium rounded-full border border-cyan-500/30">
+              Blue Carbon
+            </span>
+          )}
+          {isBlueCarbonProject && projectData?.projectName?.includes("Demo") && (
+            <span className="inline-block px-3 py-1 bg-amber-500/20 text-amber-600 text-sm font-medium rounded-full border border-amber-500/30">
+              Demo Data
+            </span>
+          )}
+        </div>
         <p className="text-muted-foreground mb-8">
-          Your ecological dataset has been processed by the Athlas Verity AI System validators
+          {isBlueCarbonProject && projectData?.projectName?.includes("Demo")
+            ? "This is a demonstration of blue carbon verification results"
+            : "Your ecological dataset has been processed by the Athlas Verity AI System validators"}
         </p>
 
         {/* Desktop Layout: 3-column grid */}
