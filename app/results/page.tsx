@@ -18,6 +18,7 @@ import html2canvas from "html2canvas"
 import { jsPDF } from "jspdf"
 import Image from "next/image"
 import { estimateAGB, type AGBEstimationResult } from "@/lib/agb-estimation-engine"
+import { BlueCarbonResultsDisplay } from "@/components/verification/blue-carbon-results-display"
 
 interface FormData {
   projectName: string
@@ -171,9 +172,21 @@ export default function ResultsPage() {
         sarBackscatter: parsedData.satelliteData?.features?.sar_backscatter || 0.3,
       }
 
-      // Run AGB estimation pipeline
-      const agbResult = estimateAGB(satelliteFeatures, area, "tropical_forest")
+      // Determine ecosystem type for AGB estimation
+      let agbEcosystemType = "tropical_forest"
+      const ecosystemTypeStr = parsedData.ecosystemType?.toLowerCase() || ""
+      if (ecosystemTypeStr.includes("mangrove")) {
+        agbEcosystemType = "mangrove"
+      } else if (ecosystemTypeStr.includes("seagrass")) {
+        agbEcosystemType = "seagrass"
+      } else if (ecosystemTypeStr.includes("marsh")) {
+        agbEcosystemType = "salt_marsh"
+      }
+
+      // Run AGB estimation pipeline with appropriate ecosystem type
+      const agbResult = estimateAGB(satelliteFeatures, area, agbEcosystemType)
       setAgbEstimation(agbResult)
+      console.log("[v0] AGB estimation for ecosystem type:", agbEcosystemType, "- Result:", agbResult.agb_tpha_final, "t/ha")
 
       // Use actual AGB from satellite data if available, otherwise use estimation
       const finalAGB = biomassAgb > 0 ? biomassAgb : agbResult.agb_tpha_final
@@ -1662,6 +1675,17 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
         <div className="mb-8">
           <CarbonAccountingTable calculation={carbonCalculation} />
         </div>
+
+        {/* Blue Carbon Results Display */}
+        {isBlueCarbonProject && blueCarbonResult && (
+          <div className="mb-8">
+            <BlueCarbonResultsDisplay 
+              data={blueCarbonResult}
+              projectArea={carbonInputs.area_ha}
+              projectDuration={carbonInputs.duration_years}
+            />
+          </div>
+        )}
 
         {/* Export & Proof-Chain Section */}
         <Card className="bg-card border-border p-6">

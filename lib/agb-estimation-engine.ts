@@ -126,12 +126,15 @@ function crossCheckIPCC(
   penalty?: number
 } {
   // IPCC regional defaults (t/ha) - conservative estimates
+  // Blue carbon ecosystems typically have lower AGB but higher BGB/SOC
   const ipccDefaults: Record<string, { min: number; max: number }> = {
     tropical_forest: { min: 80, max: 200 },
     subtropical_forest: { min: 60, max: 150 },
     temperate_forest: { min: 40, max: 120 },
     boreal_forest: { min: 20, max: 80 },
-    mangrove: { min: 50, max: 180 },
+    mangrove: { min: 50, max: 180 }, // High below-ground carbon in soils
+    seagrass: { min: 10, max: 50 },  // Low AGB, high BGB/SOC
+    salt_marsh: { min: 15, max: 80 }, // Moderate AGB, high soil carbon
   }
 
   const range = ipccDefaults[ecosystem_type] || ipccDefaults.tropical_forest
@@ -181,12 +184,15 @@ function applyConservativeCap(
   }
 
   // Ecosystem-specific maximum caps
+  // Blue carbon ecosystems have lower AGB but critical soil carbon
   const ecosystemCaps: Record<string, number> = {
     tropical_forest: 220,
     subtropical_forest: 160,
     temperate_forest: 130,
     boreal_forest: 90,
     mangrove: 170,
+    seagrass: 45,  // Low AGB, primarily underwater productivity
+    salt_marsh: 75, // Moderate AGB with rhizomes
   }
 
   const cap = ecosystemCaps[ecosystem_type] || 200

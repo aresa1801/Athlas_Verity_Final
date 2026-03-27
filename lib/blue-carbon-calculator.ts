@@ -115,9 +115,11 @@ export function calculateBlueCarbonCredits(inputs: BlueCarbonInputs): BlueCarbon
   console.log(`[v0] AGB: ${agb_t_ha}t/ha × ${coeffs.carbon_fraction} = ${agb_tc_ha.toFixed(2)} tC/ha`)
 
   // BGB - Below Ground Biomass (roots, etc.)
-  const bgb_t_ha = inputs.bgb_ratio > 0 ? inputs.bgb_ratio * agb_t_ha : coeffs.bgb_agb_ratio * agb_t_ha
+  // Using ecosystem-specific allometric relationships from IPCC AR6
+  const bgb_ratio = inputs.bgb_ratio > 0 ? inputs.bgb_ratio : coeffs.bgb_agb_ratio
+  const bgb_t_ha = bgb_ratio * agb_t_ha
   const bgb_tc_ha = bgb_t_ha * coeffs.carbon_fraction
-  console.log(`[v0] BGB: ${bgb_t_ha.toFixed(2)}t/ha × ${coeffs.carbon_fraction} = ${bgb_tc_ha.toFixed(2)} tC/ha`)
+  console.log(`[v0] BGB Ratio (${inputs.ecosystem_type}): ${bgb_ratio} | BGB: ${bgb_t_ha.toFixed(2)}t/ha × ${coeffs.carbon_fraction} = ${bgb_tc_ha.toFixed(2)} tC/ha`)
 
   // Dead Wood & Litter
   const dead_wood_t_ha = inputs.dead_wood_t_ha || agb_t_ha * coeffs.dead_wood_coefficient
@@ -129,14 +131,17 @@ export function calculateBlueCarbonCredits(inputs: BlueCarbonInputs): BlueCarbon
   console.log(`[v0] Litter: ${litter_t_ha.toFixed(2)}t/ha × ${coeffs.carbon_fraction} = ${litter_tc_ha.toFixed(2)} tC/ha`)
 
   // SOC - Soil Organic Carbon (the most critical for blue carbon)
-  // Can be provided directly or calculated from bulk density and organic matter
+  // IPCC AR6 Tier 2 methodology: SOC calculated from bulk density and organic matter
+  // SOC (t/ha) = bulk_density (g/cm³) × depth (cm) × organic_matter_fraction × conversion_factor
   let soc_tc_ha = inputs.soc_t_ha
   if (soc_tc_ha === 0 && inputs.bulk_density_g_cm3 > 0 && inputs.organic_matter_percent > 0) {
-    // Calculate SOC from bulk density and organic matter percentage
-    // SOC (t/ha) = bulk_density (g/cm³) × soil_depth (cm) × organic_matter (%) × 10
-    soc_tc_ha = (inputs.bulk_density_g_cm3 * inputs.sediment_depth_cm * (inputs.organic_matter_percent / 100) * 10) / 100
+    // IPCC standard: 1 cm depth with density g/cm³ gives 10 tonnes/ha per cm
+    soc_tc_ha = inputs.bulk_density_g_cm3 * inputs.sediment_depth_cm * (inputs.organic_matter_percent / 100) * 10
+  } else if (soc_tc_ha === 0) {
+    // Default SOC if neither provided (based on ecosystem type)
+    soc_tc_ha = coeffs.soc_factor * agb_t_ha
   }
-  console.log(`[v0] SOC (${inputs.soc_depth_m}m): ${soc_tc_ha.toFixed(2)} tC/ha`)
+  console.log(`[v0] SOC (${inputs.soc_depth_m}m depth): ${soc_tc_ha.toFixed(2)} tC/ha | Calculation: BD=${inputs.bulk_density_g_cm3} × Depth=${inputs.sediment_depth_cm}cm × OM=${inputs.organic_matter_percent}%`)
 
   // ===== STEP 2: Calculate total carbon stock per hectare =====
   const total_biomass_tc_ha = agb_tc_ha + bgb_tc_ha + dead_wood_tc_ha + litter_tc_ha
