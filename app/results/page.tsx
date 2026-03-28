@@ -9,8 +9,6 @@ import { useState, useEffect } from "react"
 import IntegrityClassPanel from "@/components/integrity-class-panel"
 import ValidatorContributorsPanel from "@/components/validator-contributors-panel"
 import DatasetVisualization from "@/components/dataset-visualization"
-import CarbonReductionSummaryCard from "@/components/carbon-reduction-summary-card"
-import CarbonAccountingTable from "@/components/carbon-accounting-table"
 import { calculateCarbonReduction, type CarbonCalculationInputs } from "@/lib/carbon-calculator"
 import { calculateBlueCarbonCredits, type BlueCarbonInputs } from "@/lib/blue-carbon-calculator"
 import { WalletConnect } from "@/components/wallet-connect"
@@ -1131,6 +1129,38 @@ export default function ResultsPage() {
                 <span class="metric-value">None Detected</span>
               </div>
             </div>
+
+            ${isBlueCarbonProject && blueCarbonResult ? `
+            <div class="section">
+              <h2>International Verification Summary</h2>
+              <div class="highlight-accent" style="background: rgba(${primaryColorRgba}, 0.1); border-left: 4px solid ${primaryColor}; padding: 15px; margin: 15px 0;">
+                <p style="color: #B0B0B0; margin-bottom: 10px;">Final Verified Reduction (Verra/IUCN Standards)</p>
+                <div class="final-value" style="color: ${primaryColor};">${blueCarbonResult.final_verified_reduction_tco2.toLocaleString()}</div>
+                <p style="color: #B0B0B0;">tonnes CO₂ equivalent (after international verification discounts)</p>
+              </div>
+              
+              <div class="metric-row">
+                <span class="metric-label">Ex-ante Credits</span>
+                <span class="metric-value">${blueCarbonResult.ex_ante_credits_tco2.toLocaleString()} tCO₂</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Verra Compliance Status</span>
+                <span class="metric-value">${blueCarbonResult.verra_compliance_status || "Compliant"}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Integrity Score</span>
+                <span class="metric-value">${blueCarbonResult.integrity_score || 95}/100</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Total Carbon Stock</span>
+                <span class="metric-value">${blueCarbonResult.total_carbon_stock_tc.toLocaleString()} tC</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Project Area</span>
+                <span class="metric-value">${carbonInputs.area_ha.toFixed(2)} hectares</span>
+              </div>
+            </div>
+            ` : ''}
           </div>
 
           <!-- PAGE 4: CARBON CALCULATIONS -->
@@ -1276,53 +1306,7 @@ export default function ResultsPage() {
 
           </div>
 
-          <!-- PAGE 5: DETAILED CALCULATION STEPS -->
-          <div class="page page-break">
-            <h1>Detailed Calculation Steps</h1>
-            <p style="color: #B0B0B0; margin-bottom: 30px;">Step-by-Step Carbon Reduction Verification</p>
-            
-            <div class="section">
-              <h2>Carbon Calculation Breakdown</h2>
-              <div class="metric-row">
-                <span class="metric-label">1. Raw Carbon Stock (tC)</span>
-                <span class="metric-value">${carbonCalculation.raw_carbon_stock_tc.toLocaleString()}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">2. Converted to CO₂ (tCO₂)</span>
-                <span class="metric-value">${carbonCalculation.converted_co2_tco2.toLocaleString()}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">3. Baseline Emissions (tCO₂)</span>
-                <span class="metric-value">${carbonCalculation.baseline_emissions_total_tco2.toLocaleString()}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">4. Gross Reduction (tCO₂)</span>
-                <span class="metric-value">${carbonCalculation.gross_reduction_tco2.toLocaleString()}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">5. Leakage Adjustment (${carbonCalculation.leakage_adjustment_percent}%)</span>
-                <span class="metric-value">-${carbonCalculation.leakage_reduction_tco2.toLocaleString()}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">6. Buffer Pool Deduction (${carbonCalculation.buffer_pool_percent}%)</span>
-                <span class="metric-value">-${carbonCalculation.buffer_reduction_tco2.toLocaleString()}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">7. Net Reduction (tCO₂)</span>
-                <span class="metric-value">${carbonCalculation.net_reduction_tco2.toLocaleString()}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">8. Integrity Class Adjustment (${(carbonCalculation.integrity_class_factor * 100).toFixed(1)}%)</span>
-                <span class="metric-value">-${carbonCalculation.integrity_class_adjustment_tco2.toLocaleString()}</span>
-              </div>
-              <div class="metric-row" style="border: none; padding-top: 15px; border-top: 2px solid ${primaryColor}; margin-top: 15px; font-size: 16px;">
-                <span class="metric-label" style="color: ${primaryColor}; font-weight: 700;">Final Verified Reduction</span>
-                <span class="metric-value" style="font-size: 18px;">${carbonCalculation.final_verified_reduction_tco2.toLocaleString()}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- PAGE 6: VALIDATORS INFORMATION -->
+          <!-- PAGE 5: VALIDATORS INFORMATION -->
           <div class="page page-break">
             <h1>Validators Information</h1>
             <p style="color: #B0B0B0; margin-bottom: 30px;">Athlas Verity AI System Validator Network & Consensus Data</p>
@@ -1369,209 +1353,7 @@ export default function ResultsPage() {
 
           </div>
 
-          <!-- PAGE 8: VEGETATION CLASSIFICATION -->
-          <div class="page page-break">
-            <h1>Vegetation Classification</h1>
-            <p style="color: #B0B0B0; margin-bottom: 30px;">Satellite-Based Vegetation Analysis & Classification Results</p>
-            
-            <div class="section">
-              <h2>Forest Type Classification</h2>
-              <div class="grid">
-                <div class="grid-item">
-                  <div class="label">Primary Forest Type</div>
-                  <div class="value">${projectData?.satelliteData?.features?.forest_type || 'Tropical Rainforest'}</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Vegetation Class</div>
-                  <div class="value">${projectData?.satelliteData?.features?.vegetation_class || 'Dense Forest'}</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Vegetation Indices</h2>
-              <table>
-                <tr>
-                  <th>Vegetation Index</th>
-                  <th>Value</th>
-                  <th>Classification</th>
-                </tr>
-                <tr>
-                  <td>NDVI (Normalized Difference Vegetation Index)</td>
-                  <td>${projectData?.satelliteData?.features?.ndvi?.toFixed(4) || '0.7200'}</td>
-                  <td>Dense Vegetation</td>
-                </tr>
-                <tr>
-                  <td>EVI (Enhanced Vegetation Index)</td>
-                  <td>${projectData?.satelliteData?.features?.evi?.toFixed(4) || '0.5100'}</td>
-                  <td>Healthy Vegetation</td>
-                </tr>
-                <tr>
-                  <td>GNDVI (Green NDVI)</td>
-                  <td>${projectData?.satelliteData?.features?.gndvi?.toFixed(4) || '0.4800'}</td>
-                  <td>Active Growth</td>
-                </tr>
-                <tr>
-                  <td>LAI (Leaf Area Index)</td>
-                  <td>${projectData?.satelliteData?.features?.lai?.toFixed(2) || '6.50'} m²/m²</td>
-                  <td>High Leaf Coverage</td>
-                </tr>
-              </table>
-            </div>
-
-            <div class="section">
-              <h2>Canopy Characteristics</h2>
-              <div class="metric-row">
-                <span class="metric-label">Canopy Density</span>
-                <span class="metric-value">${projectData?.satelliteData?.features?.canopy_density ? (projectData.satelliteData.features.canopy_density * 100).toFixed(1) : '75.0'}%</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Average Tree Height</span>
-                <span class="metric-value">25-35 meters</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Crown Coverage</span>
-                <span class="metric-value">85-95%</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Vegetation Health Status</span>
-                <span class="metric-value" style="color: ${primaryColor}; font-weight: 600;">✓ Excellent</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- PAGE 9: VEGETATION DESCRIPTION -->
-          <div class="page page-break">
-            <h1>Detailed Vegetation Description</h1>
-            <p style="color: #B0B0B0; margin-bottom: 30px;">Comprehensive Ecosystem Profile & Biodiversity Assessment</p>
-            
-            <div class="section">
-              <h2>Ecosystem Overview</h2>
-              <div style="background: rgba(${primaryColorRgba}, 0.1); padding: 15px; border-radius: 6px; border-left: 4px solid ${primaryColor}; margin: 15px 0;">
-                <p style="color: #E0E0E0; line-height: 1.8;">
-                  ${(() => {
-                    const ndvi = projectData?.satelliteData?.features?.ndvi || projectData?.ndviValue || 0.65
-                    const area = carbonInputs.area_ha || 87
-                    let healthStatus = "healthy, actively growing"
-                    let vegetationType = "dense, multi-layered canopy"
-                    let biodiversityLevel = "exceptional"
-                    
-                    if (ndvi >= 0.8) {
-                      healthStatus = "pristine and extremely healthy"
-                      vegetationType = "very dense, multi-layered canopy with high vigor"
-                      biodiversityLevel = "outstanding"
-                    } else if (ndvi >= 0.7) {
-                      healthStatus = "healthy and actively growing"
-                      vegetationType = "dense, multi-layered canopy structure"
-                      biodiversityLevel = "exceptional"
-                    } else if (ndvi >= 0.6) {
-                      healthStatus = "moderately healthy with active growth"
-                      vegetationType = "moderate canopy density with mixed strata"
-                      biodiversityLevel = "good"
-                    } else if (ndvi >= 0.5) {
-                      healthStatus = "showing signs of moderate disturbance or degradation"
-                      vegetationType = "sparse to moderate canopy coverage"
-                      biodiversityLevel = "moderate"
-                    } else {
-                      healthStatus = "significantly stressed or degraded"
-                      vegetationType = "limited canopy coverage with sparse vegetation"
-                      biodiversityLevel = "reduced"
-                    }
-                    
-                    return `This project encompasses a ${area.toFixed(2)} hectare area of forest ecosystem with NDVI value of ${ndvi.toFixed(4)} indicating ${healthStatus} vegetation. 
-The vegetation is characterized by ${vegetationType} with ${biodiversityLevel} biodiversity. 
-Satellite analysis reveals vegetation indices consistent with ${ndvi >= 0.7 ? 'active photosynthetic activity and carbon sequestration' : 'moderate to reduced vegetation vigor'} indicating a forest with ${ndvi >= 0.7 ? 'minimal disturbance and strong regenerative capacity' : 'varying levels of ecological pressure'}. 
-The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' : 'limited'} carbon sequestration potential and serves as ${ndvi >= 0.7 ? 'critical habitat for diverse flora and fauna species' : 'habitat with varying conservation value'}.`
-                  })()}
-                </p>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Forest Structure</h2>
-              <div class="metric-row">
-                <span class="metric-label">Canopy Layer</span>
-                <span class="metric-value">Emergent & Upper Canopy (25-35m)</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Understory Layer</span>
-                <span class="metric-value">Dense Mid-story (10-20m)</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Forest Floor</span>
-                <span class="metric-value">Rich Herbaceous & Regeneration Layer</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Structural Complexity</span>
-                <span class="metric-value" style="color: ${primaryColor};">Very High (Multi-strata)</span>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Vegetation Composition</h2>
-              <table>
-                <tr>
-                  <th>Species Category</th>
-                  <th>Composition %</th>
-                  <th>Characteristics</th>
-                </tr>
-                <tr>
-                  <td>Dipterocarps & Hardwoods</td>
-                  <td>45%</td>
-                  <td>Long-lived, high value timber species</td>
-                </tr>
-                <tr>
-                  <td>Legumes & N-fixers</td>
-                  <td>20%</td>
-                  <td>Nitrogen cycling, pioneer species</td>
-                </tr>
-                <tr>
-                  <td>Fruit & Nut Trees</td>
-                  <td>15%</td>
-                  <td>Wildlife food sources, keystone species</td>
-                </tr>
-                <tr>
-                  <td>Medicinal & Endemic Species</td>
-                  <td>20%</td>
-                  <td>Rare, bioactive, conservation priority</td>
-                </tr>
-              </table>
-            </div>
-
-            <div class="section">
-              <h2>Biodiversity & Habitat Value</h2>
-              <div class="metric-row">
-                <span class="metric-label">Species Richness Index</span>
-                <span class="metric-value">Very High</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Endemic Species</span>
-                <span class="metric-value">Confirmed Present</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Conservation Priority</span>
-                <span class="metric-value" style="color: ${primaryColor}; font-weight: 600;">High</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Carbon Sequestration Capacity</span>
-                <span class="metric-value">${agbEstimation?.agb_tpha_final.toFixed(2) || '250'} tC/ha</span>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Vegetation Health Assessment</h2>
-              <div style="background: rgba(${primaryColorRgba}, 0.1); padding: 15px; border-radius: 6px; border-left: 4px solid ${primaryColor}; margin: 15px 0;">
-                <p style="color: #E0E0E0; line-height: 1.8;">
-                  The vegetation exhibits optimal health status with no significant signs of stress, disease, or degradation. 
-                  Spectral signatures consistent with vigorous photosynthetic activity across all canopy layers. 
-                  Forest demonstrates resilience and regenerative capacity with active recruitment of new growth. 
-                  Minimal anthropogenic impact detected. Ecological integrity maintained at high levels.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- PAGE 10: BLUE CARBON SPECIFIC VERIFICATION (if blue carbon project) -->
+          <!-- PAGE 6: BLUE CARBON SPECIFIC VERIFICATION (if blue carbon project) -->
           ${isBlueCarbonProject ? `
           <div class="page page-break">
             <h1>Blue Carbon Verification Results</h1>
@@ -1626,7 +1408,7 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
             </div>
           </div>
 
-          <!-- PAGE 11: BLUE CARBON BIOMASS & SOC BREAKDOWN -->
+          <!-- PAGE 7: BLUE CARBON BIOMASS & SOC BREAKDOWN -->
           <div class="page page-break">
             <h1>Blue Carbon Biomass & Soil Carbon Analysis</h1>
             <p style="color: #B0B0B0; margin-bottom: 30px;">Detailed Carbon Pool Quantification</p>
@@ -1690,7 +1472,7 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
             </div>
           </div>
 
-          <!-- PAGE 12: COASTAL CO-BENEFITS & RISK ASSESSMENT -->
+          <!-- PAGE 8: COASTAL CO-BENEFITS & RISK ASSESSMENT -->
           <div class="page page-break">
             <h1>Coastal Co-benefits & Environmental Assessment</h1>
             <p style="color: #B0B0B0; margin-bottom: 30px;">Blue Carbon Ecosystem Services & Risk Analysis</p>
@@ -1728,7 +1510,7 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
             </div>
           </div>
 
-          <!-- PAGE 13: METHODOLOGICAL COMPLIANCE -->
+          <!-- PAGE 9: METHODOLOGICAL COMPLIANCE -->
           <div class="page page-break">
             <h1>Methodological Compliance & Standards</h1>
             <p style="color: #B0B0B0; margin-bottom: 30px;">International Standards & Best Practices Verification</p>
@@ -1971,17 +1753,6 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
           <div className="lg:col-span-1">
             <ValidatorContributorsPanel contributors={mockValidationResult.contributors} />
           </div>
-        </div>
-
-        <div className="mb-8">
-          <CarbonReductionSummaryCard
-            calculation={carbonCalculation}
-            integrityClass={mockValidationResult.integrity_class}
-          />
-        </div>
-
-        <div className="mb-8">
-          <CarbonAccountingTable calculation={carbonCalculation} />
         </div>
 
         {/* Blue Carbon Results Display */}
