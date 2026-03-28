@@ -94,12 +94,7 @@ CREATE TABLE IF NOT EXISTS public.verification_images (
   image_url TEXT NOT NULL,
   storage_path TEXT NOT NULL,
   image_type TEXT,
-  uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  
-  -- Add foreign key constraints based on verification_type
-  CONSTRAINT fk_green_carbon FOREIGN KEY (verification_id)
-    REFERENCES public.green_carbon_verifications(id) ON DELETE CASCADE
-    MATCH SIMPLE
+  uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create indexes for verification_type to properly route foreign keys
@@ -120,11 +115,7 @@ CREATE TABLE IF NOT EXISTS public.admin_review_history (
   admin_id UUID NOT NULL REFERENCES public.users(id) ON DELETE SET NULL,
   action TEXT NOT NULL,
   comments TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  
-  CONSTRAINT fk_admin_review_green FOREIGN KEY (verification_id)
-    REFERENCES public.green_carbon_verifications(id) ON DELETE CASCADE
-    MATCH SIMPLE
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_admin_review_history_verification ON public.admin_review_history(verification_id);
@@ -153,11 +144,7 @@ CREATE TABLE IF NOT EXISTS public.verified_catalog (
   -- Metadata
   published_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   approved_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
-  approved_at TIMESTAMP WITH TIME ZONE,
-  
-  CONSTRAINT fk_catalog_green FOREIGN KEY (verification_id)
-    REFERENCES public.green_carbon_verifications(id) ON DELETE CASCADE
-    MATCH SIMPLE
+  approved_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX idx_verified_catalog_user ON public.verified_catalog(user_id);
