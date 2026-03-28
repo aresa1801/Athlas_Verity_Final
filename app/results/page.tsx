@@ -9,8 +9,6 @@ import { useState, useEffect } from "react"
 import IntegrityClassPanel from "@/components/integrity-class-panel"
 import ValidatorContributorsPanel from "@/components/validator-contributors-panel"
 import DatasetVisualization from "@/components/dataset-visualization"
-import CarbonReductionSummaryCard from "@/components/carbon-reduction-summary-card"
-import CarbonAccountingTable from "@/components/carbon-accounting-table"
 import { calculateCarbonReduction, type CarbonCalculationInputs } from "@/lib/carbon-calculator"
 import { calculateBlueCarbonCredits, type BlueCarbonInputs } from "@/lib/blue-carbon-calculator"
 import { WalletConnect } from "@/components/wallet-connect"
@@ -1131,6 +1129,38 @@ export default function ResultsPage() {
                 <span class="metric-value">None Detected</span>
               </div>
             </div>
+
+            ${isBlueCarbonProject && blueCarbonResult ? `
+            <div class="section">
+              <h2>International Verification Summary</h2>
+              <div class="highlight-accent" style="background: rgba(${primaryColorRgba}, 0.1); border-left: 4px solid ${primaryColor}; padding: 15px; margin: 15px 0;">
+                <p style="color: #B0B0B0; margin-bottom: 10px;">Final Verified Reduction (Verra/IUCN Standards)</p>
+                <div class="final-value" style="color: ${primaryColor};">${blueCarbonResult.final_verified_reduction_tco2.toLocaleString()}</div>
+                <p style="color: #B0B0B0;">tonnes CO₂ equivalent (after international verification discounts)</p>
+              </div>
+              
+              <div class="metric-row">
+                <span class="metric-label">Ex-ante Credits</span>
+                <span class="metric-value">${blueCarbonResult.ex_ante_credits_tco2.toLocaleString()} tCO₂</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Verra Compliance Status</span>
+                <span class="metric-value">${blueCarbonResult.verra_compliance_status || "Compliant"}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Integrity Score</span>
+                <span class="metric-value">${blueCarbonResult.integrity_score || 95}/100</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Total Carbon Stock</span>
+                <span class="metric-value">${blueCarbonResult.total_carbon_stock_tc.toLocaleString()} tC</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Project Area</span>
+                <span class="metric-value">${carbonInputs.area_ha.toFixed(2)} hectares</span>
+              </div>
+            </div>
+            ` : ''}
           </div>
 
           <!-- PAGE 4: CARBON CALCULATIONS -->
@@ -1971,17 +2001,6 @@ The ecosystem demonstrates ${ndvi >= 0.7 ? 'strong' : ndvi >= 0.5 ? 'moderate' :
           <div className="lg:col-span-1">
             <ValidatorContributorsPanel contributors={mockValidationResult.contributors} />
           </div>
-        </div>
-
-        <div className="mb-8">
-          <CarbonReductionSummaryCard
-            calculation={carbonCalculation}
-            integrityClass={mockValidationResult.integrity_class}
-          />
-        </div>
-
-        <div className="mb-8">
-          <CarbonAccountingTable calculation={carbonCalculation} />
         </div>
 
         {/* Blue Carbon Results Display */}
