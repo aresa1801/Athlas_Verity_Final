@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS public.green_carbon_verifications (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   submitted_at TIMESTAMP WITH TIME ZONE,
   
-  CONSTRAINT name_user_unique UNIQUE(user_id, project_name)
+  CONSTRAINT green_carbon_user_project_unique UNIQUE(user_id, project_name)
 );
 
 -- Blue Carbon Verification table
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS public.blue_carbon_verifications (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   submitted_at TIMESTAMP WITH TIME ZONE,
   
-  CONSTRAINT name_user_unique UNIQUE(user_id, project_name)
+  CONSTRAINT blue_carbon_user_project_unique UNIQUE(user_id, project_name)
 );
 
 -- Renewable Energy Verification table
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS public.renewable_energy_verifications (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   submitted_at TIMESTAMP WITH TIME ZONE,
   
-  CONSTRAINT name_user_unique UNIQUE(user_id, project_name)
+  CONSTRAINT renewable_energy_user_project_unique UNIQUE(user_id, project_name)
 );
 
 -- Verification Images table

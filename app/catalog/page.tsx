@@ -1,8 +1,6 @@
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { CatalogGrid } from "@/components/catalog/catalog-grid"
 import { Badge } from "@/components/ui/badge"
-import { Search, Filter, ChevronRight, Leaf, Droplet, Zap } from "lucide-react"
-import Link from "next/link"
+import { Leaf, Droplets, Zap } from "lucide-react"
 
 export const metadata = {
   title: "Carbon Project Catalog - Athlas Verity",
@@ -10,48 +8,6 @@ export const metadata = {
 }
 
 export default function CatalogPage() {
-  const projects: typeof mockProjects = []
-
-  const mockProjects = [
-    // Placeholder structure for verified projects from user submissions
-    // {
-    //   id: 1,
-    //   name: "Project Name",
-    //   type: "Green Carbon" | "Blue Carbon" | "Renewable Energy",
-    //   icon: IconComponent,
-    //   country: "Country",
-    //   area: "Area Ha/MW",
-    //   credits: "Credits tCO₂e",
-    //   verified: "Percentage%",
-    //   description: "Project description",
-    //   status: "verified" | "pending-review",
-    // }
-  ]
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "verified":
-        return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-      case "pending-review":
-        return "bg-amber-500/10 text-amber-600 border-amber-500/20"
-      default:
-        return "bg-slate-500/10 text-slate-600 border-slate-500/20"
-    }
-  }
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "Green Carbon":
-        return "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
-      case "Blue Carbon":
-        return "bg-blue-500/10 text-blue-700 border-blue-500/20"
-      case "Renewable Energy":
-        return "bg-amber-500/10 text-amber-700 border-amber-500/20"
-      default:
-        return "bg-slate-500/10 text-slate-700 border-slate-500/20"
-    }
-  }
-
   return (
     <main className="min-h-screen bg-background">
       {/* Header */}
@@ -64,152 +20,9 @@ export default function CatalogPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-6 py-12">
-        {/* Search and Filter Bar */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-8">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search projects by name or country..."
-              className="w-full pl-10 pr-4 py-2 rounded-lg bg-card/50 border border-border/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent/50 transition-colors"
-            />
-          </div>
-          <Button variant="outline" className="gap-2 bg-transparent">
-            <Filter className="w-4 h-4" />
-            <span className="hidden sm:inline">Filter</span>
-          </Button>
-        </div>
-
-        {/* Filter Tags */}
-        <div className="flex flex-wrap gap-2 mb-8">
-          <Badge variant="outline" className="cursor-pointer hover:bg-accent/10">
-            All Projects ({projects.length})
-          </Badge>
-          <Badge variant="outline" className="cursor-pointer hover:bg-accent/10">
-            <Leaf className="w-3 h-3 mr-1" />
-            Green Carbon ({projects.filter((p) => p.type === "Green Carbon").length})
-          </Badge>
-          <Badge variant="outline" className="cursor-pointer hover:bg-accent/10">
-            <Droplet className="w-3 h-3 mr-1" />
-            Blue Carbon ({projects.filter((p) => p.type === "Blue Carbon").length})
-          </Badge>
-          <Badge variant="outline" className="cursor-pointer hover:bg-accent/10">
-            <Zap className="w-3 h-3 mr-1" />
-            Renewable Energy ({projects.filter((p) => p.type === "Renewable Energy").length})
-          </Badge>
-        </div>
-
-        {/* Projects Grid or Empty State */}
-        {projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 px-6 rounded-lg border border-border/30 bg-card/20">
-            <div className="text-center space-y-4">
-              <h3 className="text-xl font-semibold text-foreground">No Verified Projects Yet</h3>
-              <p className="text-muted-foreground max-w-md">
-                The catalog is empty. Submit your carbon credit project for verification to see it featured here.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
-                <Link href="/verification/green-carbon">
-                  <Button className="gap-2">
-                    <Leaf className="w-4 h-4" />
-                    Create Green Carbon Project
-                  </Button>
-                </Link>
-                <Link href="/verification/blue-carbon">
-                  <Button variant="outline" className="gap-2 bg-transparent">
-                    <Droplet className="w-4 h-4" />
-                    Create Blue Carbon Project
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => {
-              const IconComponent = project.icon
-              return (
-                <Card
-                  key={project.id}
-                  className="border-border/50 bg-card/30 hover:bg-card/50 transition-all duration-200 cursor-pointer group overflow-hidden"
-                >
-                  <div className="p-6 space-y-4">
-                    {/* Header */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className={`p-2 rounded-lg ${getTypeColor(project.type).replace("border-", "").replace("text-", "bg-")}`}>
-                          <IconComponent className="w-5 h-5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold text-foreground truncate group-hover:text-accent transition-colors">
-                            {project.name}
-                          </h3>
-                          <p className="text-xs text-muted-foreground">{project.country}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Type and Status Badges */}
-                    <div className="flex flex-wrap gap-2">
-                      <Badge className={`text-xs ${getTypeColor(project.type)}`}>{project.type}</Badge>
-                      <Badge className={`text-xs ${getStatusColor(project.status)}`}>
-                        {project.status === "verified" ? "Verified" : "Pending Review"}
-                      </Badge>
-                    </div>
-
-                    {/* Description */}
-                    <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
-
-                    {/* Metrics */}
-                    <div className="grid grid-cols-3 gap-3 py-3 border-y border-border/30">
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Area</p>
-                        <p className="text-sm font-semibold text-foreground">{project.area}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Credits</p>
-                        <p className="text-sm font-semibold text-foreground">{project.credits}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Verified</p>
-                        <p className="text-sm font-semibold text-emerald-600">{project.verified}</p>
-                      </div>
-                    </div>
-
-                    {/* View Details Link */}
-                    <Link
-                      href={`/project/${project.id}`}
-                      className="flex items-center justify-center gap-2 w-full py-2 px-3 rounded-lg bg-accent/10 hover:bg-accent/20 text-accent transition-colors text-sm font-medium"
-                    >
-                      View Details
-                      <ChevronRight className="w-4 h-4" />
-                    </Link>
-                  </div>
-                </Card>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Footer CTA */}
-        <div className="mt-12 text-center p-8 rounded-lg bg-gradient-to-r from-emerald-500/10 to-blue-500/10 border border-border/30">
-          <h3 className="text-xl font-semibold text-foreground mb-2">Ready to Create Your Project?</h3>
-          <p className="text-muted-foreground mb-4">Begin the verification process for your carbon credit project today</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/verification/green-carbon">
-              <Button className="gap-2">
-                <Leaf className="w-4 h-4" />
-                Create Green Carbon Project
-              </Button>
-            </Link>
-            <Link href="/verification/blue-carbon">
-              <Button variant="outline" className="gap-2 bg-transparent">
-                <Droplet className="w-4 h-4" />
-                Create Blue Carbon Project
-              </Button>
-            </Link>
-          </div>
-        </div>
+        <CatalogGrid />
       </div>
     </main>
   )
+}
 }
