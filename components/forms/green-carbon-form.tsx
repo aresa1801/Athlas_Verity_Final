@@ -10,6 +10,27 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Upload, AlertCircle, CheckCircle2, HelpCircle } from "lucide-react"
 
+interface PolygonCoordinate {
+  latitude: number
+  longitude: number
+  point?: number
+  status?: string
+}
+
+interface AnalysisResults {
+  carbonStock?: number
+  biomassAGB?: number
+  carbonSequestration?: number
+}
+
+interface SatelliteAnalysisData {
+  ndvi?: number
+  evi?: number
+  canopy_density?: number
+  elevation?: number
+  sar_backscatter?: number
+}
+
 interface GreenCarbonFormData {
   // Section A
   projectName: string
@@ -40,6 +61,11 @@ interface GreenCarbonFormData {
   legalProtectionStatus: string
   landOwnershipProof: File | null
   dataKebenaran: File | null
+
+  // Additional fields for results page
+  polygonCoordinates?: PolygonCoordinate[]
+  analysisResults?: AnalysisResults
+  satelliteAnalysisData?: SatelliteAnalysisData
 }
 
 const FIELD_TOOLTIPS = {
@@ -83,9 +109,7 @@ function generateVegetationDescription(parsedData: any): string {
   const species = parsedData.dominantSpecies || 'Mixed species'
   const height = parsedData.averageTreeHeight || '25-30m'
   const ndvi = parsedData.ndvi || 0.65
-  
   let description = `${forestType} ecosystem dominated by ${species} with average canopy height of ${height} meters. `
-  
   if (ndvi > 0.7) {
     description += 'High vegetation density with healthy and dense canopy cover. '
   } else if (ndvi > 0.5) {
@@ -93,16 +117,13 @@ function generateVegetationDescription(parsedData: any): string {
   } else {
     description += 'Moderate to low vegetation density with sparse canopy coverage. '
   }
-  
   description += 'Multi-source satellite analysis (Sentinel-2, Landsat, MODIS) confirms vegetation classification and carbon density estimates.'
-  
   return description
 }
 
 export function GreenCarbonForm() {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
   const [formData, setFormData] = useState<GreenCarbonFormData>({
     projectName: "",
     ownerName: "",
@@ -126,11 +147,13 @@ export function GreenCarbonForm() {
     legalProtectionStatus: "",
     landOwnershipProof: null,
     dataKebenaran: null,
+    polygonCoordinates: [],
+    analysisResults: {},
+    satelliteAnalysisData: {},
   })
 
   const [showMap, setShowMap] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
-
   const requiredFields = [
     "projectName",
     "country",
@@ -147,7 +170,6 @@ export function GreenCarbonForm() {
 
   const checkCompleteness = useCallback(() => {
     const errors: string[] = []
-
     if (!formData.projectName.trim()) errors.push("Project name is required")
     if (!formData.ownerName.trim()) errors.push("Owner name is required")
     if (!formData.ownerEmail.trim()) errors.push("Owner email is required")
@@ -163,7 +185,6 @@ export function GreenCarbonForm() {
     if (!formData.legalProtectionStatus) errors.push("Legal protection status is required")
     if (!formData.landOwnershipProof) errors.push("Land ownership proof is required")
     if (!formData.dataKebenaran) errors.push("Data truthfulness declaration is required")
-
     setValidationErrors(errors)
     return errors.length === 0
   }, [formData])
@@ -199,17 +220,13 @@ export function GreenCarbonForm() {
     const file = e.target.files?.[0]
     if (file) {
       handleFileUpload(e, "satelliteDataFile")
-      
       try {
         console.log("[v0] Starting satellite data extraction from file:", file.name, "size:", file.size)
-        
         // Parse satellite data and auto-fill all available fields
         const parsedData = await parseSatelliteDataFile(file)
-        
         if (!parsedData) {
           throw new Error("Parser returned null/undefined data")
         }
-        
         console.log("[v0] Raw parsed data - Full Object:", parsedData)
         console.log("[v0] Area from parser:", {
           area: parsedData.area,
@@ -218,21 +235,21 @@ export function GreenCarbonForm() {
         console.log("[v0] Coordinates from parser:", parsedData.coordinates)
         console.log("[v0] Height from parser:", parsedData.averageTreeHeight)
         console.log("[v0] NDVI from parser:", parsedData.ndvi)
-        
+
         // Extract vegetation classification from forest type
-        const vegClassification = parsedData.forestType?.includes('Dense') 
+        const vegClassification = parsedData.forestType?.includes('Dense')
           ? 'Dense Forest'
-          : parsedData.forestType?.includes('Open') 
-          ? 'Open Forest'
-          : parsedData.forestType || 'Forest'
-        
+          : parsedData.forestType?.includes('Open')
+            ? 'Open Forest'
+            : parsedData.forestType || 'Forest'
+
         // Extract height value from averageTreeHeight string
         // Support formats: "25-30", "25-30m", "25 - 30", etc.
         let heightValue = ""
         if (parsedData.averageTreeHeight) {
-          heightValue = String(parsedData.averageTreeHeight).replace(/[^0-9\-\.]/g, '').trim()
+          heightValue = String(parsedData.averageTreeHeight).replace(/\D/g, '').trim()
         }
-        
+
         // Extract area numeric value with precision
         let areaValue = ""
         if (parsedData.areaHa && parsedData.areaHa > 0) {
@@ -241,17 +258,29 @@ export function GreenCarbonForm() {
           const areaMatch = String(parsedData.area).match(/(\d+\.?\d*)/)
           areaValue = areaMatch ? areaMatch[1] : ""
         }
-        
+
         // Extract coordinates - support both "lat, lng" and object format
         let coordinateValue = ""
         if (parsedData.coordinates) {
           coordinateValue = String(parsedData.coordinates)
         }
+
         if (!coordinateValue && parsedData.rawGeoJSON?.centerCoordinates) {
           const center = parsedData.rawGeoJSON.centerCoordinates
           coordinateValue = `${center.latitude}, ${center.longitude}`
         }
-        
+
+        // Extract polygon coordinates if available
+        let polygonCoords: PolygonCoordinate[] = []
+        if (parsedData.polygonCoordinates && Array.isArray(parsedData.polygonCoordinates)) {
+          polygonCoords = parsedData.polygonCoordinates.map((coord: any) => ({
+            latitude: coord.latitude || coord.lat,
+            longitude: coord.longitude || coord.lng,
+            point: coord.point,
+            status: coord.status
+          }))
+        }
+
         console.log("[v0] Raw parsed satellite data fields:", {
           parsedArea: parsedData.area,
           parsedAreaHa: parsedData.areaHa,
@@ -261,7 +290,7 @@ export function GreenCarbonForm() {
           parsedSpecies: parsedData.dominantSpecies,
           parsedForestType: parsedData.forestType,
         })
-        
+
         console.log("[v0] Extracted & processed values:", {
           area: areaValue,
           coordinates: coordinateValue,
@@ -270,18 +299,18 @@ export function GreenCarbonForm() {
           forestType: parsedData.forestType,
           description: parsedData.vegetationDescription,
         })
-        
+
         // Generate detailed vegetation description if not provided
         const finalDescription = parsedData.vegetationDescription && parsedData.vegetationDescription.length > 20
           ? parsedData.vegetationDescription
           : generateVegetationDescription(parsedData)
-        
+
         // Ensure NDVI value is properly extracted (not hardcoded default)
-        const ndviValue = parsedData.ndvi && parsedData.ndvi !== 0 
+        const ndviValue = parsedData.ndvi && parsedData.ndvi !== 0
           ? parseFloat(parsedData.ndvi.toString()).toFixed(4)
           : "0.6500"
-        
-        const updatedData = {
+
+        const updatedData: Partial<GreenCarbonFormData> = {
           dataLuasan: areaValue ? `${areaValue} ha` : "",
           dataKoordinat: coordinateValue,
           forestType: parsedData.forestType || "",
@@ -290,16 +319,24 @@ export function GreenCarbonForm() {
           vegetationClassification: vegClassification,
           vegetationDescription: finalDescription,
           ndviValue: parseFloat(ndviValue),
+          polygonCoordinates: polygonCoords.length > 0 ? polygonCoords : undefined,
+          satelliteAnalysisData: {
+            ndvi: parsedData.ndvi || 0.65,
+            evi: parsedData.evi || 0.45,
+            canopy_density: parsedData.canopyDensity || 0.75,
+            elevation: parsedData.elevation || 500,
+            sar_backscatter: parsedData.sarBackscatter || 0.3,
+          }
         }
-        
+
         console.log("[v0] About to update form with data:", updatedData)
-        
         setFormData((prev) => ({
           ...prev,
           ...updatedData
         }))
-        
+
         console.log("[v0] Form updated - All fields should now be populated")
+
       } catch (error) {
         console.error("[v0] Error parsing satellite data:", error)
         alert(`Error reading satellite data: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -315,13 +352,19 @@ export function GreenCarbonForm() {
 
     setIsSubmitting(true)
     console.log("[v0] Starting Green Carbon verification with data:", formData)
-    
+
     try {
+      // Extract area value from dataLuasan (e.g., "1234.56 ha" -> 1234.56)
+      let areaHa = 0
+      if (formData.dataLuasan) {
+        const areaMatch = String(formData.dataLuasan).match(/(\d+\.?\d*)/)
+        areaHa = areaMatch ? parseFloat(areaMatch[1]) : 0
+      }
+
       // Prepare verification data
       const verificationData = {
         type: "green_carbon_verification",
         timestamp: new Date().toISOString(),
-        
         // Section A: Project Identity
         projectName: formData.projectName,
         ownerName: formData.ownerName,
@@ -331,7 +374,6 @@ export function GreenCarbonForm() {
         country: formData.country,
         baselineYear: formData.baselineYear,
         methodologyRef: formData.methodologyRef,
-        
         // Section B: Geospatial & Satellite Data
         geospatial: {
           area_hectares: formData.dataLuasan,
@@ -339,7 +381,6 @@ export function GreenCarbonForm() {
           forestType: formData.forestType,
           protectionRestorationType: formData.protectionRestorationType,
         },
-        
         // Section C: Vegetation Data
         vegetation: {
           dominantSpecies: formData.dominantSpecies,
@@ -348,22 +389,14 @@ export function GreenCarbonForm() {
           vegetationDescription: formData.vegetationDescription,
           ndviValue: formData.ndviValue,
         },
-        
         // Section D: Risk & Legal
         riskAssessment: {
           deforestationRiskLevel: formData.deforestationRiskLevel,
           legalProtectionStatus: formData.legalProtectionStatus,
         },
       }
-      
+
       console.log("[v0] Verification data prepared:", verificationData)
-      
-      // Extract area value from dataLuasan (e.g., "1234.56 ha" -> 1234.56)
-      let areaHa = 0
-      if (formData.dataLuasan) {
-        const areaMatch = String(formData.dataLuasan).match(/(\d+\.?\d*)/)
-        areaHa = areaMatch ? parseFloat(areaMatch[1]) : 0
-      }
 
       // Prepare satellite data for results page
       const formDataWithSatellite = {
@@ -372,32 +405,33 @@ export function GreenCarbonForm() {
         satelliteData: {
           polygon_area_ha: areaHa,
           area_ha: areaHa,
-          biomass_agb_mean: 0, // Will be calculated in results page if not available
+          biomass_agb_mean: formData.analysisResults?.biomassAGB || 0,
           features: {
             ndvi: formData.ndviValue || 0.65,
-            evi: 0.45,
-            canopy_density: 0.75,
-            elevation: 500,
-            sar_backscatter: 0.3,
+            evi: formData.satelliteAnalysisData?.evi || 0.45,
+            canopy_density: formData.satelliteAnalysisData?.canopy_density || 0.75,
+            elevation: formData.satelliteAnalysisData?.elevation || 500,
+            sar_backscatter: formData.satelliteAnalysisData?.sar_backscatter || 0.3,
           }
         },
-        // Include polygon coordinates for PDF report - converted to format expected by PDF
-        coordinates: formData.polygonCoordinates ? formData.polygonCoordinates.map((coord: any) => ({
-          latitude: coord.latitude || coord.lat,
-          longitude: coord.longitude || coord.lng,
-          point: coord.point,
-          status: coord.status
-        })) : [],
-        analysisResults: formData.analysisResults,
-        satelliteAnalysisData: formData.satelliteAnalysisData,
-      }
-        }
+        // Include polygon coordinates for results page
+        coordinates: formData.polygonCoordinates && formData.polygonCoordinates.length > 0
+          ? formData.polygonCoordinates.map((coord: PolygonCoordinate) => ({
+              latitude: coord.latitude,
+              longitude: coord.longitude,
+              point: coord.point,
+              status: coord.status
+            }))
+          : [],
+        analysisResults: formData.analysisResults || {},
+        satelliteAnalysisData: formData.satelliteAnalysisData || {},
       }
 
       // Store verification data in session for results page
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('projectFormData', JSON.stringify(formDataWithSatellite))
         sessionStorage.setItem('verificationData', JSON.stringify(verificationData))
+        
         // Also store polygon coordinates separately for easier access
         if (formData.polygonCoordinates && formData.polygonCoordinates.length > 0) {
           sessionStorage.setItem('polygonCoordinates', JSON.stringify(formData.polygonCoordinates))
@@ -407,19 +441,19 @@ export function GreenCarbonForm() {
           })
         }
       }
-      
-      console.log("[v0] Verification data stored in session:", { 
-        area: areaHa, 
+
+      console.log("[v0] Verification data stored in session:", {
+        area: areaHa,
         ndvi: formData.ndviValue,
         polygonCoordinates: formData.polygonCoordinates?.length || 0,
         coordinates: formDataWithSatellite.coordinates,
-        formData: formDataWithSatellite 
+        formData: formDataWithSatellite
       })
-      
+
       // Navigate to results page with verification report
       console.log("[v0] Navigating to validation report...")
       router.push('/results')
-      
+
     } catch (error) {
       console.error("[v0] Error during verification:", error)
       alert(`Verification error: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -430,6 +464,7 @@ export function GreenCarbonForm() {
 
   return (
     <div className="space-y-8">
+
       {/* Validation Warnings */}
       {validationErrors.length > 0 && (
         <Card className="border-amber-500/30 bg-amber-500/5 p-4">
@@ -456,7 +491,6 @@ export function GreenCarbonForm() {
           <h2 className="text-2xl font-bold">Section A: Project Identity</h2>
           <Badge variant="outline" className="ml-auto">Step 1 of 5</Badge>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
@@ -471,7 +505,6 @@ export function GreenCarbonForm() {
               className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
-
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
               Owner Name *
@@ -485,7 +518,6 @@ export function GreenCarbonForm() {
               className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
-
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
               Email Address *
@@ -499,7 +531,6 @@ export function GreenCarbonForm() {
               className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
-
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
               Phone Number *
@@ -513,7 +544,6 @@ export function GreenCarbonForm() {
               className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
-
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
               Project Location *
@@ -527,7 +557,6 @@ export function GreenCarbonForm() {
               className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
-
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
               Country *
@@ -544,7 +573,6 @@ export function GreenCarbonForm() {
               ))}
             </select>
           </div>
-
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
               Baseline Year
@@ -560,7 +588,6 @@ export function GreenCarbonForm() {
               className="w-full px-3 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
-
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
               Methodology Reference
@@ -585,14 +612,12 @@ export function GreenCarbonForm() {
           <h2 className="text-2xl font-bold">Section B: Geospatial Data & Satellite Analysis</h2>
           <Badge variant="outline" className="ml-auto">Step 2 of 5</Badge>
         </div>
-
         {/* Upload Satellite Data */}
         <Card className="border-border/50 bg-card/50 p-6 space-y-4">
           <h3 className="text-lg font-semibold">Upload Satellite Data</h3>
           <p className="text-sm text-muted-foreground">
             Upload satellite data exported from the satellite analysis page (ZIP or JSON format). This data will automatically populate geospatial information including area and coordinates.
           </p>
-          
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
               Satellite Data File (Required) *
@@ -617,7 +642,6 @@ export function GreenCarbonForm() {
             </div>
             {formData.satelliteDataFile && <p className="text-xs text-emerald-600 mt-1">File uploaded successfully</p>}
           </div>
-
           {/* Auto-filled Geospatial Data */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border/20">
             <div>
@@ -633,7 +657,6 @@ export function GreenCarbonForm() {
               />
               {formData.dataLuasan && <p className="text-xs text-emerald-600 mt-1">Verified: Auto-populated from satellite analysis</p>}
             </div>
-
             <div>
               <label className="flex items-center text-sm font-medium mb-2">
                 Project Location Coordinates
@@ -649,11 +672,9 @@ export function GreenCarbonForm() {
             </div>
           </div>
         </Card>
-
         {/* Forest Type and Protection Type */}
         <Card className="border-border/50 bg-card/50 p-6 space-y-4">
           <h3 className="text-lg font-semibold">Forest & Protection Details</h3>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="flex items-center text-sm font-medium mb-2">
@@ -672,7 +693,6 @@ export function GreenCarbonForm() {
                 <option value="mangrove">Mangrove</option>
               </select>
             </div>
-
             <div>
               <label className="flex items-center text-sm font-medium mb-2">
                 Protection / Restoration Type
@@ -699,12 +719,10 @@ export function GreenCarbonForm() {
           <h2 className="text-2xl font-bold">Section C: Ecological Data</h2>
           <Badge variant="outline" className="ml-auto">Step 3 of 5</Badge>
         </div>
-
         <Card className="border-border/50 bg-card/50 p-6 space-y-4">
           <p className="text-sm text-muted-foreground">
             Ecological data is automatically extracted from the satellite analysis
           </p>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="flex items-center text-sm font-medium mb-2">
@@ -719,7 +737,6 @@ export function GreenCarbonForm() {
                 className="w-full px-3 py-2 border border-border rounded-lg bg-muted focus:outline-none text-muted-foreground"
               />
             </div>
-
             <div>
               <label className="flex items-center text-sm font-medium mb-2">
                 Average Tree Height (m) (Auto-filled)
@@ -735,7 +752,6 @@ export function GreenCarbonForm() {
               {formData.averageTreeHeight && <p className="text-xs text-emerald-600 mt-1">Verified: Auto-filled from satellite analysis</p>}
             </div>
           </div>
-
           {/* Vegetation Classification and Description */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border/20">
             <div>
@@ -751,7 +767,6 @@ export function GreenCarbonForm() {
               />
               {formData.vegetationClassification && <p className="text-xs text-emerald-600 mt-1">Verified: From satellite analysis</p>}
             </div>
-
             <div>
               <label className="flex items-center text-sm font-medium mb-2">
                 NDVI Value (Auto-filled)
@@ -769,7 +784,6 @@ export function GreenCarbonForm() {
               {formData.ndviValue && <p className="text-xs text-emerald-600 mt-1">Verified: Satellite derived</p>}
             </div>
           </div>
-
           {/* Vegetation Description */}
           <div className="pt-4 border-t border-border/20">
             <label className="flex items-center text-sm font-medium mb-2">
@@ -793,7 +807,6 @@ export function GreenCarbonForm() {
           <h2 className="text-2xl font-bold">Section D: Risk & Additionality & Documentation</h2>
           <Badge variant="outline" className="ml-auto">Step 4 of 5</Badge>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
@@ -812,7 +825,6 @@ export function GreenCarbonForm() {
               <option value="high">High</option>
             </select>
           </div>
-
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
               Legal Protection Status
@@ -831,7 +843,6 @@ export function GreenCarbonForm() {
             </select>
           </div>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
@@ -856,7 +867,6 @@ export function GreenCarbonForm() {
               </label>
             </div>
           </div>
-
           <div>
             <label className="flex items-center text-sm font-medium mb-2">
               Pernyataan Kebenaran Data (PDF/Image)
@@ -889,8 +899,7 @@ export function GreenCarbonForm() {
           <h2 className="text-2xl font-bold">Section E: Form Completeness Summary</h2>
           <Badge variant="outline" className="ml-auto">Step 5 of 5</Badge>
         </div>
-
-        <Card className={`p-6 ${isComplete ? "bg-emerald-500/5 border-emerald-500/30" : "bg-amber-500/5 border-amber-500/30"}`}>
+        <Card className={isComplete ? "bg-emerald-500/5 border-emerald-500/30" : "bg-amber-500/5 border-amber-500/30"}>
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className={`font-semibold text-lg ${isComplete ? "text-emerald-900 dark:text-emerald-400" : "text-amber-900 dark:text-amber-400"}`}>
@@ -901,17 +910,18 @@ export function GreenCarbonForm() {
               </p>
             </div>
             <div className="text-right">
-              <div className="text-4xl font-bold">{Math.round((requiredFields.filter((field) => {
-                if (field === "satelliteDataFile" || field === "landOwnershipProof" || field === "dataKebenaran") {
-                  return formData[field as keyof GreenCarbonFormData] !== null
-                }
-                const value = formData[field as keyof GreenCarbonFormData]
-                return value && String(value).trim() !== ""
-              }).length / requiredFields.length) * 100)}%</div>
+              <div className="text-4xl font-bold">
+                {Math.round((requiredFields.filter((field) => {
+                  if (field === "satelliteDataFile" || field === "landOwnershipProof" || field === "dataKebenaran") {
+                    return formData[field as keyof GreenCarbonFormData] !== null
+                  }
+                  const value = formData[field as keyof GreenCarbonFormData]
+                  return value && String(value).trim() !== ""
+                }).length / requiredFields.length) * 100)}%
+              </div>
               <p className="text-xs text-muted-foreground">Complete</p>
             </div>
           </div>
-
           {!isComplete && validationErrors.length > 0 && (
             <div className="mt-4 p-4 bg-amber-100/50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
               <p className="text-sm font-medium text-amber-900 dark:text-amber-200 mb-2">Missing Fields:</p>
@@ -941,6 +951,7 @@ export function GreenCarbonForm() {
           "Run Verification"
         )}
       </Button>
+
     </div>
   )
 }
