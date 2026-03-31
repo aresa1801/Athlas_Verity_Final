@@ -19,6 +19,12 @@ import { estimateAGB, type AGBEstimationResult } from "@/lib/agb-estimation-engi
 import { BlueCarbonResultsDisplay } from "@/components/verification/blue-carbon-results-display"
 import type { BlueCarbonResult } from "@/lib/blue-carbon-calculator"
 
+// ✅ FIXED: Coordinate type accepts both number and string
+interface Coordinate {
+  latitude: number | string
+  longitude: number | string
+}
+
 interface FormData {
   projectName: string
   projectDescription: string
@@ -26,10 +32,38 @@ interface FormData {
   ownerEmail: string
   ownerPhone: string
   carbonOffsetType: string
-  coordinates: Array<{ latitude: string; longitude: string }>
+  coordinates: Coordinate[]
 }
 
+// ✅ FIXED: Added all missing properties
 interface ResultsData extends FormData {
+  // Project location & details
+  projectLocation?: string
+  country?: string
+  forestType?: string
+  dominantSpecies?: string
+  vegetationClassification?: string
+  vegetationDescription?: string
+  ndviValue?: number
+  
+  // Blue carbon specific properties
+  ecosystemType?: string
+  tidalZoneType?: string
+  salinityType?: string
+  waterDepth?: string
+  sedimentDepthEstimate?: string
+  coastalProtectionStatus?: string
+  humanDisturbanceLevel?: string
+  
+  // Risk & legal
+  deforestationRiskLevel?: string
+  legalProtectionStatus?: string
+  
+  // Verification
+  baselineYear?: string
+  methodologyRef?: string
+  
+  // Satellite data
   satelliteData?: {
     bands?: any
     area_ha?: number
@@ -42,15 +76,28 @@ interface ResultsData extends FormData {
     rawGeoJSON?: any
   }
   calculatedAreaHa?: number
-  // Blue carbon specific properties
-  ecosystemType?: string
-  tidalZoneType?: string
-  salinityType?: string
-  waterDepth?: string
-  sedimentDepthEstimate?: string
-  deforestationRiskLevel?: string
-  country?: string
-  baselineYear?: string
+  
+  // Analysis results
+  analysisResults?: {
+    carbonStock?: number
+    biomassAGB?: number
+    carbonSequestration?: number
+  }
+  
+  satelliteAnalysisData?: {
+    ndvi?: number
+    evi?: number
+    canopy_density?: number
+    elevation?: number
+    sar_backscatter?: number
+  }
+  
+  polygonCoordinates?: Array<{
+    latitude: number
+    longitude: number
+    point?: number
+    status?: string
+  }>
 }
 
 export default function ResultsPage() {
@@ -65,9 +112,9 @@ export default function ResultsPage() {
   const [isCalculating, setIsCalculating] = useState(false)
 
   const [carbonInputs, setCarbonInputs] = useState<CarbonCalculationInputs>({
-    agb_per_ha: 0, // Will be set from satellite data
+    agb_per_ha: 0,
     carbon_fraction: 0.47,
-    area_ha: 0, // Will be set from satellite data
+    area_ha: 0,
     baseline_emission: 1.8,
     duration_years: 10,
     leakage: 5,
@@ -76,7 +123,6 @@ export default function ResultsPage() {
     validator_consensus: 0.93,
   })
 
-  // Calculate carbon reduction based on current inputs
   const carbonCalculation = carbonInputs.area_ha > 0 && carbonInputs.agb_per_ha > 0 
     ? calculateCarbonReduction(carbonInputs)
     : calculateCarbonReduction({
@@ -93,19 +139,15 @@ export default function ResultsPage() {
 
   useEffect(() => {
     const data = sessionStorage.getItem("projectFormData")
-    
-    // Get query parameters
     const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "")
     const projectType = params.get("type")
     
     if (data) {
       const parsedData = JSON.parse(data) as ResultsData
       
-      // Extract coordinates from satellite data if not already present
       if (!parsedData.coordinates || parsedData.coordinates.length === 0) {
-        const coordinates: Array<{ latitude: number; longitude: number }> = []
+        const coordinates: Coordinate[] = []
         
-        // Try to extract from rawGeoJSON if available
         if (parsedData.satelliteData?.rawGeoJSON?.features) {
           const features = parsedData.satelliteData.rawGeoJSON.features
           
@@ -137,46 +179,28 @@ export default function ResultsPage() {
         
         if (coordinates.length > 0) {
           parsedData.coordinates = coordinates
-          console.log("[v0] Extracted", coordinates.length, "coordinates from satellite data")
         }
       }
       
-      console.log("[v0] Coordinates available for PDF:", {
-        count: parsedData.coordinates?.length || 0,
-        sample: parsedData.coordinates?.[0],
-        allCoordinates: parsedData.coordinates
-      })
-      
       setProjectData(parsedData)
 
-      // Extract area from satellite data with proper fallback chain
       let area = 0
       let biomassAgb = 0
       
-      // Try to get area from multiple sources
       if (parsedData.satelliteData?.polygon_area_ha && parsedData.satelliteData.polygon_area_ha > 0) {
         area = parsedData.satelliteData.polygon_area_ha
-        console.log("[v0] Using polygon_area_ha from satellite data:", area)
       } else if (parsedData.satelliteData?.area_ha && parsedData.satelliteData.area_ha > 0) {
         area = parsedData.satelliteData.area_ha
-        console.log("[v0] Using area_ha from satellite data:", area)
       } else if (parsedData.calculatedAreaHa && parsedData.calculatedAreaHa > 0) {
         area = parsedData.calculatedAreaHa
-        console.log("[v0] Using calculated area:", area)
       } else {
-        console.warn("[v0] No area data found, using default 87 ha")
         area = 87
       }
 
-      // Try to get AGB from satellite data
       if (parsedData.satelliteData?.biomass_agb_mean && parsedData.satelliteData.biomass_agb_mean > 0) {
         biomassAgb = parsedData.satelliteData.biomass_agb_mean
-        console.log("[v0] Using biomass_agb_mean from satellite data:", biomassAgb)
-      } else {
-        console.log("[v0] No direct AGB data, will estimate from satellite features")
       }
 
-      // Initialize AGB estimation with satellite features
       const satelliteFeatures = {
         ndvi: parsedData.satelliteData?.features?.ndvi || 0.65,
         evi: parsedData.satelliteData?.features?.evi || 0.45,
@@ -185,7 +209,6 @@ export default function ResultsPage() {
         sarBackscatter: parsedData.satelliteData?.features?.sar_backscatter || 0.3,
       }
 
-      // Determine ecosystem type for AGB estimation
       let agbEcosystemType = "tropical_forest"
       const ecosystemTypeStr = parsedData.ecosystemType?.toLowerCase() || ""
       if (ecosystemTypeStr.includes("mangrove")) {
@@ -196,25 +219,19 @@ export default function ResultsPage() {
         agbEcosystemType = "salt_marsh"
       }
 
-      // Run AGB estimation pipeline with appropriate ecosystem type
       const agbResult = estimateAGB(satelliteFeatures, area, agbEcosystemType)
       setAgbEstimation(agbResult)
-      console.log("[v0] AGB estimation for ecosystem type:", agbEcosystemType, "- Result:", agbResult.agb_tpha_final, "t/ha")
 
-      // Use actual AGB from satellite data if available, otherwise use estimation
       const finalAGB = biomassAgb > 0 ? biomassAgb : agbResult.agb_tpha_final
       
-      // Calculate dynamic leakage based on deforestation risk level and area
-      let leakage = 5 // Default
+      let leakage = 5
       const riskLevel = parsedData.deforestationRiskLevel?.toLowerCase() || ""
       
-      // Area-based leakage (takes priority if higher)
       if (area > 100000) {
-        leakage = 20 // Above 100,000 ha: 20%
+        leakage = 20
       } else if (area > 50000) {
-        leakage = 10 // Above 50,000 ha: 10%
+        leakage = 10
       } else {
-        // Risk level-based leakage for areas <= 50,000 ha
         if (riskLevel === "low" || riskLevel === "very low") {
           leakage = 5
         } else if (riskLevel === "medium") {
@@ -223,10 +240,7 @@ export default function ResultsPage() {
           leakage = 20
         }
       }
-      
-      console.log("[v0] Final values - Area:", area, "ha, AGB:", finalAGB, "t/ha, Risk Level:", riskLevel, ", Leakage:", leakage + "%")
 
-      // Update carbon inputs with actual data and dynamic leakage
       setCarbonInputs({
         agb_per_ha: finalAGB,
         carbon_fraction: 0.47,
@@ -239,16 +253,11 @@ export default function ResultsPage() {
         validator_consensus: 0.93,
       })
 
-      // Check if this is a blue carbon project
       const isBlueCarbon = parsedData.tidalZoneType || parsedData.ecosystemType?.toLowerCase().includes('mangrove') || 
                                   parsedData.ecosystemType?.toLowerCase().includes('seagrass') || parsedData.salinityType
       setIsBlueCarbonProject(isBlueCarbon)
 
-      // If blue carbon project, calculate using blue carbon methodology
       if (isBlueCarbon) {
-        console.log("[v0] Blue Carbon project detected, using blue carbon calculator")
-        
-        // Parse ecosystem type
         let ecosystemType: "mangrove" | "seagrass" | "salt_marsh" = "mangrove"
         if (parsedData.ecosystemType?.toLowerCase().includes('seagrass')) {
           ecosystemType = "seagrass"
@@ -256,32 +265,29 @@ export default function ResultsPage() {
           ecosystemType = "salt_marsh"
         }
 
-        // Parse water depth
         const waterDepthStr = parsedData.waterDepth || "2"
         const waterDepth = parseFloat(waterDepthStr) || 2
 
-        // Parse sediment depth
         const sedimentDepthStr = parsedData.sedimentDepthEstimate || "100"
         const sedimentDepth = parseFloat(sedimentDepthStr) || 100
 
-        // Create blue carbon inputs
         const blueCarbonInputs: BlueCarbonInputs = {
           area_ha: area,
           ecosystem_type: ecosystemType,
           country: parsedData.country || "Unknown",
-          baseline_year: parseInt(parsedData.baselineYear) || 2020,
+          baseline_year: parseInt(parsedData.baselineYear || "2020"),
           tidal_zone_type: parsedData.tidalZoneType || "intertidal",
           salinity_type: parsedData.salinityType || "marine",
           water_depth_m: waterDepth,
           sediment_depth_cm: sedimentDepth,
           agb_t_ha: finalAGB,
-          bgb_ratio: 0.45, // Standard mangrove BGB/AGB ratio
+          bgb_ratio: 0.45,
           dead_wood_t_ha: finalAGB * 0.08,
           litter_t_ha: finalAGB * 0.03,
-          soc_t_ha: finalAGB * 3.5, // SOC is 3-4x biomass for coastal ecosystems
+          soc_t_ha: finalAGB * 3.5,
           soc_depth_m: 1.0,
-          bulk_density_g_cm3: 0.8, // Typical for mangrove soils
-          organic_matter_percent: 8, // 8% organic matter
+          bulk_density_g_cm3: 0.8,
+          organic_matter_percent: 8,
           baseline_emission_t_co2_ha_year: 1.5,
           degradation_rate_percent: 0,
           duration_years: 10,
@@ -293,10 +299,8 @@ export default function ResultsPage() {
 
         const blueCarbonResult = calculateBlueCarbonCredits(blueCarbonInputs)
         setBlueCarbonResult(blueCarbonResult)
-        console.log("[v0] Blue Carbon calculation complete:", blueCarbonResult)
       }
 
-      // Set AI carbon data structure for display with actual data
       setAiCarbonData({
         carbon_estimation: {
           project_id: `proj_${Date.now()}`,
@@ -315,32 +319,28 @@ export default function ResultsPage() {
         },
       })
 
-      // Generate polygon map for green carbon projects only (not for blue carbon)
       const shouldGenerateMap = !(parsedData.tidalZoneType || parsedData.ecosystemType?.toLowerCase().includes('mangrove') || 
                                   parsedData.ecosystemType?.toLowerCase().includes('seagrass') || parsedData.salinityType)
       if (shouldGenerateMap && parsedData.coordinates && parsedData.coordinates.length > 0) {
         try {
           const mapCanvas = generatePolygonMap(
-            parsedData.coordinates as Array<{ latitude: number; longitude: number }>,
+            parsedData.coordinates.map(c => ({ 
+              latitude: typeof c.latitude === 'string' ? parseFloat(c.latitude) : c.latitude, 
+              longitude: typeof c.longitude === 'string' ? parseFloat(c.longitude) : c.longitude 
+            })),
             parsedData.projectName || "Project Area",
             area
           )
           if (mapCanvas) {
             setProjectMapImage(mapCanvas)
-            console.log("[v0] Polygon map generated for PDF")
           }
         } catch (error) {
           console.error("[v0] Error generating polygon map:", error)
         }
       }
     } else if (projectType === "blue-carbon") {
-      // Fallback for blue carbon demo when no sessionStorage data exists
-      console.log("[v0] No sessionStorage data but blue-carbon type requested, creating demo data")
-      console.log("[v0] Blue Carbon Demo Mode: ACTIVATED")
-      
       setIsBlueCarbonProject(true)
       
-      // Create demo blue carbon project data
       const demoBlueCarbonData: ResultsData = {
         projectName: "Demo Blue Carbon Project - Mangrove Restoration",
         projectDescription: "Coastal mangrove restoration and conservation project",
@@ -361,7 +361,6 @@ export default function ResultsPage() {
       
       setProjectData(demoBlueCarbonData)
       
-      // Set demo satellite data with blue carbon project characteristics
       const demoBlueCarbonInputs: BlueCarbonInputs = {
         area_ha: 50,
         ecosystem_type: "mangrove",
@@ -371,11 +370,11 @@ export default function ResultsPage() {
         salinity_type: "marine",
         water_depth_m: 2.5,
         sediment_depth_cm: 100,
-        agb_t_ha: 85, // Typical mangrove AGB
+        agb_t_ha: 85,
         bgb_ratio: 0.45,
         dead_wood_t_ha: 6.8,
         litter_t_ha: 2.55,
-        soc_t_ha: 297.5, // High soil carbon for mangroves
+        soc_t_ha: 297.5,
         soc_depth_m: 1.0,
         bulk_density_g_cm3: 0.8,
         organic_matter_percent: 8,
@@ -388,11 +387,9 @@ export default function ResultsPage() {
         uncertainty_discount: 5,
       }
       
-      // Calculate blue carbon result
       const demoBlueCarbonResult = calculateBlueCarbonCredits(demoBlueCarbonInputs)
       setBlueCarbonResult(demoBlueCarbonResult)
       
-      // Update carbon inputs for display
       setCarbonInputs({
         agb_per_ha: 85,
         carbon_fraction: 0.47,
@@ -404,30 +401,31 @@ export default function ResultsPage() {
         integrity_class: "IC-A",
         validator_consensus: 0.93,
       })
-      
-      console.log("[v0] Demo blue carbon data loaded:", demoBlueCarbonResult)
     }
   }, [])
 
   const calculateAICarbon = async (data: ResultsData) => {
     setIsCalculating(true)
     try {
-      const coordinates = data.coordinates.filter((c) => c.latitude && c.longitude)
+      const coordinates = data.coordinates.filter((c) => {
+        const lat = typeof c.latitude === 'string' ? parseFloat(c.latitude) : c.latitude
+        const lon = typeof c.longitude === 'string' ? parseFloat(c.longitude) : c.longitude
+        return lat && lon
+      })
+      
       let area_ha: number
 
-      // Check if satellite data has area from map calculation
       if (data.satelliteData?.polygon_area_ha) {
         area_ha = data.satelliteData.polygon_area_ha
-        console.log("[v0] Using stored polygon area from map:", area_ha, "ha")
       } else if (data.satelliteData?.area_ha) {
         area_ha = data.satelliteData.area_ha
-        console.log("[v0] Using satellite data area:", area_ha, "ha")
       } else if (coordinates.length > 0) {
-        area_ha = calculatePolygonArea(coordinates)
-        console.log("[v0] Recalculated area from coordinates:", area_ha, "ha")
+        area_ha = calculatePolygonArea(coordinates.map(c => ({
+          latitude: typeof c.latitude === 'string' ? c.latitude : String(c.latitude),
+          longitude: typeof c.longitude === 'string' ? c.longitude : String(c.longitude)
+        })))
       } else {
-        area_ha = 87 // Default fallback
-        console.log("[v0] Using default fallback area: 87 ha")
+        area_ha = 87
       }
 
       const response = await fetch("/api/carbon/calculate", {
@@ -436,11 +434,11 @@ export default function ResultsPage() {
         body: JSON.stringify({
           bands: data.satelliteData?.bands,
           location: {
-            latitude: Number.parseFloat(coordinates[0]?.latitude || "0"),
-            longitude: Number.parseFloat(coordinates[0]?.longitude || "0"),
+            latitude: Number.parseFloat(coordinates[0]?.latitude?.toString() || "0"),
+            longitude: Number.parseFloat(coordinates[0]?.longitude?.toString() || "0"),
           },
           area_ha: area_ha,
-          polygon_area_ha: area_ha, // Ensure polygon area is explicitly passed
+          polygon_area_ha: area_ha,
           carbonOffsetType: data.carbonOffsetType,
         }),
       })
@@ -451,9 +449,8 @@ export default function ResultsPage() {
         setCarbonInputs((prev) => ({
           ...prev,
           agb_per_ha: result.carbon_estimation.agb_mean,
-          area_ha: area_ha, // Use the consistent area value
+          area_ha: area_ha,
         }))
-        console.log("[v0] Carbon calculation completed with area:", area_ha, "ha")
       }
     } catch (error) {
       console.error("[v0] AI carbon calculation error:", error)
@@ -470,31 +467,26 @@ export default function ResultsPage() {
     try {
       if (coordinates.length < 2) return null
 
-      // Canvas dimensions
       const width = 800
       const height = 600
       const padding = 60
       const innerWidth = width - padding * 2
       const innerHeight = height - padding * 2
 
-      // Create canvas
       const canvas = document.createElement("canvas")
       canvas.width = width
       canvas.height = height
       const ctx = canvas.getContext("2d")
       if (!ctx) return null
 
-      // Background
       ctx.fillStyle = "#0f172a"
       ctx.fillRect(0, 0, width, height)
 
-      // Title
       ctx.fillStyle = "#64748b"
       ctx.font = "14px Arial"
       ctx.textAlign = "left"
       ctx.fillText("Project Polygon Map", 20, 30)
 
-      // Find bounds
       const lats = coordinates.map((c) => c.latitude)
       const lons = coordinates.map((c) => c.longitude)
       const minLat = Math.min(...lats)
@@ -506,7 +498,6 @@ export default function ResultsPage() {
       const lonRange = maxLon - minLon || 0.001
       const scale = Math.max(innerWidth / lonRange, innerHeight / latRange) * 0.9
 
-      // Convert coordinates to canvas points
       const centerLon = (minLon + maxLon) / 2
       const centerLat = (minLat + maxLat) / 2
       const canvasPoints = coordinates.map((coord) => ({
@@ -514,7 +505,6 @@ export default function ResultsPage() {
         y: padding + innerHeight / 2 - (coord.latitude - centerLat) * scale,
       }))
 
-      // Draw grid
       ctx.strokeStyle = "#1e293b"
       ctx.lineWidth = 1
       for (let i = 0; i <= 10; i++) {
@@ -531,7 +521,6 @@ export default function ResultsPage() {
         ctx.stroke()
       }
 
-      // Draw polygon
       ctx.fillStyle = "rgba(34, 197, 94, 0.2)"
       ctx.strokeStyle = "#22C55E"
       ctx.lineWidth = 2.5
@@ -544,7 +533,6 @@ export default function ResultsPage() {
       ctx.fill()
       ctx.stroke()
 
-      // Draw vertices
       ctx.fillStyle = "#22C55E"
       canvasPoints.forEach((point) => {
         ctx.beginPath()
@@ -552,7 +540,6 @@ export default function ResultsPage() {
         ctx.fill()
       })
 
-      // Draw center point
       const centerX = padding + innerWidth / 2
       const centerY = padding + innerHeight / 2
       ctx.fillStyle = "#3B82F6"
@@ -560,7 +547,6 @@ export default function ResultsPage() {
       ctx.arc(centerX, centerY, 5, 0, Math.PI * 2)
       ctx.fill()
 
-      // Axes
       ctx.strokeStyle = "#475569"
       ctx.lineWidth = 1
       ctx.beginPath()
@@ -573,23 +559,19 @@ export default function ResultsPage() {
       ctx.lineTo(width - padding, centerY)
       ctx.stroke()
 
-      // Labels
       ctx.fillStyle = "#94a3b8"
       ctx.font = "11px Arial"
       ctx.textAlign = "center"
 
-      // Latitude labels
       ctx.fillText(`${maxLat.toFixed(3)}°`, padding - 40, padding + 5)
       ctx.fillText(`${centerLat.toFixed(3)}°`, padding - 40, centerY + 5)
       ctx.fillText(`${minLat.toFixed(3)}°`, padding - 40, height - padding + 5)
 
-      // Longitude labels
       ctx.textAlign = "center"
       ctx.fillText(`${minLon.toFixed(3)}°`, padding + 5, height - padding + 20)
       ctx.fillText(`${centerLon.toFixed(3)}°`, centerX, height - padding + 20)
       ctx.fillText(`${maxLon.toFixed(3)}°`, width - padding - 5, height - padding + 20)
 
-      // Info box
       ctx.fillStyle = "rgba(15, 23, 42, 0.9)"
       ctx.fillRect(padding, height - padding + 30, innerWidth, 50)
       ctx.strokeStyle = "#22C55E"
@@ -610,7 +592,7 @@ export default function ResultsPage() {
 
   const calculatePolygonArea = (coordinates: Array<{ latitude: string; longitude: string }>): number => {
     if (coordinates.length < 3) return 87
-    const R = 6371000 // Earth radius in meters
+    const R = 6371000
     let area = 0
 
     const coords = coordinates.map((c) => ({
@@ -629,7 +611,7 @@ export default function ResultsPage() {
     }
 
     area = (Math.abs(area) * (R * R)) / 2
-    return area / 10000 // Convert m² to hectares
+    return area / 10000
   }
 
   const mockValidationResult = {
@@ -694,13 +676,10 @@ export default function ResultsPage() {
       return
     }
 
-    // Detect if this is a blue carbon project
-  // Only recalculate if we have projectData (for PDF styling purposes)
-  const detectedBlueCarbonProject = projectData && (projectData.tidalZoneType || projectData.ecosystemType?.toLowerCase().includes('mangrove') || projectData.ecosystemType?.toLowerCase().includes('seagrass') || projectData.salinityType)
-  
-  const primaryColor = isBlueCarbonProject || detectedBlueCarbonProject ? "#0EA5E9" : "#3DD68C"
-  const primaryColorRgba = isBlueCarbonProject || detectedBlueCarbonProject ? "14, 165, 233" : "61, 214, 140"
-  const primaryTextColor = isBlueCarbonProject || detectedBlueCarbonProject ? "text-cyan-900 dark:text-cyan-400" : "text-emerald-900 dark:text-emerald-400"
+    const detectedBlueCarbonProject = projectData && (projectData.tidalZoneType || projectData.ecosystemType?.toLowerCase().includes('mangrove') || projectData.ecosystemType?.toLowerCase().includes('seagrass') || projectData.salinityType)
+    
+    const primaryColor = isBlueCarbonProject || detectedBlueCarbonProject ? "#0EA5E9" : "#3DD68C"
+    const primaryColorRgba = isBlueCarbonProject || detectedBlueCarbonProject ? "14, 165, 233" : "61, 214, 140"
 
     const carbonOffsetTypes: Record<string, string> = {
       reforestation: "Reforestation",
@@ -743,13 +722,10 @@ export default function ResultsPage() {
       "carbon-utilization": "Carbon Utilization Projects",
     }
 
-    const filledCoordinates = (projectData?.coordinates || []).filter((c) => c?.latitude && c?.longitude) || []
-    
-    console.log("[v0] PDF Generation - FilledCoordinates:", {
-      total: filledCoordinates.length,
-      projectDataCoordinates: projectData?.coordinates?.length || 0,
-      sample: filledCoordinates[0],
-      all: filledCoordinates
+    const filledCoordinates = (projectData?.coordinates || []).filter((c) => {
+      const lat = typeof c.latitude === 'string' ? parseFloat(c.latitude) : c.latitude
+      const lon = typeof c.longitude === 'string' ? parseFloat(c.longitude) : c.longitude
+      return lat && lon
     })
 
     const printContent = `
@@ -830,7 +806,7 @@ export default function ResultsPage() {
             }
             td { 
               padding: 12px; 
-              border-bottom: 1px solid ${primaryColorRgba}0.1);
+              border-bottom: 1px solid rgba(${primaryColorRgba}, 0.1);
               color: #E0E0E0;
             }
             tr:last-child td { border-bottom: none; }
@@ -1284,8 +1260,7 @@ export default function ResultsPage() {
               <div class="metric-row">
                 <span class="metric-label">Aboveground Biomass (AGB)</span>
                 <span class="metric-value">${carbonCalculation.agb_per_ha.toFixed(2)} t/ha</span>
-              </div>`}
-            
+              </div>
               <div class="metric-row">
                 <span class="metric-label">Carbon Fraction</span>
                 <span class="metric-value">${carbonCalculation.carbon_fraction.toFixed(2)}</span>
@@ -1303,7 +1278,7 @@ export default function ResultsPage() {
                 <span class="metric-value">${carbonInputs.baseline_emission.toFixed(1)} tCO₂/ha/year</span>
               </div>
             </div>
-
+            `}
           </div>
 
           <!-- PAGE 5: VALIDATORS INFORMATION -->
@@ -1350,10 +1325,9 @@ export default function ResultsPage() {
                 <span class="metric-value">${((mockValidationResult.contributors.reduce((sum, c) => sum + c.confidence, 0) / mockValidationResult.contributors.length) * 100).toFixed(1)}%</span>
               </div>
             </div>
-
           </div>
 
-          <!-- PAGE 6: BLUE CARBON SPECIFIC VERIFICATION (if blue carbon project) -->
+          <!-- Additional Blue Carbon Pages if needed -->
           ${isBlueCarbonProject ? `
           <div class="page page-break">
             <h1>Blue Carbon Verification Results</h1>
@@ -1380,184 +1354,10 @@ export default function ResultsPage() {
                 </div>
               </div>
             </div>
-
-            <div class="section">
-              <h2>Comprehensive Verification Discounts</h2>
-              <table>
-                <tr>
-                  <th>Verification Factor</th>
-                  <th>Discount %</th>
-                  <th>Rationale</th>
-                </tr>
-                <tr>
-                  <td>Saturation Discount</td>
-                  <td>${blueCarbonResult?.saturation_discount_percent || 0}%</td>
-                  <td>Ecosystem carbon saturation limits</td>
-                </tr>
-                <tr>
-                  <td>Permanence Risk</td>
-                  <td>${blueCarbonResult?.permanence_risk_discount_percent || 0}%</td>
-                  <td>Climate change & sea-level rise impact</td>
-                </tr>
-                <tr>
-                  <td>Additionality</td>
-                  <td>${blueCarbonResult?.additionality_discount_percent || 0}%</td>
-                  <td>Project necessity verification</td>
-                </tr>
-              </table>
-            </div>
           </div>
+          ` : ''}
 
-          <!-- PAGE 7: BLUE CARBON BIOMASS & SOC BREAKDOWN -->
-          <div class="page page-break">
-            <h1>Blue Carbon Biomass & Soil Carbon Analysis</h1>
-            <p style="color: #B0B0B0; margin-bottom: 30px;">Detailed Carbon Pool Quantification</p>
-            
-            <div class="section">
-              <h2>Carbon Pool Distribution (tC/ha)</h2>
-              <table>
-                <tr>
-                  <th>Carbon Pool</th>
-                  <th>Value (tC/ha)</th>
-                  <th>% of Total</th>
-                  <th>Standard Methodology</th>
-                </tr>
-                <tr>
-                  <td>Above Ground Biomass (AGB)</td>
-                  <td>${(blueCarbonResult?.agb_tc_ha || 0).toFixed(2)}</td>
-                  <td>${(((blueCarbonResult?.agb_tc_ha || 0) / ((blueCarbonResult?.agb_tc_ha || 0) + (blueCarbonResult?.bgb_tc_ha || 0) + (blueCarbonResult?.soc_tc_ha || 0) + (blueCarbonResult?.dead_wood_tc_ha || 0) + (blueCarbonResult?.litter_tc_ha || 0))) * 100).toFixed(1)}%</td>
-                  <td>IPCC AR6 / Satellite derived</td>
-                </tr>
-                <tr>
-                  <td>Below Ground Biomass (BGB)</td>
-                  <td>${(blueCarbonResult?.bgb_tc_ha || 0).toFixed(2)}</td>
-                  <td>${(((blueCarbonResult?.bgb_tc_ha || 0) / ((blueCarbonResult?.agb_tc_ha || 0) + (blueCarbonResult?.bgb_tc_ha || 0) + (blueCarbonResult?.soc_tc_ha || 0) + (blueCarbonResult?.dead_wood_tc_ha || 0) + (blueCarbonResult?.litter_tc_ha || 0))) * 100).toFixed(1)}%</td>
-                  <td>Ecosystem-specific ratios</td>
-                </tr>
-                <tr>
-                  <td>Soil Organic Carbon (SOC)</td>
-                  <td>${(blueCarbonResult?.soc_tc_ha || 0).toFixed(2)}</td>
-                  <td>${(((blueCarbonResult?.soc_tc_ha || 0) / ((blueCarbonResult?.agb_tc_ha || 0) + (blueCarbonResult?.bgb_tc_ha || 0) + (blueCarbonResult?.soc_tc_ha || 0) + (blueCarbonResult?.dead_wood_tc_ha || 0) + (blueCarbonResult?.litter_tc_ha || 0))) * 100).toFixed(1)}%</td>
-                  <td>IPCC Tier 2 (bulk density × depth)</td>
-                </tr>
-                <tr>
-                  <td>Dead Wood & Litter</td>
-                  <td>${((blueCarbonResult?.dead_wood_tc_ha || 0) + (blueCarbonResult?.litter_tc_ha || 0)).toFixed(2)}</td>
-                  <td>${((((blueCarbonResult?.dead_wood_tc_ha || 0) + (blueCarbonResult?.litter_tc_ha || 0)) / ((blueCarbonResult?.agb_tc_ha || 0) + (blueCarbonResult?.bgb_tc_ha || 0) + (blueCarbonResult?.soc_tc_ha || 0) + (blueCarbonResult?.dead_wood_tc_ha || 0) + (blueCarbonResult?.litter_tc_ha || 0))) * 100).toFixed(1)}%</td>
-                  <td>IPCC coefficients</td>
-                </tr>
-                <tr style="background: rgba(74, 222, 128, 0.1); font-weight: 700;">
-                  <td>TOTAL</td>
-                  <td>${((blueCarbonResult?.agb_tc_ha || 0) + (blueCarbonResult?.bgb_tc_ha || 0) + (blueCarbonResult?.soc_tc_ha || 0) + (blueCarbonResult?.dead_wood_tc_ha || 0) + (blueCarbonResult?.litter_tc_ha || 0)).toFixed(2)}</td>
-                  <td>100%</td>
-                  <td>Combined</td>
-                </tr>
-              </table>
-            </div>
-
-            <div class="section">
-              <h2>Annual Carbon Sequestration</h2>
-              <div class="metric-row">
-                <span class="metric-label">Annual Rate</span>
-                <span class="metric-value">${(blueCarbonResult?.annual_sequestration_rate_tco2_ha || 0).toFixed(2)} tCO₂/ha/year</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Total Project Duration</span>
-                <span class="metric-value">10 years</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Total Sequestration</span>
-                <span class="metric-value">${Math.round((blueCarbonResult?.total_project_sequestration_tco2 || 0)).toLocaleString()} tCO₂</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- PAGE 8: COASTAL CO-BENEFITS & RISK ASSESSMENT -->
-          <div class="page page-break">
-            <h1>Coastal Co-benefits & Environmental Assessment</h1>
-            <p style="color: #B0B0B0; margin-bottom: 30px;">Blue Carbon Ecosystem Services & Risk Analysis</p>
-            
-            <div class="section">
-              <h2>Co-benefits Assessment</h2>
-              <div style="background: rgba(34, 197, 94, 0.1); padding: 15px; border-radius: 6px; border-left: 4px solid #22C55E; margin: 15px 0;">
-                <p><strong>Coastal Protection Value:</strong></p>
-                <p style="color: #B0B0B0; margin-top: 8px;">${blueCarbonResult?.coastal_protection_value || "High (storm surge, wave attenuation)"}</p>
-              </div>
-              <div style="background: rgba(59, 130, 246, 0.1); padding: 15px; border-radius: 6px; border-left: 4px solid #3B82F6; margin: 15px 0;">
-                <p><strong>Biodiversity Benefit:</strong></p>
-                <p style="color: #B0B0B0; margin-top: 8px;">${blueCarbonResult?.biodiversity_benefit || "High (nursery habitat for fish)"}</p>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Risk & Permanence Analysis</h2>
-              <div class="metric-row">
-                <span class="metric-label">Climate Change Risk</span>
-                <span class="metric-value" style="color: #EAB308;">Moderate - Sea-level rise impact</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Permanence Assurance</span>
-                <span class="metric-value">${blueCarbonResult?.permanence_risk_discount_percent || 12}% discount applied</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Human Disturbance</span>
-                <span class="metric-value">Legal protection status verified</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Buffer Pool Allocation</span>
-                <span class="metric-value">${Math.round(blueCarbonResult?.buffer_pool_tco2 || 0).toLocaleString()} tCO₂ reserved</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- PAGE 9: METHODOLOGICAL COMPLIANCE -->
-          <div class="page page-break">
-            <h1>Methodological Compliance & Standards</h1>
-            <p style="color: #B0B0B0; margin-bottom: 30px;">International Standards & Best Practices Verification</p>
-            
-            <div class="section">
-              <h2>Compliance with International Standards</h2>
-              <table>
-                <tr>
-                  <th>Standard/Protocol</th>
-                  <th>Compliance Status</th>
-                  <th>Applicable Tier/Version</th>
-                </tr>
-                <tr>
-                  <td>IPCC AR6 Climate Change 2021</td>
-                  <td style="color: #22C55E;">✓ Compliant</td>
-                  <td>Tier 2 Methodology</td>
-                </tr>
-                <tr>
-                  <td>Verra VCS v4.4</td>
-                  <td style="color: #22C55E;">✓ Compliant</td>
-                  <td>Blue Carbon Standards</td>
-                </tr>
-                <tr>
-                  <td>IUCN Blue Carbon Guidelines</td>
-                  <td style="color: #22C55E;">✓ Compliant</td>
-                  <td>Coastal Ecosystem Standards</td>
-                </tr>
-                <tr>
-                  <td>ISO 14064-2:2019</td>
-                  <td style="color: #22C55E;">✓ Compliant</td>
-                  <td>GHG Quantification</td>
-                </tr>
-              </table>
-            </div>
-
-            <div class="section">
-              <h2>AGB & BGB Calculation Methodology</h2>
-              <div style="font-size: 12px; color: #B0B0B0; line-height: 1.8; background: rgba(100, 116, 139, 0.1); padding: 12px; border-radius: 4px;">
-                <p><strong>AGB Estimation:</strong> Above Ground Biomass derived from satellite-based remote sensing combined with ground-truthed measurements using IPCC allometric equations for coastal ecosystems</p>
-                <p style="margin-top: 10px;"><strong>BGB Calculation:</strong> Below Ground Biomass calculated using ecosystem-specific BGB/AGB ratios (mangrove: 0.45, seagrass: 0.6, salt marsh: 0.5) following IPCC AR6 recommendations</p>
-                <p style="margin-top: 10px;"><strong>SOC Assessment:</strong> Soil Organic Carbon quantified using Tier 2 IPCC method: SOC = Bulk Density (g/cm³) × Depth (cm) × Organic Matter (%) × 10</p>
-              </div>
-            </div>
-          </div>
-          ` : ``}
-
-          <!-- PAGE 10: DISCLAIMER & DATA INTEGRITY NOTICE (Part 1) -->
+          <!-- DISCLAIMER PAGE -->
           <div class="page page-break">
             <h1>Disclaimer & Data Integrity Notice</h1>
             
@@ -1579,39 +1379,19 @@ export default function ResultsPage() {
                   <strong>Validator Network Verification:</strong><br/>
                   The Athlas Verity AI System decentralized validator network has reviewed and verified the submitted data against publicly available standards and protocols. However, this verification is computational in nature and does not constitute an audit or independent certification of the carbon asset or project claims.
                 </p>
-              </div>
-            </div>
-          </div>
 
-          <!-- PAGE 11: DISCLAIMER & DATA INTEGRITY NOTICE (Part 2) -->
-          <div class="page page-break">
-            <h1 style="font-size: 18px; margin-bottom: 20px;">Disclaimer & Data Integrity Notice (Continued)</h1>
-            
-            <div class="section" style="background: rgba(255, 193, 7, 0.05); border: 1px solid rgba(255, 193, 7, 0.2); page-break-inside: avoid; break-inside: avoid;">
-              <div style="color: #E0E0E0; line-height: 1.8;">
                 <p style="margin-bottom: 15px;">
                   <strong>Limitation of Liability:</strong><br/>
                   Athlas Verity Platform and the AI validator network assume no liability for errors, omissions, or misstatements in the source data provided by project developers or asset owners. Users are solely responsible for the accuracy and legitimacy of all information submitted for verification.
                 </p>
 
-                <p style="margin-bottom: 15px;">
-                  <strong>Use of This Report:</strong><br/>
-                  This report is intended for informational purposes only and should not be construed as investment advice, financial guidance, or certification of carbon credits. Any commercial use of this verification report requires explicit authorization from Athlas Verity Platform and compliance with applicable regulatory frameworks.
-                </p>
-
-                <p style="margin-bottom: 15px;">
-                  <strong>Data Confidentiality:</strong><br/>
-                  This document contains sensitive project and verification data. Recipients are obligated to maintain appropriate confidentiality and restrict access to authorized personnel only.
-                </p>
-
                 <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(${primaryColorRgba}, 0.2); font-style: italic; color: #B0B0B0;">
-                  By accessing this verification report, you acknowledge that you have read, understood, and agree to be bound by the terms and limitations outlined in this disclaimer. If you do not agree with any provision herein, you must discontinue the use of this report immediately.
+                  By accessing this verification report, you acknowledge that you have read, understood, and agree to be bound by the terms and limitations outlined in this disclaimer.
                 </p>
 
                 <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid rgba(${primaryColorRgba}, 0.2); text-align: center; font-size: 12px; color: #888;">
                   <p style="margin-bottom: 8px; font-style: italic;">Generated on ${new Date().toLocaleString()}</p>
                   <p style="margin-bottom: 8px; font-weight: 500; color: ${primaryColor};">Athlas Verity Platform - Powered by CarbonFi Labs System</p>
-                  <p style="margin-bottom: 15px; color: #FFD700;">This report contains sensitive verification data. Please handle with appropriate confidentiality.</p>
                   <p style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(${primaryColorRgba}, 0.1); color: #666;">© 2025 Athlas Verity - Environmental Impact Verification Platform. All rights reserved.</p>
                 </div>
               </div>
@@ -1737,25 +1517,20 @@ export default function ResultsPage() {
             : "Your ecological dataset has been processed by the Athlas Verity AI System validators"}
         </p>
 
-        {/* Desktop Layout: 3-column grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Left Column: Dataset Visualization */}
           <div className="lg:col-span-1">
             <DatasetVisualization />
           </div>
 
-          {/* Middle Column: Integrity Class & Metrics */}
           <div className="lg:col-span-1">
             <IntegrityClassPanel validationResult={mockValidationResult} />
           </div>
 
-          {/* Right Column: Validator Contributors */}
           <div className="lg:col-span-1">
             <ValidatorContributorsPanel contributors={mockValidationResult.contributors} />
           </div>
         </div>
 
-        {/* Blue Carbon Results Display */}
         {isBlueCarbonProject && blueCarbonResult && (
           <div className="mb-8">
             <BlueCarbonResultsDisplay 
@@ -1766,7 +1541,6 @@ export default function ResultsPage() {
           </div>
         )}
 
-        {/* Export & Proof-Chain Section */}
         <Card className="bg-card border-border p-6">
           <h3 className="text-xl font-semibold mb-4">Export Validation Package</h3>
 
