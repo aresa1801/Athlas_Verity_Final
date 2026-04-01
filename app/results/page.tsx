@@ -18,7 +18,6 @@ import Image from "next/image"
 import { estimateAGB, type AGBEstimationResult } from "@/lib/agb-estimation-engine"
 import { BlueCarbonResultsDisplay } from "@/components/verification/blue-carbon-results-display"
 import type { BlueCarbonResult } from "@/lib/blue-carbon-calculator"
-import { generateGreenCarbonPDFHTML, generateGreenCarbonPDF, type GreenCarbonPDFData } from "@/lib/pdf-generators/green-carbon-pdf-generator"
 
 interface FormData {
   projectName: string
@@ -677,57 +676,6 @@ export default function ResultsPage() {
     navigator.clipboard.writeText(mockValidationResult.proof_chain)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-  }
-
-  const handleExportGreenCarbonPDF = async () => {
-    if (!projectData) {
-      alert("Project data is not yet loaded. Please wait and try again.")
-      return
-    }
-
-    try {
-      const pdfData: GreenCarbonPDFData = {
-        projectName: projectData.projectName || "Green Carbon Project",
-        projectLocation: projectData.projectLocation || "Unknown Location",
-        projectDescription: projectData.projectDescription,
-        projectArea: carbonInputs.area_ha || 87,
-        ownerName: projectData.ownerName || "Unknown",
-        ownerEmail: projectData.ownerEmail || "unknown@example.com",
-        ownerPhone: projectData.ownerPhone || "Unknown",
-        
-        // Carbon metrics
-        finalVerifiedReduction: carbonCalculation.final_verified_reduction_tco2,
-        baselineEmissions: carbonCalculation.baseline_emissions_total_tco2,
-        projectEmissions: carbonCalculation.converted_co2_tco2,
-        leakageAdjustment: carbonCalculation.leakage_reduction_tco2,
-        bufferPoolDeduction: carbonCalculation.buffer_reduction_tco2,
-        integrityClassAdjustment: carbonCalculation.integrity_class_adjustment_tco2,
-        
-        // Verification data
-        integrityClass: carbonInputs.integrity_class,
-        integrityScore: Math.round(carbonCalculation.final_verified_reduction_tco2 > 0 ? 95 : 0),
-        vegetationType: projectData.satelliteData?.features?.forest_type || "Tropical Rainforest",
-        ndviValue: projectData.satelliteData?.features?.ndvi || 0.72,
-        agbValue: agbEstimation?.agb_tpha_final || carbonInputs.agb_per_ha || 124.2,
-        carbonFraction: carbonInputs.carbon_fraction,
-        
-        // Validation results
-        validationStatus: "passed",
-        validatorConsensus: carbonInputs.validator_consensus,
-        anomalyFlags: [],
-        
-        // Coordinates
-        coordinates: projectData.coordinates,
-        generatedDate: new Date(),
-        submittedDate: new Date(),
-      }
-
-      const htmlContent = generateGreenCarbonPDFHTML(pdfData)
-      await generateGreenCarbonPDF(pdfData, htmlContent)
-    } catch (error) {
-      console.error("[v0] Green Carbon PDF generation failed:", error)
-      alert(`Failed to generate Green Carbon PDF: ${error instanceof Error ? error.message : "Unknown error"}`)
-    }
   }
 
   const handleExportJSON = () => {
@@ -1818,6 +1766,214 @@ export default function ResultsPage() {
           </div>
         )}
 
+        {/* Carbon Reduction Summary - Green Carbon Only */}
+        {!isBlueCarbonProject && (
+          <>
+            <Card className="bg-card border-border p-6 mb-8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-semibold flex items-center gap-2">
+                    <svg className="w-6 h-6 text-green-500" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                    </svg>
+                    Carbon Reduction Summary
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">Verified CO₂ Equivalent Reduction</p>
+                </div>
+                <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+              </div>
+
+              {/* Final Verified Reduction - Large highlighted box */}
+              <div className="bg-gradient-to-br from-green-900/30 to-green-800/20 border border-green-700/50 rounded-lg p-6 mb-8">
+                <p className="text-sm text-muted-foreground mb-2">Final Verified Reduction</p>
+                <p className="text-4xl font-bold text-green-400">
+                  {carbonCalculation.final_verified_reduction_tco2.toLocaleString(undefined, {
+                    maximumFractionDigits: 1,
+                  })}
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">tonnes CO₂ equivalent</p>
+              </div>
+
+              {/* Metrics Grid */}
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                <div className="bg-background border border-border rounded p-4">
+                  <p className="text-xs text-muted-foreground mb-2">Raw Carbon Stock</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {carbonCalculation.raw_carbon_stock_tc.toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">tC</p>
+                </div>
+                <div className="bg-background border border-border rounded p-4">
+                  <p className="text-xs text-muted-foreground mb-2">Converted CO₂</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {carbonCalculation.converted_co2_tco2.toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">tCO₂</p>
+                </div>
+                <div className="bg-background border border-border rounded p-4">
+                  <p className="text-xs text-muted-foreground mb-2">Baseline Emissions</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {carbonCalculation.baseline_emissions_total_tco2.toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">tCO₂</p>
+                </div>
+                <div className="bg-background border border-border rounded p-4">
+                  <p className="text-xs text-muted-foreground mb-2">Gross Reduction</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {carbonCalculation.gross_reduction_tco2.toLocaleString(undefined, {
+                      maximumFractionDigits: 2,
+                    })}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">tCO₂</p>
+                </div>
+              </div>
+
+              {/* Applied Adjustments */}
+              <div className="bg-background border border-border rounded p-4">
+                <p className="text-sm font-semibold mb-4 text-foreground">Applied Adjustments</p>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Leakage ({carbonCalculation.leakage_adjustment_percent}%)</p>
+                    <p className="text-sm font-semibold text-red-400">
+                      -{carbonCalculation.leakage_reduction_tco2.toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })} tCO₂
+                    </p>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Buffer Pool ({carbonCalculation.buffer_pool_percent}%)</p>
+                    <p className="text-sm font-semibold text-red-400">
+                      -{carbonCalculation.buffer_reduction_tco2.toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })} tCO₂
+                    </p>
+                  </div>
+                  <div className="flex justify-between items-center border-t border-border pt-3">
+                    <p className="text-sm text-muted-foreground">Integrity Class ({(carbonCalculation.integrity_class_factor * 100).toFixed(1)}%)</p>
+                    <p className="text-sm font-semibold text-red-400">
+                      -{carbonCalculation.integrity_class_adjustment_tco2.toLocaleString(undefined, {
+                        maximumFractionDigits: 2,
+                      })} tCO₂
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Carbon Accounting Calculations Table */}
+            <Card className="bg-card border-border p-6 mb-8">
+              <h3 className="text-xl font-semibold mb-4">Carbon Accounting Calculations</h3>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-muted-foreground">Metric</th>
+                      <th className="text-right py-3 px-4 text-sm font-semibold text-muted-foreground">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    <tr className="hover:bg-background/50">
+                      <td className="py-3 px-4 text-sm text-foreground">AGB (t/ha)</td>
+                      <td className="py-3 px-4 text-sm text-right text-foreground font-medium">
+                        {(agbEstimation?.agb_tpha_final || carbonInputs.agb_per_ha || 124.2).toFixed(2)}
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-background/50">
+                      <td className="py-3 px-4 text-sm text-foreground">Carbon Fraction</td>
+                      <td className="py-3 px-4 text-sm text-right text-foreground font-medium">
+                        {carbonInputs.carbon_fraction}
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-background/50">
+                      <td className="py-3 px-4 text-sm text-foreground">Project Area (ha)</td>
+                      <td className="py-3 px-4 text-sm text-right text-foreground font-medium">
+                        {carbonInputs.area_ha?.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-background/50">
+                      <td className="py-3 px-4 text-sm text-foreground">Raw Carbon Stock (tC)</td>
+                      <td className="py-3 px-4 text-sm text-right text-foreground font-medium">
+                        {carbonCalculation.raw_carbon_stock_tc.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-background/50">
+                      <td className="py-3 px-4 text-sm text-foreground">Converted CO₂ (tCO₂)</td>
+                      <td className="py-3 px-4 text-sm text-right text-foreground font-medium">
+                        {carbonCalculation.converted_co2_tco2.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-background/50">
+                      <td className="py-3 px-4 text-sm text-foreground">Baseline Emissions (tCO₂)</td>
+                      <td className="py-3 px-4 text-sm text-right text-foreground font-medium">
+                        {carbonCalculation.baseline_emissions_total_tco2.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-background/50">
+                      <td className="py-3 px-4 text-sm text-foreground">Gross Reduction (tCO₂)</td>
+                      <td className="py-3 px-4 text-sm text-right text-foreground font-medium">
+                        {carbonCalculation.gross_reduction_tco2.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-background/50">
+                      <td className="py-3 px-4 text-sm text-foreground">Leakage Adjustment (%)</td>
+                      <td className="py-3 px-4 text-sm text-right text-foreground font-medium">
+                        {carbonCalculation.leakage_adjustment_percent}%
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-background/50">
+                      <td className="py-3 px-4 text-sm text-foreground">Buffer Pool (%)</td>
+                      <td className="py-3 px-4 text-sm text-right text-foreground font-medium">
+                        {carbonCalculation.buffer_pool_percent}%
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-background/50">
+                      <td className="py-3 px-4 text-sm text-foreground">Net Reduction (tCO₂)</td>
+                      <td className="py-3 px-4 text-sm text-right text-foreground font-medium">
+                        {carbonCalculation.net_reduction_tco2.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-background/50">
+                      <td className="py-3 px-4 text-sm text-foreground">Integrity Class Adjustment</td>
+                      <td className="py-3 px-4 text-sm text-right text-foreground font-medium">
+                        {(carbonCalculation.integrity_class_factor * 100).toFixed(1)}%
+                      </td>
+                    </tr>
+                    <tr className="border-t-2 border-green-700/50 hover:bg-background/50">
+                      <td className="py-3 px-4 text-sm font-semibold text-foreground">Final Verified Reduction (tCO₂)</td>
+                      <td className="py-3 px-4 text-sm text-right font-bold text-green-400">
+                        {carbonCalculation.final_verified_reduction_tco2.toLocaleString(undefined, {
+                          maximumFractionDigits: 2,
+                        })}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </>
+        )}
+
         {/* Export & Proof-Chain Section */}
         <Card className="bg-card border-border p-6">
           <h3 className="text-xl font-semibold mb-4">Export Validation Package</h3>
@@ -1834,22 +1990,16 @@ export default function ResultsPage() {
             </div>
           </div>
 
-          <div className="space-y-3">
-            {!isBlueCarbonProject && (
-              <Button onClick={handleExportGreenCarbonPDF} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
-                <Download className="w-4 h-4 mr-2" />
-                Download Green Carbon Validation Report (PDF)
-              </Button>
-            )}
-            <Button onClick={handleExportJSON} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-              <Download className="w-4 h-4 mr-2" />
-              Export Validation Package (JSON)
-            </Button>
-            <Button onClick={handleExportPDF} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-              <Download className="w-4 h-4 mr-2" />
-              Download Complete PDF Report
-            </Button>
-          </div>
+  <div className="space-y-3">
+  <Button onClick={handleExportJSON} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+  <Download className="w-4 h-4 mr-2" />
+  Export Validation Package (JSON)
+  </Button>
+  <Button onClick={handleExportPDF} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+  <Download className="w-4 h-4 mr-2" />
+  Download Complete PDF Report
+  </Button>
+  </div>
         </Card>
       </div>
     </div>
