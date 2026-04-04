@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Download, Copy, ArrowLeft, CheckCircle } from "lucide-react"
+import { Download, Copy, ArrowLeft, CheckCircle, MapPin, Info, Lock } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect } from "react"
 import IntegrityClassPanel from "@/components/integrity-class-panel"
@@ -1074,43 +1074,6 @@ export default function ResultsPage() {
     </div>
   )
 }
-            <div class="section">
-              <h2>Blue Carbon Ecosystem Parameters</h2>
-              <div class="metric-row">
-                <span class="metric-label">Carbon Sequestration Rate (SOC)</span>
-                <span class="metric-value">${((carbonInputs.agb_per_ha * carbonInputs.carbon_fraction) / 10).toFixed(2)} tC/ha/year</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Coastal Protection Status</span>
-                <span class="metric-value">${projectData?.coastalProtectionStatus || "N/A"}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Human Disturbance Level</span>
-                <span class="metric-value">${projectData?.humanDisturbanceLevel || "N/A"}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Legal Protection Status</span>
-                <span class="metric-value">${projectData?.legalProtectionStatus || "N/A"}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Baseline Year</span>
-                <span class="metric-value">${projectData?.baselineYear || "N/A"}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Methodology Reference</span>
-                <span class="metric-value">${projectData?.methodologyRef || "Verra VCS"}</span>
-              </div>
-            </div>
-            ` : ''}
-
-            <div class="section">
-              <h2>Integrity & Quality Scores</h2>
-              <div class="grid">
-                <div class="grid-item">
-                  <div class="label">Integrity Class</div>
-                  <div class="score">${mockValidationResult.integrity_class}</div>
-                </div>
-                <div class="grid-item">
                   <div class="label">Aura Score</div>
                   <div class="score">${(mockValidationResult.aura_score * 100).toFixed(1)}%</div>
                 </div>
