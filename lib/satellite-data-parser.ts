@@ -9,17 +9,30 @@ export interface ParsedSatelliteData {
   center_coordinates?: string[] // alternate naming for compatibility
   coordinates: string // center coordinates
   
+  // Polygon coordinates for mapping and results page
+  polygonCoordinates?: Array<{
+    latitude: number
+    longitude: number
+    point?: number
+    status?: string
+  }>
+  
   // Vegetation data
   forestType?: string
   ecosystemType?: string
   dominantSpecies?: string
   vegetationDescription?: string
+  vegetationClassification?: string
   averageTreeHeight?: string
   canopyCover?: string
   canopyCoverPercent?: string
   
   // Analysis metrics
   ndvi?: number
+  evi?: number
+  canopyDensity?: number
+  elevation?: number
+  sarBackscatter?: number
   biomass?: string
   carbonEstimate?: string
   
@@ -268,11 +281,27 @@ function parseAnalysisExportFormat(data: any): ParsedSatelliteData {
   const dominantSpecies = data.dominantSpecies || ''
   const averageTreeHeight = data.averageTreeHeight || ''
   const vegetationDescription = data.vegetationDescription || ''
+  const vegetationClassification = data.vegetationClassification?.type || data.vegetationClassification || ''
   
-  // Extract NDVI from satellite object
+  // Extract NDVI and other satellite metrics
   const ndvi = parseFloat(data.satellite?.ndvi || data.ndvi || '0.68')
+  const evi = parseFloat(data.satellite?.evi || data.evi || '0.45')
+  const canopyDensity = parseFloat(data.satellite?.canopyDensity || data.canopyDensity || data.satellite?.canopy_density || '0.75')
+  const elevation = parseFloat(data.satellite?.elevation || data.elevation || '500')
+  const sarBackscatter = parseFloat(data.satellite?.sarBackscatter || data.sarBackscatter || data.satellite?.sar_backscatter || '0.3')
   
   const dataSources = [data.satelliteSource || 'Satellite Analysis']
+
+  // Extract polygon coordinates if available
+  let polygonCoords: Array<{ latitude: number; longitude: number; point?: number; status?: string }> = []
+  if (data.polygonCoordinates && Array.isArray(data.polygonCoordinates)) {
+    polygonCoords = data.polygonCoordinates.map((coord: any) => ({
+      latitude: coord.latitude || coord.lat,
+      longitude: coord.longitude || coord.lng,
+      point: coord.point,
+      status: coord.status
+    }))
+  }
 
   // Extract blue carbon specific coastal data
   const coastalData = data.coastalData || data.satellite?.coastalData || {}
@@ -289,7 +318,12 @@ function parseAnalysisExportFormat(data: any): ParsedSatelliteData {
     ecosystemType,
     dominantSpecies,
     ndvi,
+    evi,
+    canopyDensity,
+    elevation,
+    sarBackscatter,
     coastalData,
+    polygonCoordinates: polygonCoords.length,
   })
 
   return {
@@ -298,16 +332,22 @@ function parseAnalysisExportFormat(data: any): ParsedSatelliteData {
     area_ha: area, // For compatibility
     coordinates,
     center_coordinates: [String(centerCoords.latitude), String(centerCoords.longitude)], // For compatibility
+    polygonCoordinates: polygonCoords.length > 0 ? polygonCoords : undefined,
     forestType: formatString(forestType),
     ecosystemType: formatString(ecosystemType),
     dominantSpecies: formatString(dominantSpecies),
     vegetationDescription: formatString(vegetationDescription),
+    vegetationClassification: formatString(vegetationClassification),
     averageTreeHeight: String(averageTreeHeight).trim(),
     canopyCover: data.satellite?.cloudCover ? `${100 - data.satellite.cloudCover}%` : '85-95%',
     canopyCoverPercent: data.vegetationClassification?.canopyCoverPercent?.toString() || data.satellite?.canopyCover || '',
     biomass: formatString(data.satellite?.biomass || data.carbonData?.agb || ''),
     carbonEstimate: formatString(data.satellite?.carbonEstimate || data.carbonData?.totalCarbonStock || ''),
     ndvi: ndvi,
+    evi: evi,
+    canopyDensity: canopyDensity,
+    elevation: elevation,
+    sarBackscatter: sarBackscatter,
     // Blue carbon specific fields
     tidalZone: tidalZoneType,
     tidalZoneType: tidalZoneType,
@@ -362,11 +402,18 @@ function parseGeoJSONWithMetadata(
   const forestType = geojson.forestType || vegetation.forestType || vegetation.forest_type || metadata?.forestType || 'Unknown'
   const dominantSpecies = geojson.dominantSpecies || vegetation.dominantSpecies || vegetation.species || metadata?.dominantSpecies || vegetation.dominant_species || ''
   const vegetationDescription = geojson.vegetationDescription || vegetation.description || vegetation.vegetation_description || metadata?.description || ''
+  const vegetationClassification = geojson.vegetationClassification || vegetation.classification || vegetation.vegetation_classification || metadata?.vegetationClassification || ''
   const averageTreeHeight = geojson.averageTreeHeight || vegetation.averageTreeHeight || vegetation.height || vegetation.tree_height || vegetation.average_height || metadata?.treeHeight || metadata?.averageTreeHeight || ''
   const canopyCover = geojson.canopyCover || vegetation.canopy_cover || vegetation.canopyCover || metadata?.canopyCover || ''
   const biomass = geojson.biomass || geojson.satellite?.biomass || vegetation.biomass || vegetation.agb || metadata?.biomass || ''
   const carbonEstimate = geojson.carbonEstimate || geojson.satellite?.carbonEstimate || vegetation.carbon || vegetation.carbon_estimate || metadata?.carbonEstimate || ''
+  
+  // Extract satellite metrics with multiple fallbacks
   const ndvi = parseFloat(geojson.satellite?.ndvi || geojson.ndvi || vegetation.ndvi || vegetation.NDVI || metadata?.ndvi || '0.68')
+  const evi = parseFloat(geojson.satellite?.evi || geojson.evi || vegetation.evi || metadata?.evi || '0.45')
+  const canopyDensity = parseFloat(geojson.satellite?.canopyDensity || geojson.canopyDensity || vegetation.canopyDensity || geojson.satellite?.canopy_density || metadata?.canopyDensity || '0.75')
+  const elevation = parseFloat(geojson.satellite?.elevation || geojson.elevation || vegetation.elevation || metadata?.elevation || '500')
+  const sarBackscatter = parseFloat(geojson.satellite?.sarBackscatter || geojson.sarBackscatter || vegetation.sarBackscatter || geojson.satellite?.sar_backscatter || metadata?.sarBackscatter || '0.3')
 
   // Extract data sources from metadata
   if (metadata?.dataSources && Array.isArray(metadata.dataSources)) {
@@ -388,18 +435,37 @@ function parseGeoJSONWithMetadata(
     polygonCount = geojson.features?.length || 1
   }
 
+  // Format polygon coordinates for results page
+  const formattedPolygonCoords = polygonCoordinates.length > 0 
+    ? polygonCoordinates.map((coord, index) => ({
+        latitude: coord[0],
+        longitude: coord[1],
+        point: index + 1
+      }))
+    : undefined
+
   const result: ParsedSatelliteData = {
     area: `${area.toFixed(2)} ha`,
     areaHa: area, // Add numeric area for calculations
+    area_ha: area, // For compatibility
     coordinates,
+    center_coordinates: [coordinates.split(',')[0].trim(), coordinates.split(',')[1].trim()],
+    polygonCoordinates: formattedPolygonCoords,
     forestType: formatString(forestType),
+    ecosystemType: formatString(vegetation.ecosystemType || forestType),
     dominantSpecies: formatString(dominantSpecies),
     vegetationDescription: formatString(vegetationDescription),
+    vegetationClassification: formatString(vegetationClassification),
     averageTreeHeight: String(averageTreeHeight).trim(), // Keep as-is, don't format (preserve ranges like "25-30")
     canopyCover: formatString(canopyCover),
+    canopyCoverPercent: formatString(vegetation.canopyCoverPercent || ''),
     biomass: formatString(biomass),
     carbonEstimate: formatString(carbonEstimate),
-    ndvi: ndvi, // Add NDVI value (actual from data, not hardcoded)
+    ndvi: ndvi,
+    evi: evi,
+    canopyDensity: canopyDensity,
+    elevation: elevation,
+    sarBackscatter: sarBackscatter,
     dataSource: dataSources,
     analysisDate: metadata?.analysisDate || new Date().toISOString().split('T')[0],
     polygonCount,
@@ -409,6 +475,7 @@ function parseGeoJSONWithMetadata(
   console.log("[v0] Parsed satellite data:", result)
   console.log("[v0] Polygon coordinates extracted:", polygonCoordinates.length, "points")
   console.log("[v0] Dominant Species:", dominantSpecies, "Tree Height:", averageTreeHeight)
+  console.log("[v0] Satellite metrics:", { ndvi, evi, canopyDensity, elevation, sarBackscatter })
   return result
 }
 
@@ -553,12 +620,28 @@ function extractAnalysisData(data: any): ParsedSatelliteData {
   const dominantSpecies = data.dominantSpecies || data.satellite?.vegetationClass || 'Mixed tropical species'
   const averageTreeHeight = data.averageTreeHeight || '25-30'
   const vegetationDescription = data.vegetationDescription || ''
+  const vegetationClassification = data.vegetationClassification?.type || data.vegetationClassification || ''
   
   // Extract satellite data
   const satellite = data.satellite || {}
   const ndvi = satellite.ndvi || 0.68
+  const evi = satellite.evi || 0.45
+  const canopyDensity = satellite.canopyDensity || satellite.canopy_density || 0.75
+  const elevation = satellite.elevation || 500
+  const sarBackscatter = satellite.sarBackscatter || satellite.sar_backscatter || 0.3
   const biomass = satellite.biomass || data.carbonData?.agb || 250
   const carbonEstimate = satellite.carbonEstimate || data.carbonData?.totalCarbonStock || 0
+  
+  // Extract polygon coordinates
+  let polygonCoords: Array<{ latitude: number; longitude: number; point?: number; status?: string }> = []
+  if (data.polygonCoordinates && Array.isArray(data.polygonCoordinates)) {
+    polygonCoords = data.polygonCoordinates.map((coord: any) => ({
+      latitude: coord.latitude || coord.lat,
+      longitude: coord.longitude || coord.lng,
+      point: coord.point,
+      status: coord.status
+    }))
+  }
   
   console.log("[v0] Extracted analysis data:", {
     areaHa,
@@ -569,20 +652,34 @@ function extractAnalysisData(data: any): ParsedSatelliteData {
     biomass,
     carbonEstimate,
     ndvi,
+    evi,
+    canopyDensity,
+    elevation,
+    sarBackscatter,
   })
   
   return {
     area: `${areaHa.toFixed(2)} ha`,
     areaHa,
+    area_ha: areaHa,
     coordinates,
+    center_coordinates: [String(centerCoords.latitude), String(centerCoords.longitude)],
+    polygonCoordinates: polygonCoords.length > 0 ? polygonCoords : undefined,
     forestType,
+    ecosystemType: data.ecosystemType || forestType,
     dominantSpecies,
     vegetationDescription,
+    vegetationClassification,
     averageTreeHeight,
     canopyCover: satellite.cloudCover ? `${100 - satellite.cloudCover}%` : '75-95%',
+    canopyCoverPercent: data.vegetationClassification?.canopyCoverPercent?.toString() || '',
     biomass: `${parseFloat(String(biomass)).toFixed(2)} tC/ha`,
     carbonEstimate: `${parseFloat(String(carbonEstimate)).toFixed(2)} tC`,
     ndvi,
+    evi,
+    canopyDensity,
+    elevation,
+    sarBackscatter,
     dataSource: [data.satelliteSource || 'Satellite Analysis'],
     analysisDate: new Date(data.timestamp).toISOString().split('T')[0],
     polygonCount: data.polygonInfo?.count || 1,
@@ -767,5 +864,3 @@ function formatString(value: any): string {
     .replace(/^./, char => char.toUpperCase())
     .trim()
 }
-
-
