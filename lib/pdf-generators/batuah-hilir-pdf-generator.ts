@@ -111,48 +111,8 @@ export interface BatuahHilirPDFData {
 }
 
 export async function generateBatuahHilirPDF(data: BatuahHilirPDFData): Promise<void> {
-  const html = generateBatuahHilirPDFHTML(data)
-  
-  const element = document.createElement('div')
-  element.innerHTML = html
-  element.style.width = '210mm'
-  element.style.height = '297mm'
-  element.style.padding = '0'
-  element.style.margin = '0'
-  element.style.backgroundColor = 'white'
-  element.style.color = '#000000'
-  
-  // Create a style tag to override any oklch() colors that html2canvas doesn't support
-  const styleOverride = document.createElement('style')
-  styleOverride.textContent = `
-    * {
-      background-color: white !important;
-      color: #333333 !important;
-    }
-    html, body, div, span, p, h1, h2, h3, h4, h5, h6, table, tr, td, th {
-      background: white !important;
-      color: #333333 !important;
-    }
-  `
-  element.appendChild(styleOverride)
-  
-  document.body.appendChild(element)
-  
   try {
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff',
-      allowTaint: true,
-      ignoreElements: (el) => {
-        // Ignore elements that might cause rendering issues
-        const tagName = el.tagName.toLowerCase()
-        return tagName === 'script' || tagName === 'style'
-      },
-    })
-    
-    document.body.removeChild(element)
+    console.log("[v0] PDF Generation Start - Project:", data.projectName)
     
     // Create PDF
     const pdf = new jsPDF({
@@ -163,23 +123,168 @@ export async function generateBatuahHilirPDF(data: BatuahHilirPDFData): Promise<
     
     const pageWidth = pdf.internal.pageSize.getWidth()
     const pageHeight = pdf.internal.pageSize.getHeight()
-    const imgWidth = pageWidth
-    const imgHeight = (canvas.height * imgWidth) / canvas.width
+    const margin = 15
+    const contentWidth = pageWidth - (margin * 2)
+    let yPosition = margin
     
-    let heightLeft = imgHeight
-    let position = 0
-    
-    // First page
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight)
-    heightLeft -= pageHeight
-    
-    // Additional pages
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight
-      pdf.addPage()
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight)
-      heightLeft -= pageHeight
+    // Helper function to add text with wrapping
+    const addText = (text: string, size: number = 11, weight: 'normal' | 'bold' = 'normal', color: [number, number, number] = [0, 0, 0]) => {
+      pdf.setFontSize(size)
+      pdf.setFont(undefined, weight)
+      pdf.setTextColor(...color)
+      const lines = pdf.splitTextToSize(text, contentWidth)
+      pdf.text(lines, margin, yPosition)
+      yPosition += (lines.length * size * 0.35) + 3
     }
+    
+    // PAGE 1: COVER PAGE
+    pdf.setFillColor(255, 255, 255)
+    pdf.rect(0, 0, pageWidth, pageHeight, 'F')
+    
+    yPosition = 40
+    addText('VALIDATION REPORT', 24, 'bold', [0, 100, 0])
+    addText('Green Carbon Offset Project Verification', 12, 'normal', [100, 100, 100])
+    
+    yPosition = 100
+    addText('PROJECT INFORMATION', 14, 'bold', [0, 0, 0])
+    yPosition += 5
+    addText(`Project Name: ${data.projectName}`, 11, 'normal')
+    addText(`Project Type: ${data.carbonOffsetType}`, 11, 'normal')
+    addText(`Location: ${data.projectLocation}`, 11, 'normal')
+    addText(`Description: ${data.projectDescription || 'N/A'}`, 11, 'normal')
+    
+    yPosition += 10
+    addText('PROJECT OWNER', 14, 'bold', [0, 0, 0])
+    yPosition += 5
+    addText(`Name: ${data.ownerName}`, 11, 'normal')
+    addText(`Email: ${data.ownerEmail}`, 11, 'normal')
+    addText(`Phone: ${data.ownerPhone}`, 11, 'normal')
+    
+    yPosition += 10
+    addText(`Verification Status: ${data.verificationStatus}`, 12, 'bold', [0, 150, 0])
+    
+    yPosition += 10
+    addText(`Generated: ${new Date().toLocaleDateString('en-US')}`, 10, 'normal', [100, 100, 100])
+    
+    // PAGE 2: CARBON CALCULATIONS
+    pdf.addPage()
+    yPosition = margin
+    
+    addText('CARBON REDUCTION CALCULATIONS', 14, 'bold', [0, 0, 0])
+    yPosition += 5
+    
+    addText(`Final Verified CO₂ Reduction: ${formatNumberForPDF(data.finalVerifiedReduction, 2)} tCO₂e`, 13, 'bold', [0, 100, 0])
+    yPosition += 5
+    
+    addText('Calculation Inputs & Parameters', 12, 'bold', [0, 0, 0])
+    yPosition += 3
+    addText(`Aboveground Biomass (AGB): ${formatNumberForPDF(data.agb, 2)} t/ha`, 10, 'normal')
+    addText(`Carbon Fraction: ${formatNumberForPDF(data.carbonFraction, 2)}`, 10, 'normal')
+    addText(`Project Area: ${formatNumberForPDF(data.projectArea, 2)} ha`, 10, 'normal')
+    addText(`Project Duration: ${data.projectDuration} years`, 10, 'normal')
+    addText(`Baseline Emissions Rate: ${formatNumberForPDF(data.baselineEmissionsRate, 1)} tCO₂/ha/year`, 10, 'normal')
+    
+    yPosition += 8
+    addText('Detailed Calculation Steps', 12, 'bold', [0, 0, 0])
+    yPosition += 3
+    addText(`1. Raw Carbon Stock: ${formatNumberForPDF(data.rawCarbonStock, 1)} tC`, 10, 'normal')
+    addText(`2. Converted to CO₂: ${formatNumberForPDF(data.convertedCO2, 2)} tCO₂`, 10, 'normal')
+    addText(`3. Baseline Emissions: ${formatNumberForPDF(data.baselineEmissions, 0)} tCO₂`, 10, 'normal')
+    addText(`4. Gross Reduction: ${formatNumberForPDF(data.grossReduction, 2)} tCO₂`, 10, 'normal')
+    addText(`5. Leakage Adjustment (${formatNumberForPDF(data.leakagePercent, 0)}%): -${formatNumberForPDF(data.leakageAdjustment, 2)} tCO₂`, 10, 'normal')
+    addText(`6. Buffer Pool (${formatNumberForPDF(data.bufferPoolPercent, 0)}%): -${formatNumberForPDF(data.bufferPoolDeduction, 2)} tCO₂`, 10, 'normal')
+    addText(`7. Net Reduction: ${formatNumberForPDF(data.netReduction, 2)} tCO₂`, 10, 'normal')
+    addText(`8. Integrity Class Adjustment (${formatNumberForPDF(data.integrityClassPercent, 1)}%): -${formatNumberForPDF(data.integrityClassAdjustment, 1)} tCO₂`, 10, 'normal')
+    
+    // PAGE 3: VERIFICATION DETAILS
+    pdf.addPage()
+    yPosition = margin
+    
+    addText('VERIFICATION DETAILS & INTEGRITY SCORES', 14, 'bold', [0, 0, 0])
+    yPosition += 5
+    
+    addText(`Integrity Class: ${data.integrityClass}`, 11, 'normal')
+    addText(`Aura Score: ${formatNumberForPDF(data.auraScore, 1)}%`, 11, 'normal')
+    addText(`Authenticity Score: ${formatNumberForPDF(data.authenticityScore, 1)}%`, 11, 'normal')
+    addText(`Validator Consensus: ${formatNumberForPDF(data.validatorConsensus, 1)}%`, 11, 'normal')
+    addText(`Data Consistency Score: ${formatNumberForPDF(data.dataConsistencyScore, 1)}%`, 11, 'normal')
+    
+    yPosition += 8
+    addText('Validation Summary', 12, 'bold', [0, 0, 0])
+    yPosition += 3
+    addText(`Data Quality Check: ${data.dataQualityCheck ? 'PASSED' : 'FAILED'}`, 10, 'normal', data.dataQualityCheck ? [0, 150, 0] : [200, 0, 0])
+    addText(`Satellite Imagery Verification: ${data.satelliteImageryVerification ? 'PASSED' : 'FAILED'}`, 10, 'normal', data.satelliteImageryVerification ? [0, 150, 0] : [200, 0, 0])
+    addText(`Geospatial Consistency: ${data.geospatialConsistency ? 'PASSED' : 'FAILED'}`, 10, 'normal', data.geospatialConsistency ? [0, 150, 0] : [200, 0, 0])
+    
+    yPosition += 8
+    addText('Carbon Asset Coordinates', 12, 'bold', [0, 0, 0])
+    yPosition += 3
+    addText(`Total Asset Points: ${data.totalAssetPoints}`, 10, 'normal')
+    
+    if (data.coordinates && data.coordinates.length > 0) {
+      yPosition += 3
+      data.coordinates.forEach((coord, index) => {
+        if (yPosition > pageHeight - margin - 10) {
+          pdf.addPage()
+          yPosition = margin
+        }
+        addText(`Point ${index + 1}: ${formatNumberForPDF(coord.latitude, 4)}, ${formatNumberForPDF(coord.longitude, 4)}`, 9, 'normal')
+      })
+    }
+    
+    // PAGE 4: VEGETATION DATA
+    pdf.addPage()
+    yPosition = margin
+    
+    addText('VEGETATION CLASSIFICATION & FOREST ASSESSMENT', 14, 'bold', [0, 0, 0])
+    yPosition += 5
+    
+    addText(`Primary Forest Type: ${data.primaryForestType}`, 11, 'normal')
+    addText(`Vegetation Class: ${data.vegetationClass}`, 11, 'normal')
+    addText(`Health Status: ${data.vegetationHealthStatus}`, 11, 'normal')
+    
+    yPosition += 8
+    addText('Vegetation Indices (Satellite Analysis)', 12, 'bold', [0, 0, 0])
+    yPosition += 3
+    addText(`NDVI (Normalized Difference Vegetation Index): ${formatNumberForPDF(data.ndvi, 2)}`, 10, 'normal')
+    addText(`EVI (Enhanced Vegetation Index): ${formatNumberForPDF(data.evi, 2)}`, 10, 'normal')
+    addText(`GNDVI (Green Normalized Difference Vegetation Index): ${formatNumberForPDF(data.gndvi, 2)}`, 10, 'normal')
+    addText(`LAI (Leaf Area Index): ${formatNumberForPDF(data.lai, 2)}`, 10, 'normal')
+    
+    yPosition += 8
+    addText('Canopy Characteristics', 12, 'bold', [0, 0, 0])
+    yPosition += 3
+    addText(`Canopy Density: ${formatNumberForPDF(data.canopyDensity * 100, 1)}%`, 10, 'normal')
+    addText(`Average Tree Height: ${data.averageTreeHeight}`, 10, 'normal')
+    addText(`Crown Coverage: ${data.crownCoverage}`, 10, 'normal')
+    
+    // PAGE 5: DISCLAIMER & FOOTER
+    pdf.addPage()
+    yPosition = margin
+    
+    addText('LEGAL DISCLAIMER & CONFIDENTIALITY NOTICE', 14, 'bold', [0, 0, 0])
+    yPosition += 8
+    
+    addText('This Validation Report ("Report") is generated for the exclusive use of the Project Owner and authorized personnel. The information contained herein represents a comprehensive analysis of carbon offset project verification based on satellite data, calculation methodologies, and validator consensus.', 10, 'normal')
+    
+    yPosition += 8
+    addText('Data Integrity & Accuracy', 12, 'bold', [0, 0, 0])
+    yPosition += 3
+    addText('The carbon reduction calculations in this report are based on verified satellite data, field observations, and established carbon accounting methodologies. All figures have been independently verified by multiple AI validators with consensus threshold of ' + data.consensusThreshold + '%.', 10, 'normal')
+    
+    yPosition += 8
+    addText('Limitation of Liability', 12, 'bold', [0, 0, 0])
+    yPosition += 3
+    addText('While every effort has been made to ensure accuracy, this report is provided "as is" without warranty. The project owner assumes full responsibility for the accuracy and completeness of submitted data. Athlas Verity assumes no liability for errors or omissions.', 10, 'normal')
+    
+    yPosition += 8
+    addText('Confidentiality', 12, 'bold', [0, 0, 0])
+    yPosition += 3
+    addText('This report contains confidential and proprietary information. Unauthorized disclosure or reproduction is prohibited. All rights reserved.', 10, 'normal')
+    
+    yPosition += 15
+    addText('Generated: ' + new Date().toLocaleString('en-US'), 9, 'normal', [100, 100, 100])
+    addText('Copyright © 2024 Athlas Verity. All rights reserved.', 9, 'normal', [100, 100, 100])
     
     // Download
     const fileName = `${data.projectName || 'Validation-Report'}-${new Date().getTime()}.pdf`
@@ -188,12 +293,8 @@ export async function generateBatuahHilirPDF(data: BatuahHilirPDFData): Promise<
     console.log("[v0] PDF saved successfully:", fileName)
   } catch (error) {
     console.error("[v0] PDF generation error:", error)
-    if (document.body.contains(element)) {
-      document.body.removeChild(element)
-    }
     throw error
   }
-}
 
 export function generateBatuahHilirPDFHTML(data: BatuahHilirPDFData): string {
   const coordinatesHTML = data.coordinates && data.coordinates.length > 0
