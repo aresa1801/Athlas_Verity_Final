@@ -764,12 +764,19 @@ export default function ResultsPage() {
       }
 
       // Generate PDF
+      console.log("[v0] Starting PDF generation with data:", {
+        projectName: pdfData.projectName,
+        finalReduction: pdfData.finalVerifiedReduction,
+      })
       await generateBatuahHilirPDF(pdfData)
       
+      console.log("[v0] PDF generated successfully!")
       alert("PDF generated successfully and will be downloaded!")
     } catch (error) {
       console.error("[v0] PDF generation failed:", error)
-      alert(`Error generating PDF: ${error instanceof Error ? error.message : "Unknown error"}`)
+      const errorMessage = error instanceof Error ? error.message : "Unknown error"
+      console.error("[v0] Error details:", errorMessage)
+      alert(`Error generating PDF: ${errorMessage}`)
     }
   }
 

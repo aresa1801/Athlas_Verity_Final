@@ -121,6 +121,21 @@ export async function generateBatuahHilirPDF(data: BatuahHilirPDFData): Promise<
   element.style.margin = '0'
   element.style.backgroundColor = 'white'
   element.style.color = '#000000'
+  
+  // Create a style tag to override any oklch() colors that html2canvas doesn't support
+  const styleOverride = document.createElement('style')
+  styleOverride.textContent = `
+    * {
+      background-color: white !important;
+      color: #333333 !important;
+    }
+    html, body, div, span, p, h1, h2, h3, h4, h5, h6, table, tr, td, th {
+      background: white !important;
+      color: #333333 !important;
+    }
+  `
+  element.appendChild(styleOverride)
+  
   document.body.appendChild(element)
   
   try {
@@ -130,6 +145,11 @@ export async function generateBatuahHilirPDF(data: BatuahHilirPDFData): Promise<
       logging: false,
       backgroundColor: '#ffffff',
       allowTaint: true,
+      ignoreElements: (el) => {
+        // Ignore elements that might cause rendering issues
+        const tagName = el.tagName.toLowerCase()
+        return tagName === 'script' || tagName === 'style'
+      },
     })
     
     document.body.removeChild(element)
@@ -164,8 +184,13 @@ export async function generateBatuahHilirPDF(data: BatuahHilirPDFData): Promise<
     // Download
     const fileName = `${data.projectName || 'Validation-Report'}-${new Date().getTime()}.pdf`
     pdf.save(fileName)
+    
+    console.log("[v0] PDF saved successfully:", fileName)
   } catch (error) {
-    document.body.removeChild(element)
+    console.error("[v0] PDF generation error:", error)
+    if (document.body.contains(element)) {
+      document.body.removeChild(element)
+    }
     throw error
   }
 }
