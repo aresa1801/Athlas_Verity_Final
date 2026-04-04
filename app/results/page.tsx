@@ -1074,35 +1074,6 @@ export default function ResultsPage() {
     </div>
   )
 }
-                  <div class="label">Aura Score</div>
-                  <div class="score">${(mockValidationResult.aura_score * 100).toFixed(1)}%</div>
-                </div>
-              </div>
-              <div class="grid" style="margin-top: 15px;">
-                <div class="grid-item">
-                  <div class="label">Authenticity Score</div>
-                  <div class="score">${(mockValidationResult.authenticity_score * 100).toFixed(1)}%</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Validator Consensus</div>
-                  <div class="score">${(mockValidationResult.validator_consensus * 100).toFixed(1)}%</div>
-                </div>
-              </div>
-              <div style="margin-top: 15px;">
-                <div class="grid-item">
-                  <div class="label">Data Consistency Score</div>
-                  <div class="score">${(mockValidationResult.data_consistency_score * 100).toFixed(1)}%</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Validation Summary</h2>
-              <div class="metric-row">
-                <span class="metric-label">Data Quality Check</span>
-                <span class="metric-value">✓ Passed</span>
-              </div>
-              <div class="metric-row">
                 <span class="metric-label">Satellite Imagery Verification</span>
                 <span class="metric-value">✓ Passed</span>
               </div>
