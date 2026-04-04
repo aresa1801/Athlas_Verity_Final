@@ -855,15 +855,24 @@ export default function ResultsPage() {
           </Card>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 px-0">
-          <Button onClick={handleExportPDF} className="gap-2 bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-base font-semibold flex-1 sm:flex-none">
-            <Download className="w-5 h-5" />
-            Download Complete PDF Report
-          </Button>
-          <Button onClick={handleExportJSON} variant="outline" className="gap-2 px-8 py-3 text-base font-semibold flex-1 sm:flex-none">
-            <Copy className="w-5 h-5" />
-            Export JSON
-          </Button>
+        <div className="mt-12 pt-8 border-t border-gray-700">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button 
+              onClick={handleExportPDF} 
+              className="gap-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-10 py-4 text-base font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all"
+            >
+              <Download className="w-5 h-5" />
+              Download Complete PDF Report
+            </Button>
+            <Button 
+              onClick={handleExportJSON} 
+              variant="outline" 
+              className="gap-3 px-10 py-4 text-base font-semibold rounded-lg border-2 border-gray-600 hover:border-green-600 hover:bg-gray-900 transition-all"
+            >
+              <Copy className="w-5 h-5" />
+              Export JSON Data
+            </Button>
+          </div>
         </div>
       </div>
     </div>
