@@ -295,6 +295,7 @@ export async function generateBatuahHilirPDF(data: BatuahHilirPDFData): Promise<
     console.error("[v0] PDF generation error:", error)
     throw error
   }
+}
 
 export function generateBatuahHilirPDFHTML(data: BatuahHilirPDFData): string {
   const coordinatesHTML = data.coordinates && data.coordinates.length > 0
