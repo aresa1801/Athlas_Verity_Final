@@ -792,16 +792,6 @@ export default function ResultsPage() {
     }
   }
 
-  const handleExportJSON = () => {
-    const dataStr = JSON.stringify({ ...mockValidationResult, carbon_calculation: carbonCalculation }, null, 2)
-    const dataBlob = new Blob([dataStr], { type: "application/json" })
-    const url = URL.createObjectURL(dataBlob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = "validation-proof-chain.json"
-    link.click()
-  }
-
   // Return component render
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -1084,62 +1074,6 @@ export default function ResultsPage() {
     </div>
   )
 }
-                  ? filledCoordinates
-                      .map(
-                        (coord, idx) => {
-                          const lat = typeof coord.latitude === 'string' ? parseFloat(coord.latitude) : (coord.latitude || 0);
-                          const lon = typeof coord.longitude === 'string' ? parseFloat(coord.longitude) : (coord.longitude || 0);
-                          return `
-                  <tr>
-                    <td style="text-align: center;">${idx + 1}</td>
-                    <td style="text-align: center; font-family: monospace;">${lat.toFixed(6)}°</td>
-                    <td style="text-align: center; font-family: monospace;">${lon.toFixed(6)}°</td>
-                    <td style="color: #22C55E; text-align: center; font-weight: 600;">✓ Verified</td>
-                  </tr>
-                `;
-                        },
-                      )
-                      .join("")
-                  : `
-                  <tr>
-                    <td colspan="4" style="text-align: center; color: #94a3b8;">No verified coordinates available</td>
-                  </tr>
-                `}
-              </table>
-            </div>
-
-            <div class="section">
-              <h2>Geospatial Coverage Verification</h2>
-              <div class="metric-row">
-                <span class="metric-label">Total Asset Points Registered</span>
-                <span class="metric-value" style="color: ${primaryColor}; font-weight: 700;">${filledCoordinates.length}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Points from Satellite Data</span>
-                <span class="metric-value" style="color: ${primaryColor}; font-weight: 700;">${filledCoordinates.length}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Satellite Data Source</span>
-                <span class="metric-value">Verified Satellite Imagery & Ground Truth</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Coverage Area</span>
-                <span class="metric-value">${carbonInputs.area_ha.toFixed(2)} hectares</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Geospatial Coverage Verified</span>
-                <span class="metric-value" style="color: #22C55E; font-weight: 700;">✓ Confirmed</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Proof-Chain Hash</span>
-                <span class="metric-value" style="font-size: 10px; word-break: break-all;">${mockValidationResult.proof_chain.substring(0, 60)}...</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- PAGE 3: VERIFICATION RESULTS -->
-          <div class="page page-break">
-            <h1>Verification Results & Scores</h1>
             <p style="color: #B0B0B0; margin-bottom: 30px;">Athlas Verity AI System Validation Metrics</p>
 
             ${isBlueCarbonProject ? `
