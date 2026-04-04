@@ -131,6 +131,9 @@ importers:
       jspdf:
         specifier: 4.0.0
         version: 4.0.0
+      jspdf-autotable:
+        specifier: ^3.5.33
+        version: 3.8.4(jspdf@4.0.0)
       jszip:
         specifier: 3.10.1
         version: 3.10.1
@@ -1750,6 +1753,11 @@ packages:
 
   json-schema@0.4.0:
     resolution: {integrity: sha512-es94M3nTIfsEPisRafak+HDLfHXnKBhV3vU5eqPcS3flIWqcxJWgXHXiey3YrpaNsanY5ei1VoYEbOzijuq9BA==}
+
+  jspdf-autotable@3.8.4:
+    resolution: {integrity: sha512-rSffGoBsJYX83iTRv8Ft7FhqfgEL2nLpGAIiqruEQQ3e4r0qdLFbPUB7N9HAle0I3XgpisvyW751VHCqKUVOgQ==}
+    peerDependencies:
+      jspdf: ^2.5.1
 
   jspdf@4.0.0:
     resolution: {integrity: sha512-w12U97Z6edKd2tXDn3LzTLg7C7QLJlx0BPfM3ecjK2BckUl9/81vZ+r5gK4/3KQdhAcEZhENUxRhtgYBj75MqQ==}
@@ -3772,6 +3780,10 @@ snapshots:
       bignumber.js: 9.3.1
 
   json-schema@0.4.0: {}
+
+  jspdf-autotable@3.8.4(jspdf@4.0.0):
+    dependencies:
+      jspdf: 4.0.0
 
   jspdf@4.0.0:
     dependencies:

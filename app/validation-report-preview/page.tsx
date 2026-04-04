@@ -5,61 +5,19 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Download, ArrowLeft, Check, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { jsPDF } from 'jspdf'
 import { formatNumberWithCommas } from '@/lib/format-utils'
+import { PDFDownloadConfirm } from '@/components/verification/pdf-download-confirm'
+import { generateProfessionalPDF, type ValidationReportData } from '@/lib/pdf-generators/professional-validation-pdf'
 
-interface ValidationReportData {
-  projectName: string
-  ownerName: string
-  ownerEmail: string
-  ownerPhone: string
-  projectLocation: string
-  carbonOffsetType: string
-  finalVerifiedReduction: number
-  integrityClass: string
-  auraScore: number
-  authenticityScore: number
-  validatorConsensus: number
-  dataConsistencyScore: number
-  agb: number
-  carbonFraction: number
-  projectArea: number
-  projectDuration: number
-  baselineEmissionsRate: number
-  rawCarbonStock: number
-  convertedCO2: number
-  baselineEmissions: number
-  grossReduction: number
-  leakageAdjustment: number
-  leakagePercent: number
-  bufferPoolDeduction: number
-  bufferPoolPercent: number
-  netReduction: number
-  integrityClassAdjustment: number
-  integrityClassPercent: number
-  totalAssetPoints: number
-  coordinates: Array<{ latitude: number; longitude: number }>
-  ndvi: number
-  evi: number
-  gndvi: number
-  lai: number
-  canopyDensity: number
-  averageTreeHeight: string
-  crownCoverage: string
-  vegetationHealthStatus: string
-  primaryForestType: string
-  vegetationClass: string
-  validators: Array<{ id: string; role: string; modelType: string; confidence: number }>
-  consensusThreshold: number
-  averageConfidence: number
-  verificationStatus: string
-}
+
 
 export default function ValidationReportPreviewPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [reportData, setReportData] = useState<ValidationReportData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [showDownloadConfirm, setShowDownloadConfirm] = useState(false)
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
 
   useEffect(() => {
     try {
@@ -87,241 +45,20 @@ export default function ValidationReportPreviewPage() {
     }
   }, [searchParams])
 
-  const generatePDF = async () => {
+  const handleDownloadPDF = async (theme: 'light' | 'dark') => {
     if (!reportData) return
 
     try {
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      })
-
-      const pageWidth = pdf.internal.pageSize.getWidth()
-      const margin = 15
-      const contentWidth = pageWidth - margin * 2
-      let yPos = margin
-
-      const colors = {
-        primary: [0, 120, 0],
-        secondary: [100, 100, 100],
-        dark: [30, 30, 30],
-        success: [0, 150, 0],
-      }
-
-      const setFont = (size: number, weight: 'bold' | 'normal' = 'normal', color = colors.dark) => {
-        pdf.setFontSize(size)
-        pdf.setFont(undefined, weight)
-        pdf.setTextColor(...color)
-      }
-
-      const addText = (text: string, size: number = 11, weight: 'bold' | 'normal' = 'normal', color = colors.dark) => {
-        setFont(size, weight, color)
-        const lines = pdf.splitTextToSize(text, contentWidth)
-        pdf.text(lines, margin, yPos)
-        yPos += lines.length * size * 0.32 + 2
-      }
-
-      const pageBreak = () => {
-        if (yPos > pdf.internal.pageSize.getHeight() - margin - 20) {
-          pdf.addPage()
-          yPos = margin
-        }
-      }
-
-      // PAGE 1: COVER
-      setFont(20, 'bold', colors.primary)
-      pdf.text('Athlas Verity Impact Verification &', margin, yPos)
-      yPos += 8
-      pdf.text('Carbon Reduction Report', margin, yPos)
-      yPos += 12
-
-      setFont(10, 'normal', colors.secondary)
-      pdf.text('Generated via Athlas Verity AI System', margin, yPos)
-      yPos += 15
-
-      // Project Information Section
-      setFont(12, 'bold', colors.primary)
-      pdf.text('PROJECT INFORMATION', margin, yPos)
-      yPos += 6
-
-      setFont(10, 'normal', colors.dark)
-      pdf.text(`Project Name: ${reportData.projectName}`, margin + 3, yPos)
-      yPos += 5
-      pdf.text(`Carbon Offset Type: ${reportData.carbonOffsetType}`, margin + 3, yPos)
-      yPos += 5
-      pdf.text(`Project Location: ${reportData.projectLocation}`, margin + 3, yPos)
-      yPos += 8
-
-      // Project Owner Section
-      setFont(12, 'bold', colors.primary)
-      pdf.text('PROJECT OWNER', margin, yPos)
-      yPos += 6
-
-      setFont(10, 'normal', colors.dark)
-      pdf.text(`Name: ${reportData.ownerName}`, margin + 3, yPos)
-      yPos += 5
-      pdf.text(`Email: ${reportData.ownerEmail}`, margin + 3, yPos)
-      yPos += 5
-      pdf.text(`Phone: ${reportData.ownerPhone}`, margin + 3, yPos)
-      yPos += 10
-
-      setFont(11, 'bold', colors.success)
-      pdf.text(`✓ ${reportData.verificationStatus}`, margin + 3, yPos)
-      yPos += 15
-
-      // PAGE 2: CARBON CALCULATIONS
-      pageBreak()
-      setFont(16, 'bold', colors.primary)
-      pdf.text('CARBON REDUCTION CALCULATIONS', margin, yPos)
-      yPos += 10
-
-      // Highlight Box
-      pdf.setFillColor(240, 240, 240)
-      pdf.rect(margin, yPos - 3, contentWidth, 18, 'F')
-      pdf.setDrawColor(...colors.primary)
-      pdf.rect(margin, yPos - 3, contentWidth, 18)
-
-      setFont(11, 'normal', colors.secondary)
-      pdf.text('Final Verified Carbon Reduction', margin + 3, yPos + 1)
-      setFont(16, 'bold', colors.primary)
-      pdf.text(formatNumberWithCommas(reportData.finalVerifiedReduction, 2), margin + 3, yPos + 8)
-      setFont(9, 'normal', colors.secondary)
-      pdf.text('tonnes CO₂ equivalent', margin + 3, yPos + 13)
-      yPos += 25
-
-      // Calculation Parameters
-      setFont(12, 'bold', colors.primary)
-      pdf.text('Calculation Inputs & Parameters', margin, yPos)
-      yPos += 6
-
-      setFont(10, 'normal', colors.dark)
-      pdf.text(`Aboveground Biomass (AGB): ${formatNumberWithCommas(reportData.agb, 2)} t/ha`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`Carbon Fraction: ${reportData.carbonFraction}`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`Project Area: ${formatNumberWithCommas(reportData.projectArea, 2)} ha`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`Project Duration: ${reportData.projectDuration} years`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`Baseline Emissions Rate: ${formatNumberWithCommas(reportData.baselineEmissionsRate, 1)} tCO₂/ha/year`, margin + 3, yPos)
-      yPos += 10
-
-      // 8-Step Calculation
-      setFont(12, 'bold', colors.primary)
-      pdf.text('Detailed Calculation Steps', margin, yPos)
-      yPos += 6
-
-      const steps = [
-        { label: '1. Raw Carbon Stock (tC)', value: formatNumberWithCommas(reportData.rawCarbonStock, 1) },
-        { label: '2. Converted to CO₂ (tCO₂)', value: formatNumberWithCommas(reportData.convertedCO2, 2) },
-        { label: '3. Baseline Emissions (tCO₂)', value: formatNumberWithCommas(reportData.baselineEmissions, 0) },
-        { label: '4. Gross Reduction (tCO₂)', value: formatNumberWithCommas(reportData.grossReduction, 2) },
-        { label: `5. Leakage Adjustment (${reportData.leakagePercent}%)`, value: '-' + formatNumberWithCommas(reportData.leakageAdjustment, 2) },
-        { label: `6. Buffer Pool (${reportData.bufferPoolPercent}%)`, value: '-' + formatNumberWithCommas(reportData.bufferPoolDeduction, 2) },
-        { label: '7. Net Reduction (tCO₂)', value: formatNumberWithCommas(reportData.netReduction, 2) },
-        { label: `8. Integrity Class Adjustment (${reportData.integrityClassPercent}%)`, value: '-' + formatNumberWithCommas(reportData.integrityClassAdjustment, 1) },
-      ]
-
-      setFont(10, 'normal', colors.dark)
-      steps.forEach((step) => {
-        pageBreak()
-        pdf.text(step.label, margin + 3, yPos)
-        pdf.text(step.value, pageWidth - margin - 10, yPos, { align: 'right' })
-        yPos += 5
-      })
-
-      // PAGE 3: VERIFICATION RESULTS
-      pdf.addPage()
-      yPos = margin
-
-      setFont(16, 'bold', colors.primary)
-      pdf.text('VERIFICATION RESULTS & SCORES', margin, yPos)
-      yPos += 10
-
-      setFont(12, 'bold', colors.primary)
-      pdf.text('Integrity & Quality Scores', margin, yPos)
-      yPos += 6
-
-      setFont(10, 'normal', colors.dark)
-      pdf.text(`Integrity Class: ${reportData.integrityClass}`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`Aura Score: ${reportData.auraScore}%`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`Authenticity Score: ${reportData.authenticityScore}%`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`Validator Consensus: ${reportData.validatorConsensus}%`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`Data Consistency Score: ${reportData.dataConsistencyScore}%`, margin + 3, yPos)
-      yPos += 10
-
-      // Validation Summary
-      setFont(12, 'bold', colors.primary)
-      pdf.text('Validation Summary', margin, yPos)
-      yPos += 6
-
-      setFont(10, 'normal', colors.success)
-      pdf.text('✓ Data Quality Check - Passed', margin + 3, yPos)
-      yPos += 4
-      pdf.text('✓ Satellite Imagery Verification - Passed', margin + 3, yPos)
-      yPos += 4
-      pdf.text('✓ Geospatial Consistency - Passed', margin + 3, yPos)
-      yPos += 10
-
-      // PAGE 4: VEGETATION
-      pdf.addPage()
-      yPos = margin
-
-      setFont(16, 'bold', colors.primary)
-      pdf.text('VEGETATION CLASSIFICATION', margin, yPos)
-      yPos += 10
-
-      setFont(12, 'bold', colors.primary)
-      pdf.text('Forest Type Classification', margin, yPos)
-      yPos += 6
-
-      setFont(10, 'normal', colors.dark)
-      pdf.text(`Primary Forest Type: ${reportData.primaryForestType}`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`Vegetation Class: ${reportData.vegetationClass}`, margin + 3, yPos)
-      yPos += 10
-
-      setFont(12, 'bold', colors.primary)
-      pdf.text('Vegetation Indices', margin, yPos)
-      yPos += 6
-
-      setFont(10, 'normal', colors.dark)
-      pdf.text(`NDVI: ${reportData.ndvi} - Dense Vegetation`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`EVI: ${reportData.evi} - Healthy Vegetation`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`GNDVI: ${reportData.gndvi} - Active Growth`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`LAI: ${reportData.lai} m²/m² - High Coverage`, margin + 3, yPos)
-      yPos += 10
-
-      setFont(12, 'bold', colors.primary)
-      pdf.text('Canopy Characteristics', margin, yPos)
-      yPos += 6
-
-      setFont(10, 'normal', colors.dark)
-      pdf.text(`Canopy Density: ${formatNumberWithCommas(reportData.canopyDensity * 100, 1)}%`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`Average Tree Height: ${reportData.averageTreeHeight}`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`Crown Coverage: ${reportData.crownCoverage}`, margin + 3, yPos)
-      yPos += 4
-      pdf.text(`Vegetation Health Status: ✓ ${reportData.vegetationHealthStatus}`, margin + 3, yPos)
-      yPos += 10
-
-      // Download PDF
-      const fileName = `Validation-Report-${reportData.projectName}-${new Date().getTime()}.pdf`
-      pdf.save(fileName)
-
-      alert('PDF downloaded successfully!')
+      setIsGeneratingPDF(true)
+      // Add a small delay to show loading state
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      generateProfessionalPDF(reportData, theme)
+      setShowDownloadConfirm(false)
     } catch (error) {
       console.error('[v0] PDF generation error:', error)
       alert('Error generating PDF')
+    } finally {
+      setIsGeneratingPDF(false)
     }
   }
 
@@ -437,11 +174,20 @@ export default function ValidationReportPreviewPage() {
           </Card>
 
           {/* Download Button */}
-          <Button onClick={generatePDF} className="w-full bg-green-600 hover:bg-green-700 text-white py-4 text-lg font-semibold gap-3 rounded-lg">
+          <Button onClick={() => setShowDownloadConfirm(true)} className="w-full bg-green-600 hover:bg-green-700 text-white py-4 text-lg font-semibold gap-3 rounded-lg">
             <Download className="w-5 h-5" />
             Download PDF Report
           </Button>
         </div>
+
+        {/* PDF Download Confirmation Modal */}
+        <PDFDownloadConfirm
+          isOpen={showDownloadConfirm}
+          onClose={() => setShowDownloadConfirm(false)}
+          onDownload={handleDownloadPDF}
+          projectName={reportData.projectName}
+          isLoading={isGeneratingPDF}
+        />
       </div>
     </div>
   )
