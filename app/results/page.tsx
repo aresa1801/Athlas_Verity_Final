@@ -1486,15 +1486,6 @@ export default function ResultsPage() {
         }
       }, 500)
     }
-  } catch (error) {
-    console.error("[v0] PDF generation failed:", error)
-    alert(`Error generating PDF: ${error instanceof Error ? error.message : "Unknown error"}`)
-  }
-}
-    } catch (error) {
-      console.error("[v0] PDF generation failed:", error)
-      alert(`Error generating PDF: ${error instanceof Error ? error.message : "Unknown error"}`)
-    }
   }
 
   // Return component render
