@@ -12,14 +12,10 @@ import DatasetVisualization from "@/components/dataset-visualization"
 import { calculateCarbonReduction, type CarbonCalculationInputs } from "@/lib/carbon-calculator"
 import { calculateBlueCarbonCredits, type BlueCarbonInputs } from "@/lib/blue-carbon-calculator"
 import { WalletConnect } from "@/components/wallet-connect"
-import html2canvas from "html2canvas"
-import { jsPDF } from "jspdf"
 import Image from "next/image"
 import { estimateAGB, type AGBEstimationResult } from "@/lib/agb-estimation-engine"
 import { BlueCarbonResultsDisplay } from "@/components/verification/blue-carbon-results-display"
 import type { BlueCarbonResult } from "@/lib/blue-carbon-calculator"
-import { generateBatuahHilirPDF, type BatuahHilirPDFData } from "@/lib/pdf-generators/batuah-hilir-pdf-generator"
-import { generateComprehensivePDF, openComprehensivePDFPreview } from "@/lib/pdf-generators/comprehensive-pdf-generator"
 import { formatNumberWithCommas } from "@/lib/format-utils"
 
 // ✅ FIXED: Coordinate type accepts both number and string
@@ -781,41 +777,15 @@ export default function ResultsPage() {
     }
 
     try {
-      // Prepare comprehensive PDF data
-      const pdfData: BatuahHilirPDFData = {
+      // Prepare report data
+      const reportData = {
         // Project Information
         projectName: projectData?.projectName || "Green Carbon Project",
-        carbonOffsetType: "Green Carbon",
-        projectDescription: projectData?.projectDescription,
-        projectLocation: projectData?.projectLocation || "Unknown Location",
-        
-        // Project Owner Information
         ownerName: projectData?.ownerName || "Unknown",
         ownerEmail: projectData?.ownerEmail || "unknown@example.com",
         ownerPhone: projectData?.ownerPhone || "Unknown",
-        
-        // Carbon Asset Coordinates
-        coordinates: projectData?.coordinates?.map((c: any) => ({
-          latitude: typeof c.latitude === 'string' ? parseFloat(c.latitude) : c.latitude,
-          longitude: typeof c.longitude === 'string' ? parseFloat(c.longitude) : c.longitude,
-        })),
-        totalAssetPoints: projectData?.coordinates?.filter((c: any) => c?.latitude && c?.longitude)?.length || 0,
-        
-        // Verification Status
-        verificationStatus: "Verified",
-        
-        // Integrity & Quality Scores
-        integrityClass: carbonInputs.integrity_class || "IC-A",
-        auraScore: 91,
-        authenticityScore: 87,
-        validatorConsensus: carbonInputs.validator_consensus || 93,
-        dataConsistencyScore: 89,
-        
-        // Validation Summary
-        dataQualityCheck: true,
-        satelliteImageryVerification: true,
-        geospatialConsistency: true,
-        anomalyFlags: [],
+        projectLocation: projectData?.projectLocation || "Unknown Location",
+        carbonOffsetType: "Green Carbon",
         
         // Carbon Reduction Calculations
         finalVerifiedReduction: carbonCalculation.final_verified_reduction_tco2,
@@ -840,15 +810,19 @@ export default function ResultsPage() {
         integrityClassAdjustment: carbonCalculation.integrity_class_adjustment_tco2,
         integrityClassPercent: carbonCalculation.integrity_class_percent,
         
-        // Validators Information
-        validators: [
-          { id: 'validator_128', role: 'Baseline Validator', modelType: 'Data Quality Check', confidence: 94 },
-          { id: 'miner_312', role: 'AI Domain Model', modelType: 'Satellite Imagery CNN', confidence: 88 },
-          { id: 'miner_445', role: 'AI Domain Model', modelType: 'Geospatial Regression', confidence: 91 },
-          { id: 'validator_567', role: 'Quality Validator', modelType: 'Consistency Analysis', confidence: 96 },
-        ],
-        consensusThreshold: carbonInputs.validator_consensus || 93,
-        averageConfidence: 92.3,
+        // Integrity & Quality Scores
+        integrityClass: carbonInputs.integrity_class || "IC-A",
+        auraScore: 91,
+        authenticityScore: 87,
+        validatorConsensus: carbonInputs.validator_consensus || 93,
+        dataConsistencyScore: 89,
+        
+        // Carbon Asset Coordinates
+        totalAssetPoints: projectData?.coordinates?.filter((c: any) => c?.latitude && c?.longitude)?.length || 0,
+        coordinates: projectData?.coordinates?.map((c: any) => ({
+          latitude: typeof c.latitude === 'string' ? parseFloat(c.latitude) : c.latitude,
+          longitude: typeof c.longitude === 'string' ? parseFloat(c.longitude) : c.longitude,
+        })) || [],
         
         // Vegetation Classification
         primaryForestType: "Tropical Rainforest",
@@ -861,10 +835,24 @@ export default function ResultsPage() {
         averageTreeHeight: "25-35 meters",
         crownCoverage: "85-95%",
         vegetationHealthStatus: "Excellent",
+        
+        // Validators Information
+        validators: [
+          { id: 'validator_128', role: 'Baseline Validator', modelType: 'Data Quality Check', confidence: 94 },
+          { id: 'miner_312', role: 'AI Domain Model', modelType: 'Satellite Imagery CNN', confidence: 88 },
+          { id: 'miner_445', role: 'AI Domain Model', modelType: 'Geospatial Regression', confidence: 91 },
+          { id: 'validator_567', role: 'Quality Validator', modelType: 'Consistency Analysis', confidence: 96 },
+        ],
+        consensusThreshold: carbonInputs.validator_consensus || 93,
+        averageConfidence: 92.3,
+        
+        // Verification Status
+        verificationStatus: "Verified",
       }
 
-      console.log("[v0] Opening PDF preview in new tab...")
-      openComprehensivePDFPreview(pdfData)
+      // Navigate to preview page with data as URL parameter
+      const encodedData = encodeURIComponent(JSON.stringify(reportData))
+      router.push(`/validation-report-preview?data=${encodedData}`)
       
     } catch (error) {
       console.error("[v0] Preview generation failed:", error)
