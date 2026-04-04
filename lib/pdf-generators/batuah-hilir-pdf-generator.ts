@@ -1,6 +1,14 @@
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 
+// Helper function to format numbers with commas for PDF
+function formatNumberForPDF(value: number, decimals: number = 2): string {
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })
+}
+
 export interface BatuahHilirPDFData {
   // Project Information
   projectName: string
@@ -502,22 +510,22 @@ export function generateBatuahHilirPDFHTML(data: BatuahHilirPDFData): string {
   <h2>Final Verified Carbon Reduction</h2>
   <div class="highlight-box">
     <p style="margin-bottom: 5px;">Total Net Reduction (Verified)</p>
-    <div class="highlight-value">${data.finalVerifiedReduction?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}</div>
+    <div class="highlight-value">${formatNumberForPDF(data.finalVerifiedReduction, 2)}</div>
     <p style="margin-top: 5px; font-size: 10px;">tonnes CO₂ equivalent</p>
   </div>
 
   <h3>Calculation Inputs & Parameters</h3>
   <div class="metric-row">
     <div><span class="metric-label">Aboveground Biomass (AGB)</span></div>
-    <div><span class="metric-value">${data.agb || 215.6} t/ha</span></div>
+    <div><span class="metric-value">${formatNumberForPDF(data.agb, 2)} t/ha</span></div>
   </div>
   <div class="metric-row">
     <div><span class="metric-label">Carbon Fraction</span></div>
-    <div><span class="metric-value">${data.carbonFraction || 0.47}</span></div>
+    <div><span class="metric-value">${formatNumberForPDF(data.carbonFraction, 2)}</span></div>
   </div>
   <div class="metric-row">
     <div><span class="metric-label">Project Area</span></div>
-    <div><span class="metric-value">${data.projectArea?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'} ha</span></div>
+    <div><span class="metric-value">${formatNumberForPDF(data.projectArea, 2)} ha</span></div>
   </div>
   <div class="metric-row">
     <div><span class="metric-label">Project Duration</span></div>
@@ -525,7 +533,7 @@ export function generateBatuahHilirPDFHTML(data: BatuahHilirPDFData): string {
   </div>
   <div class="metric-row">
     <div><span class="metric-label">Baseline Emissions Rate</span></div>
-    <div><span class="metric-value">${data.baselineEmissionsRate || 1.8} tCO₂/ha/year</span></div>
+    <div><span class="metric-value">${formatNumberForPDF(data.baselineEmissionsRate, 1)} tCO₂/ha/year</span></div>
   </div>
 
   <h2>Detailed Calculation Steps</h2>
@@ -533,39 +541,39 @@ export function generateBatuahHilirPDFHTML(data: BatuahHilirPDFData): string {
     <tbody>
       <tr>
         <td><strong>1. Raw Carbon Stock (tC)</strong></td>
-        <td style="text-align: right;">${data.rawCarbonStock?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}</td>
+        <td style="text-align: right;">${formatNumberForPDF(data.rawCarbonStock, 1)}</td>
       </tr>
       <tr>
         <td><strong>2. Converted to CO₂ (tCO₂)</strong></td>
-        <td style="text-align: right;">${data.convertedCO2?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}</td>
+        <td style="text-align: right;">${formatNumberForPDF(data.convertedCO2, 2)}</td>
       </tr>
       <tr>
         <td><strong>3. Baseline Emissions (tCO₂)</strong></td>
-        <td style="text-align: right;">${data.baselineEmissions?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}</td>
+        <td style="text-align: right;">${formatNumberForPDF(data.baselineEmissions, 0)}</td>
       </tr>
       <tr>
         <td><strong>4. Gross Reduction (tCO₂)</strong></td>
-        <td style="text-align: right;">${data.grossReduction?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}</td>
+        <td style="text-align: right;">${formatNumberForPDF(data.grossReduction, 2)}</td>
       </tr>
       <tr>
-        <td><strong>5. Leakage Adjustment (${data.leakagePercent || 5}%)</strong></td>
-        <td style="text-align: right; color: #cc0000;">-${data.leakageAdjustment?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}</td>
+        <td><strong>5. Leakage Adjustment (${formatNumberForPDF(data.leakagePercent, 0)}%)</strong></td>
+        <td style="text-align: right; color: #cc0000;">-${formatNumberForPDF(data.leakageAdjustment, 2)}</td>
       </tr>
       <tr>
-        <td><strong>6. Buffer Pool Deduction (${data.bufferPoolPercent || 20}%)</strong></td>
-        <td style="text-align: right; color: #cc0000;">-${data.bufferPoolDeduction?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}</td>
+        <td><strong>6. Buffer Pool Deduction (${formatNumberForPDF(data.bufferPoolPercent, 0)}%)</strong></td>
+        <td style="text-align: right; color: #cc0000;">-${formatNumberForPDF(data.bufferPoolDeduction, 2)}</td>
       </tr>
       <tr>
         <td><strong>7. Net Reduction (tCO₂)</strong></td>
-        <td style="text-align: right;">${data.netReduction?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}</td>
+        <td style="text-align: right;">${formatNumberForPDF(data.netReduction, 2)}</td>
       </tr>
       <tr>
-        <td><strong>8. Integrity Class Adjustment (${data.integrityClassPercent || 2}%)</strong></td>
-        <td style="text-align: right; color: #cc0000;">-${data.integrityClassAdjustment?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}</td>
+        <td><strong>8. Integrity Class Adjustment (${formatNumberForPDF(data.integrityClassPercent, 1)}%)</strong></td>
+        <td style="text-align: right; color: #cc0000;">-${formatNumberForPDF(data.integrityClassAdjustment, 1)}</td>
       </tr>
       <tr style="background: #e8f4f8; font-weight: 700;">
         <td><strong>Final Verified Reduction</strong></td>
-        <td style="text-align: right; color: #0066cc;">${data.finalVerifiedReduction?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '0'}</td>
+        <td style="text-align: right; color: #0066cc;">${formatNumberForPDF(data.finalVerifiedReduction, 2)}</td>
       </tr>
     </tbody>
   </table>

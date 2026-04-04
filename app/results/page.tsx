@@ -19,6 +19,7 @@ import { estimateAGB, type AGBEstimationResult } from "@/lib/agb-estimation-engi
 import { BlueCarbonResultsDisplay } from "@/components/verification/blue-carbon-results-display"
 import type { BlueCarbonResult } from "@/lib/blue-carbon-calculator"
 import { generateBatuahHilirPDF, type BatuahHilirPDFData } from "@/lib/pdf-generators/batuah-hilir-pdf-generator"
+import { formatNumberWithCommas } from "@/lib/format-utils"
 
 // ✅ FIXED: Coordinate type accepts both number and string
 interface Coordinate {
@@ -790,7 +791,7 @@ export default function ResultsPage() {
           <Card className="bg-card border-green-600/20">
             <div className="p-6">
               <h3 className="text-lg font-semibold mb-2">Final CO₂ Reduction</h3>
-              <p className="text-3xl font-bold text-green-600">{carbonCalculation.final_verified_reduction_tco2.toFixed(2)} tCO₂e</p>
+              <p className="text-3xl font-bold text-green-600">{formatNumberWithCommas(carbonCalculation.final_verified_reduction_tco2)} tCO₂e</p>
             </div>
           </Card>
           <Card className="bg-card border-blue-600/20">
@@ -811,26 +812,26 @@ export default function ResultsPage() {
           <div className="p-6 border-b">
             <h2 className="text-2xl font-bold mb-4">Carbon Calculation Breakdown</h2>
             <div className="space-y-3">
-              <div className="flex justify-between"><span className="text-gray-400">Raw Carbon Stock:</span><span className="font-semibold">{carbonCalculation.raw_carbon_stock_tc.toFixed(2)} tC</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Converted CO₂:</span><span className="font-semibold">{carbonCalculation.converted_co2_tco2.toFixed(2)} tCO₂</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Baseline Emissions:</span><span className="font-semibold">{carbonCalculation.baseline_emissions_total_tco2.toFixed(2)} tCO₂</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Gross Reduction:</span><span className="font-semibold">{carbonCalculation.gross_reduction_tco2.toFixed(2)} tCO₂</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Leakage Adjustment ({carbonCalculation.leakage_adjustment_percent.toFixed(1)}%):</span><span className="font-semibold">-{carbonCalculation.leakage_reduction_tco2.toFixed(2)} tCO₂</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Buffer Pool ({carbonCalculation.buffer_pool_percent.toFixed(1)}%):</span><span className="font-semibold">-{carbonCalculation.buffer_reduction_tco2.toFixed(2)} tCO₂</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Net Reduction:</span><span className="font-semibold">{carbonCalculation.net_reduction_tco2.toFixed(2)} tCO₂</span></div>
-              <div className="flex justify-between border-t pt-3"><span className="text-lg font-semibold">Final Verified Reduction:</span><span className="text-2xl font-bold text-green-600">{carbonCalculation.final_verified_reduction_tco2.toFixed(2)} tCO₂e</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Raw Carbon Stock:</span><span className="font-semibold">{formatNumberWithCommas(carbonCalculation.raw_carbon_stock_tc)} tC</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Converted CO₂:</span><span className="font-semibold">{formatNumberWithCommas(carbonCalculation.converted_co2_tco2)} tCO₂</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Baseline Emissions:</span><span className="font-semibold">{formatNumberWithCommas(carbonCalculation.baseline_emissions_total_tco2)} tCO₂</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Gross Reduction:</span><span className="font-semibold">{formatNumberWithCommas(carbonCalculation.gross_reduction_tco2)} tCO₂</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Leakage Adjustment ({carbonCalculation.leakage_adjustment_percent.toFixed(1)}%):</span><span className="font-semibold">-{formatNumberWithCommas(carbonCalculation.leakage_reduction_tco2)} tCO₂</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Buffer Pool ({carbonCalculation.buffer_pool_percent.toFixed(1)}%):</span><span className="font-semibold">-{formatNumberWithCommas(carbonCalculation.buffer_reduction_tco2)} tCO₂</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Net Reduction:</span><span className="font-semibold">{formatNumberWithCommas(carbonCalculation.net_reduction_tco2)} tCO₂</span></div>
+              <div className="flex justify-between border-t pt-3"><span className="text-lg font-semibold">Final Verified Reduction:</span><span className="text-2xl font-bold text-green-600">{formatNumberWithCommas(carbonCalculation.final_verified_reduction_tco2)} tCO₂e</span></div>
             </div>
           </div>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
           <Card>
             <div className="p-6">
               <h3 className="text-lg font-semibold mb-4">Project Details</h3>
               <div className="space-y-2 text-sm">
                 <p><span className="text-gray-400">Project:</span> {projectData?.projectName}</p>
                 <p><span className="text-gray-400">Location:</span> {projectData?.projectLocation}</p>
-                <p><span className="text-gray-400">Area:</span> {carbonInputs.area_ha.toFixed(2)} ha</p>
+                <p><span className="text-gray-400">Area:</span> {formatNumberWithCommas(carbonInputs.area_ha)} ha</p>
                 <p><span className="text-gray-400">Duration:</span> {carbonInputs.duration_years} years</p>
               </div>
             </div>
@@ -847,13 +848,13 @@ export default function ResultsPage() {
           </Card>
         </div>
 
-        <div className="flex gap-4">
-          <Button onClick={handleExportPDF} className="gap-2 bg-green-600 hover:bg-green-700">
-            <Download className="w-4 h-4" />
+        <div className="flex flex-col sm:flex-row gap-4 px-0">
+          <Button onClick={handleExportPDF} className="gap-2 bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-base font-semibold flex-1 sm:flex-none">
+            <Download className="w-5 h-5" />
             Download Complete PDF Report
           </Button>
-          <Button onClick={handleExportJSON} variant="outline" className="gap-2">
-            <Copy className="w-4 h-4" />
+          <Button onClick={handleExportJSON} variant="outline" className="gap-2 px-8 py-3 text-base font-semibold flex-1 sm:flex-none">
+            <Copy className="w-5 h-5" />
             Export JSON
           </Button>
         </div>
