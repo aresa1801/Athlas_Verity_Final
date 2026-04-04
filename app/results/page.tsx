@@ -1443,90 +1443,54 @@ export default function ResultsPage() {
             body: formData,
           })
 
-      // Prepare PDF data from current state
-      const pdfData: BatuahHilirPDFData = {
-        // Project Information
-        projectName: projectData?.projectName || "Green Carbon Project",
-        carbonOffsetType: "Green Carbon",
-        projectDescription: projectData?.projectDescription,
-        projectLocation: projectData?.projectLocation || "Unknown Location",
-        
-        // Project Owner Information
-        ownerName: projectData?.ownerName || "Unknown",
-        ownerEmail: projectData?.ownerEmail || "unknown@example.com",
-        ownerPhone: projectData?.ownerPhone || "Unknown",
-        
-        // Carbon Asset Coordinates
-        coordinates: projectData?.coordinates,
-        totalAssetPoints: projectData?.coordinates?.filter((c) => c?.latitude && c?.longitude)?.length || 0,
-        
-        // Verification Status
-        verificationStatus: "Verified",
-        
-        // Integrity & Quality Scores
-        integrityClass: carbonInputs.integrity_class || "IC-A",
-        auraScore: 91,
-        authenticityScore: 87,
-        validatorConsensus: carbonInputs.validator_consensus || 93,
-        dataConsistencyScore: 89,
-        
-        // Validation Summary
-        dataQualityCheck: true,
-        satelliteImageryVerification: true,
-        geospatialConsistency: true,
-        anomalyFlags: [],
-        
-        // Carbon Reduction Calculations
-        finalVerifiedReduction: carbonCalculation.final_verified_reduction_tco2,
-        
-        // Calculation Inputs & Parameters
-        agb: agbEstimation?.agb_tpha_final || carbonInputs.agb_per_ha || 215.6,
-        carbonFraction: carbonInputs.carbon_fraction || 0.47,
-        projectArea: carbonInputs.area_ha || 3023.5,
-        projectDuration: carbonInputs.duration_years || 10,
-        baselineEmissionsRate: carbonInputs.baseline_emission || 1.8,
-        
-        // Detailed Calculation Steps
-        rawCarbonStock: carbonCalculation.raw_carbon_stock_tc,
-        convertedCO2: carbonCalculation.converted_co2_tco2,
-        baselineEmissions: carbonCalculation.baseline_emissions_total_tco2,
-        grossReduction: carbonCalculation.gross_reduction_tco2,
-        leakageAdjustment: carbonCalculation.leakage_reduction_tco2,
-        leakagePercent: carbonCalculation.leakage_adjustment_percent,
-        bufferPoolDeduction: carbonCalculation.buffer_reduction_tco2,
-        bufferPoolPercent: carbonCalculation.buffer_pool_percent,
-        netReduction: carbonCalculation.net_reduction_tco2,
-        integrityClassAdjustment: carbonCalculation.integrity_class_adjustment_tco2,
-        integrityClassPercent: (carbonCalculation.integrity_class_factor * 100),
-        
-        // Validators Information
-        validators: mockValidationResult.contributors.map((c) => ({
-          id: c.id,
-          role: c.role,
-          modelType: c.model_type,
-          confidence: c.confidence * 100,
-        })),
-        consensusThreshold: 93,
-        averageConfidence: 92.3,
-        
-        // Vegetation Classification
-        primaryForestType: projectData?.satelliteData?.features?.forest_type || "Tropical Rainforest",
-        vegetationClass: "Dense Forest",
-        ndvi: projectData?.satelliteData?.features?.ndvi || 0.75,
-        evi: projectData?.satelliteData?.features?.evi || 0.45,
-        gndvi: projectData?.satelliteData?.features?.gndvi || 0.48,
-        lai: projectData?.satelliteData?.features?.lai || 6.5,
-        canopyDensity: projectData?.satelliteData?.features?.canopy_density || 0.75,
-        averageTreeHeight: "25-35 meters",
-        crownCoverage: "85-95%",
-        vegetationHealthStatus: "Excellent",
-        
-        // Additional data
-        generatedDate: new Date(),
-      }
+          if (!uploadResponse.ok) {
+            try {
+              const responseText = await uploadResponse.text()
+              try {
+                const errorData = JSON.parse(responseText)
+                console.error("[v0] Google Drive upload failed with status:", uploadResponse.status)
+                console.error("[v0] Error details:", errorData)
+                alert(`Failed to upload PDF to Google Drive: ${errorData.details || "Unknown error"}`)
+              } catch {
+                console.error("[v0] Google Drive upload failed with status:", uploadResponse.status, responseText)
+                alert(`Failed to upload PDF to Google Drive: HTTP ${uploadResponse.status}`)
+              }
+            } catch (readError) {
+              console.error("[v0] Failed to read error response:", readError)
+              alert(`Failed to upload PDF to Google Drive: HTTP ${uploadResponse.status}`)
+            }
+            return
+          }
 
-      // Generate PDF
-      await generateBatuahHilirPDF(pdfData)
+          let uploadResult
+          try {
+            const responseText = await uploadResponse.text()
+            uploadResult = JSON.parse(responseText)
+          } catch (parseError) {
+            console.error("[v0] Failed to parse upload response as JSON:", parseError)
+            alert(`Error: Invalid response from server`)
+            return
+          }
+          if (uploadResult.success) {
+            console.log("[v0] PDF uploaded to Google Drive:", uploadResult.fileLink)
+            alert(`PDF successfully uploaded to Google Drive!\nFile: ${uploadResult.fileName}`)
+          } else {
+            console.error("[v0] Upload returned success=false:", uploadResult)
+            alert(`Failed to upload PDF: ${uploadResult.error}`)
+          }
+        } catch (uploadError) {
+          console.error("[v0] PDF upload to Google Drive failed:", uploadError)
+          alert(
+            `Error uploading PDF to Google Drive: ${uploadError instanceof Error ? uploadError.message : "Unknown error"}`,
+          )
+        }
+      }, 500)
+    }
+  } catch (error) {
+    console.error("[v0] PDF generation failed:", error)
+    alert(`Error generating PDF: ${error instanceof Error ? error.message : "Unknown error"}`)
+  }
+}
     } catch (error) {
       console.error("[v0] PDF generation failed:", error)
       alert(`Error generating PDF: ${error instanceof Error ? error.message : "Unknown error"}`)
