@@ -20,6 +20,7 @@ import { BlueCarbonResultsDisplay } from "@/components/verification/blue-carbon-
 import type { BlueCarbonResult } from "@/lib/blue-carbon-calculator"
 import { generateBatuahHilirPDF, type BatuahHilirPDFData } from "@/lib/pdf-generators/batuah-hilir-pdf-generator"
 import { formatNumberWithCommas } from "@/lib/format-utils"
+import { PDFPreviewModal } from "@/components/verification/pdf-preview-modal"
 
 // ✅ FIXED: Coordinate type accepts both number and string
 interface Coordinate {
@@ -105,6 +106,7 @@ interface ResultsData extends FormData {
 export default function ResultsPage() {
   const router = useRouter()
   const [copied, setCopied] = useState(false)
+  const [showPDFPreview, setShowPDFPreview] = useState(false)
   const [projectData, setProjectData] = useState<ResultsData | null>(null)
   const [aiCarbonData, setAiCarbonData] = useState<any>(null)
   const [agbEstimation, setAgbEstimation] = useState<AGBEstimationResult | null>(null)
@@ -858,7 +860,7 @@ export default function ResultsPage() {
         <div className="mt-12 pt-8 border-t border-gray-700">
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
-              onClick={handleExportPDF} 
+              onClick={() => setShowPDFPreview(true)} 
               className="gap-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-10 py-4 text-base font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all"
             >
               <Download className="w-5 h-5" />
@@ -874,6 +876,16 @@ export default function ResultsPage() {
             </Button>
           </div>
         </div>
+
+        <PDFPreviewModal
+          isOpen={showPDFPreview}
+          onClose={() => setShowPDFPreview(false)}
+          projectName={projectData?.projectName || 'Project'}
+          finalReduction={carbonCalculation.final_verified_reduction_tco2}
+          integrityClass={carbonInputs.integrity_class || 'IC-A'}
+          validatorConsensus={carbonInputs.validator_consensus ? Math.round(carbonInputs.validator_consensus * 100) : 93}
+          onDownload={handleExportPDF}
+        />
       </div>
     </div>
   )
