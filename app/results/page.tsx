@@ -772,838 +772,91 @@ export default function ResultsPage() {
     }
   }
 
-  const handleExportJSON = () => {
-    if (!projectData) {
-      alert("Project data is not yet loaded. Please wait and try again.")
-      return
-    }
-
-    const jsonData = {
-      projectData,
-      carbonCalculation,
-      verification: {
-        integrityClass: carbonInputs.integrity_class,
-        validatorConsensus: carbonInputs.validator_consensus,
-        timestamp: new Date().toISOString(),
-      },
-    }
-
-    const dataStr = JSON.stringify(jsonData, null, 2)
-    const dataBlob = new Blob([dataStr], { type: "application/json" })
-    const url = URL.createObjectURL(dataBlob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = "validation-data.json"
-    link.click()
-  }
-
-  return (
-            .label { 
-              font-weight: 600; 
-              color: ${primaryColor};
-              margin-bottom: 5px;
-            }
-            .value { 
-              margin-left: 10px; 
-              color: #E0E0E0;
-            }
-            .score { 
-              display: inline-block; 
-              background: ${primaryColor}; 
-              color: #0D0F10; 
-              padding: 8px 12px; 
-              border-radius: 4px; 
-              margin: 5px 0;
-              font-weight: 600;
-            }
-            table { 
-              width: 100%; 
-              border-collapse: collapse; 
-              margin-top: 15px;
-              background: rgba(255, 255, 255, 0.02);
-            }
-            th { 
-              background: ${primaryColor}; 
-              color: #0D0F10; 
-              padding: 12px; 
-              text-align: left;
-              font-weight: 600;
-            }
-            td { 
-              padding: 12px; 
-              border-bottom: 1px solid rgba(${primaryColorRgba}, 0.1);
-              color: #E0E0E0;
-            }
-            tr:last-child td { border-bottom: none; }
-            .grid { 
-              display: grid; 
-              grid-template-columns: 1fr 1fr; 
-              gap: 15px;
-              margin-top: 15px;
-            }
-            .grid-item {
-              background: rgba(255, 255, 255, 0.03);
-              padding: 12px;
-              border-radius: 6px;
-              border: 1px solid rgba(${primaryColorRgba}, 0.1);
-            }
-            .highlight-accent {
-              background: rgba(${primaryColorRgba}, 0.2);
-              border-left: 4px solid ${primaryColor};
-              padding: 15px;
-              margin: 15px 0;
-              border-radius: 4px;
-            }
-            .metric-row {
-              display: flex;
-              justify-content: space-between;
-              padding: 8px 0;
-              border-bottom: 1px solid rgba(${primaryColorRgba}, 0.1);
-            }
-            .metric-row:last-child { border-bottom: none; }
-            .metric-label { color: #B0B0B0; }
-            .metric-value { color: ${primaryColor}; font-weight: 600; }
-            .final-value {
-              font-size: 28px;
-              color: ${primaryColor};
-              font-weight: 700;
-              margin: 15px 0;
-            }
-            .footer { 
-              text-align: center; 
-              font-size: 12px; 
-              color: #666;
-              margin-top: 40px;
-              padding-top: 20px;
-              border-top: 1px solid rgba(${primaryColorRgba}, 0.1);
-            }
-            @media print { 
-              body { margin: 0; background: #0D0F10; }
-              .page { page-break-after: always; }
-              .section { page-break-inside: avoid; break-inside: avoid; }
-            }
-          </style>
-        </head>
-        <body>
-          <!-- PAGE 1: PROJECT OVERVIEW -->
-          <div class="page">
-            <h1>Athlas Verity Impact Verification & Carbon Reduction Report</h1>
-            <p style="color: ${primaryColor}; font-size: 16px; margin-bottom: 40px;">Generated via Athlas Verity AI System</p>
-            
-            <div class="section">
-              <h2>Project Location Detail</h2>
-              <div class="grid">
-                <div class="grid-item">
-                  <div class="label">Location</div>
-                  <div class="value">${projectData?.projectLocation || "N/A"}</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Country</div>
-                  <div class="value">${projectData?.country || "N/A"}</div>
-                </div>
-              </div>
-              <div class="grid" style="margin-top: 15px;">
-                <div class="grid-item">
-                  <div class="label">Project Name</div>
-                  <div class="value">${projectData?.projectName || "N/A"}</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Project Area</div>
-                  <div class="value">${carbonInputs.area_ha.toFixed(2)} hectares</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Carbon Offset Type</h2>
-              <div class="grid">
-                <div class="grid-item">
-                  <div class="label">Classification</div>
-                  <div class="value">${isBlueCarbonProject ? "Blue Carbon" : "Green Carbon"}</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Verification Status</div>
-                  <div style="color: ${primaryColor}; font-weight: 700;">✓ Verified</div>
-                </div>
-              </div>
-              ${isBlueCarbonProject ? `
-              <div class="grid" style="margin-top: 15px;">
-                <div class="grid-item">
-                  <div class="label">Ecosystem Type</div>
-                  <div class="value">${projectData?.ecosystemType || "N/A"}</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Tidal Zone Type</div>
-                  <div class="value">${projectData?.tidalZoneType || "N/A"}</div>
-                </div>
-              </div>
-              ` : ''}
-            </div>
-
-            <div class="section">
-              <h2>Project Description</h2>
-              <div class="value" style="line-height: 1.8; font-size: 12px;">
-                ${projectData?.projectName ? `Project "${projectData.projectName}" located in ${projectData?.projectLocation || 'the project area'}, encompasses approximately ${carbonInputs.area_ha.toFixed(2)} hectares of ${isBlueCarbonProject ? 'coastal ecosystem' : 'forest ecosystem'} with ${projectData?.forestType || 'tropical ecosystem'} classification. ${isBlueCarbonProject ? `The project focuses on blue carbon sequestration through ${projectData?.ecosystemType || 'coastal wetland'} conservation. Tidal zone type: ${projectData?.tidalZoneType || 'variable'}, Ecosystem: ${projectData?.ecosystemType || 'mixed coastal species'}.` : 'The project is focused on carbon offset generation through forest protection and restoration activities.'} With an estimated carbon stock of ${(carbonInputs.agb_per_ha * carbonInputs.area_ha * 0.47).toFixed(2)} tC and dominant species of ${projectData?.dominantSpecies || 'mixed species'}, this project demonstrates significant biodiversity value and carbon sequestration potential. ${isBlueCarbonProject ? `Coastal parameters: Water depth (${projectData?.waterDepth || 'N/A'}), Salinity (${projectData?.salinityType || 'N/A'}), Sediment depth (${projectData?.sedimentDepthEstimate || 'N/A'}).` : 'The vegetation is characterized by dense forest cover with healthy canopy structure.'} Located in ${projectData?.country || 'a carbon-rich region'}, the project contributes to global climate change mitigation efforts.` : "N/A"}
-              </div>
-            </div>
-          </div>
-
-          <!-- PAGE 2: PROJECT OWNER & COORDINATES -->
-          <div class="page page-break">
-            <h1>Project Owner & Geospatial Data</h1>
-            <p style="color: #B0B0B0; margin-bottom: 30px;">Owner Information & Asset Coordinates</p>
-            
-            <div class="section">
-              <h2>Project Owner Information</h2>
-              <div class="grid">
-                <div class="grid-item">
-                  <div class="label">Owner Name</div>
-                  <div class="value">${projectData?.ownerName || "N/A"}</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Email Address</div>
-                  <div class="value">${projectData?.ownerEmail || "N/A"}</div>
-                </div>
-              </div>
-              <div class="grid" style="margin-top: 15px;">
-                <div class="grid-item">
-                  <div class="label">Phone Number</div>
-                  <div class="value">${projectData?.ownerPhone || "N/A"}</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Verification Status</div>
-                  <div style="color: ${primaryColor}; font-weight: 700;">✓ Verified & Confirmed</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Carbon Asset Coordinates</h2>
-              <p style="color: #94a3b8; font-size: 12px; margin-bottom: 10px;">
-                <strong>Satellite Data Verification:</strong> ${filledCoordinates.length} Asset Points Verified
-              </p>
-              <p style="color: #94a3b8; font-size: 11px; margin-bottom: 15px;">
-                Source: Satellite Imagery Database | Verification Date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </p>
-              <table>
-                <tr>
-                  <th style="width: 10%;">Point #</th>
-                  <th style="width: 30%;">Latitude</th>
-                  <th style="width: 30%;">Longitude</th>
-                  <th style="width: 30%;">Verification Status</th>
-                </tr>
-                ${filledCoordinates.length > 0
-                  ? filledCoordinates
-                      .map(
-                        (coord, idx) => {
-                          const lat = typeof coord.latitude === 'string' ? parseFloat(coord.latitude) : (coord.latitude || 0);
-                          const lon = typeof coord.longitude === 'string' ? parseFloat(coord.longitude) : (coord.longitude || 0);
-                          return `
-                  <tr>
-                    <td style="text-align: center;">${idx + 1}</td>
-                    <td style="text-align: center; font-family: monospace;">${lat.toFixed(6)}°</td>
-                    <td style="text-align: center; font-family: monospace;">${lon.toFixed(6)}°</td>
-                    <td style="color: #22C55E; text-align: center; font-weight: 600;">✓ Verified</td>
-                  </tr>
-                `;
-                        },
-                      )
-                      .join("")
-                  : `
-                  <tr>
-                    <td colspan="4" style="text-align: center; color: #94a3b8;">No verified coordinates available</td>
-                  </tr>
-                `}
-              </table>
-            </div>
-
-            <div class="section">
-              <h2>Geospatial Coverage Verification</h2>
-              <div class="metric-row">
-                <span class="metric-label">Total Asset Points Registered</span>
-                <span class="metric-value" style="color: ${primaryColor}; font-weight: 700;">${filledCoordinates.length}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Points from Satellite Data</span>
-                <span class="metric-value" style="color: ${primaryColor}; font-weight: 700;">${filledCoordinates.length}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Satellite Data Source</span>
-                <span class="metric-value">Verified Satellite Imagery & Ground Truth</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Coverage Area</span>
-                <span class="metric-value">${carbonInputs.area_ha.toFixed(2)} hectares</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Geospatial Coverage Verified</span>
-                <span class="metric-value" style="color: #22C55E; font-weight: 700;">✓ Confirmed</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Proof-Chain Hash</span>
-                <span class="metric-value" style="font-size: 10px; word-break: break-all;">${mockValidationResult.proof_chain.substring(0, 60)}...</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- PAGE 3: VERIFICATION RESULTS -->
-          <div class="page page-break">
-            <h1>Verification Results & Scores</h1>
-            <p style="color: #B0B0B0; margin-bottom: 30px;">Athlas Verity AI System Validation Metrics</p>
-
-            ${isBlueCarbonProject ? `
-            <div class="section">
-              <h2>Blue Carbon Ecosystem Parameters</h2>
-              <div class="metric-row">
-                <span class="metric-label">Carbon Sequestration Rate (SOC)</span>
-                <span class="metric-value">${((carbonInputs.agb_per_ha * carbonInputs.carbon_fraction) / 10).toFixed(2)} tC/ha/year</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Coastal Protection Status</span>
-                <span class="metric-value">${projectData?.coastalProtectionStatus || "N/A"}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Human Disturbance Level</span>
-                <span class="metric-value">${projectData?.humanDisturbanceLevel || "N/A"}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Legal Protection Status</span>
-                <span class="metric-value">${projectData?.legalProtectionStatus || "N/A"}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Baseline Year</span>
-                <span class="metric-value">${projectData?.baselineYear || "N/A"}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Methodology Reference</span>
-                <span class="metric-value">${projectData?.methodologyRef || "Verra VCS"}</span>
-              </div>
-            </div>
-            ` : ''}
-
-            <div class="section">
-              <h2>Integrity & Quality Scores</h2>
-              <div class="grid">
-                <div class="grid-item">
-                  <div class="label">Integrity Class</div>
-                  <div class="score">${mockValidationResult.integrity_class}</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Aura Score</div>
-                  <div class="score">${(mockValidationResult.aura_score * 100).toFixed(1)}%</div>
-                </div>
-              </div>
-              <div class="grid" style="margin-top: 15px;">
-                <div class="grid-item">
-                  <div class="label">Authenticity Score</div>
-                  <div class="score">${(mockValidationResult.authenticity_score * 100).toFixed(1)}%</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Validator Consensus</div>
-                  <div class="score">${(mockValidationResult.validator_consensus * 100).toFixed(1)}%</div>
-                </div>
-              </div>
-              <div style="margin-top: 15px;">
-                <div class="grid-item">
-                  <div class="label">Data Consistency Score</div>
-                  <div class="score">${(mockValidationResult.data_consistency_score * 100).toFixed(1)}%</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Validation Summary</h2>
-              <div class="metric-row">
-                <span class="metric-label">Data Quality Check</span>
-                <span class="metric-value">✓ Passed</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Satellite Imagery Verification</span>
-                <span class="metric-value">✓ Passed</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Geospatial Consistency</span>
-                <span class="metric-value">✓ Passed</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Anomaly Flags</span>
-                <span class="metric-value">None Detected</span>
-              </div>
-            </div>
-
-            ${isBlueCarbonProject && blueCarbonResult ? `
-            <div class="section">
-              <h2>International Verification Summary</h2>
-              <div class="highlight-accent" style="background: rgba(${primaryColorRgba}, 0.1); border-left: 4px solid ${primaryColor}; padding: 15px; margin: 15px 0;">
-                <p style="color: #B0B0B0; margin-bottom: 10px;">Final Verified Reduction (Verra/IUCN Standards)</p>
-                <div class="final-value" style="color: ${primaryColor};">${blueCarbonResult.final_verified_reduction_tco2.toLocaleString()}</div>
-                <p style="color: #B0B0B0;">tonnes CO₂ equivalent (after international verification discounts)</p>
-              </div>
-              
-              <div class="metric-row">
-                <span class="metric-label">Ex-ante Credits</span>
-                <span class="metric-value">${blueCarbonResult.ex_ante_credits_tco2.toLocaleString()} tCO₂</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Verra Compliance Status</span>
-                <span class="metric-value">${blueCarbonResult.verra_compliance_status || "Compliant"}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Integrity Score</span>
-                <span class="metric-value">${blueCarbonResult.integrity_score || 95}/100</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Total Carbon Stock</span>
-                <span class="metric-value">${blueCarbonResult.total_carbon_stock_tc.toLocaleString()} tC</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Project Area</span>
-                <span class="metric-value">${carbonInputs.area_ha.toFixed(2)} hectares</span>
-              </div>
-            </div>
-            ` : ''}
-          </div>
-
-          <!-- PAGE 4: CARBON CALCULATIONS -->
-          <div class="page page-break">
-            ${blueCarbonResult ? `
-            <h1>Blue Carbon Calculations (IPCC/Verra Compliant)</h1>
-            <p style="color: #B0B0B0; margin-bottom: 30px;">International Standards-Based Carbon Accounting with AGB, BGB & SOC</p>
-            
-            <div class="section">
-              <h2>Final Verified Credits (Blue Carbon)</h2>
-              <div class="highlight-accent" style="background: rgba(${primaryColorRgba}, 0.1); border-left: 4px solid ${primaryColor}; padding: 15px; margin: 15px 0;">
-                <p style="color: #B0B0B0; margin-bottom: 10px;">Total Verified Blue Carbon Credits</p>
-                <div class="final-value" style="color: ${primaryColor};">${blueCarbonResult.net_verified_credits_tco2.toLocaleString()}</div>
-                <p style="color: #B0B0B0;">tonnes CO₂ equivalent over ${parseInt(projectData?.baselineYear || "2020") + 10 - parseInt(projectData?.baselineYear || "2020")} years</p>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Biomass Pool Breakdown (per hectare)</h2>
-              <table>
-                <tr>
-                  <th>Carbon Pool</th>
-                  <th>Amount (tC/ha)</th>
-                  <th>Notes</th>
-                </tr>
-                <tr>
-                  <td>Aboveground Biomass (AGB)</td>
-                  <td>${blueCarbonResult.agb_tc_ha.toFixed(2)}</td>
-                  <td>Mangrove/Seagrass vegetation</td>
-                </tr>
-                <tr>
-                  <td>Belowground Biomass (BGB)</td>
-                  <td>${blueCarbonResult.bgb_tc_ha.toFixed(2)}</td>
-                  <td>Roots and subsurface biomass</td>
-                </tr>
-                <tr>
-                  <td>Dead Wood</td>
-                  <td>${blueCarbonResult.dead_wood_tc_ha.toFixed(2)}</td>
-                  <td>Dead trees and branches</td>
-                </tr>
-                <tr>
-                  <td>Litter</td>
-                  <td>${blueCarbonResult.litter_tc_ha.toFixed(2)}</td>
-                  <td>Decomposing plant material</td>
-                </tr>
-                <tr>
-                  <td>Soil Organic Carbon (SOC)</td>
-                  <td>${blueCarbonResult.soc_tc_ha.toFixed(2)}</td>
-                  <td>Critical blue carbon sink</td>
-                </tr>
-                <tr style="background: rgba(${primaryColorRgba}, 0.05); font-weight: 600;">
-                  <td>TOTAL Carbon Stock</td>
-                  <td>${blueCarbonResult.total_biomass_tc_ha.toFixed(2)}</td>
-                  <td>All pools combined</td>
-                </tr>
-              </table>
-            </div>
-
-            <div class="section">
-              <h2>Carbon Sequestration & Baseline</h2>
-              <div class="metric-row">
-                <span class="metric-label">Annual Sequestration Rate</span>
-                <span class="metric-value">${blueCarbonResult.annual_sequestration_rate_tco2_ha.toFixed(2)} tCO2/ha/year</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Total Project Sequestration</span>
-                <span class="metric-value">${blueCarbonResult.total_project_sequestration_tco2.toLocaleString()} tCO2</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Baseline Emissions</span>
-                <span class="metric-value">${blueCarbonResult.baseline_emissions_tco2.toLocaleString()} tCO2</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Gross Removals</span>
-                <span class="metric-value">${blueCarbonResult.gross_removals_tco2.toLocaleString()} tCO2</span>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Deductions & Adjustments</h2>
-              <div class="metric-row">
-                <span class="metric-label">Leakage Adjustment</span>
-                <span class="metric-value">-${blueCarbonResult.leakage_adjustment_tco2.toLocaleString()} tCO2</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Buffer Pool Reserve</span>
-                <span class="metric-value">-${blueCarbonResult.buffer_pool_tco2.toLocaleString()} tCO2</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Uncertainty Discount</span>
-                <span class="metric-value">-${blueCarbonResult.uncertainty_discount_tco2.toLocaleString()} tCO2</span>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Ecosystem Co-Benefits</h2>
-              <div class="metric-row">
-                <span class="metric-label">Coastal Protection Value</span>
-                <span class="metric-value">${blueCarbonResult.coastal_protection_value}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Biodiversity Benefit</span>
-                <span class="metric-value">${blueCarbonResult.biodiversity_benefit}</span>
-              </div>
-            </div>
-            ` : `
-            <h1>Carbon Reduction Calculations</h1>
-            <p style="color: #B0B0B0; margin-bottom: 30px;">Step-by-Step Carbon Accounting & Verification</p>
-            
-            <div class="section">
-              <h2>Final Verified Carbon Reduction</h2>
-              <div class="highlight-accent" style="background: rgba(${primaryColorRgba}, 0.1); border-left: 4px solid ${primaryColor}; padding: 15px; margin: 15px 0;">
-                <p style="color: #B0B0B0; margin-bottom: 10px;">Total Net Reduction (Verified)</p>
-                <div class="final-value" style="color: ${primaryColor};">${carbonCalculation.final_verified_reduction_tco2.toLocaleString()}</div>
-                <p style="color: #B0B0B0;">tonnes CO₂ equivalent</p>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Calculation Inputs & Parameters</h2>
-              <div class="metric-row">
-                <span class="metric-label">Aboveground Biomass (AGB)</span>
-                <span class="metric-value">${carbonCalculation.agb_per_ha.toFixed(2)} t/ha</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Carbon Fraction</span>
-                <span class="metric-value">${carbonCalculation.carbon_fraction.toFixed(2)}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Project Area</span>
-                <span class="metric-value">${carbonCalculation.area_ha.toFixed(2)} ha</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Project Duration</span>
-                <span class="metric-value">${carbonInputs.duration_years} years</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Baseline Emissions Rate</span>
-                <span class="metric-value">${carbonInputs.baseline_emission.toFixed(1)} tCO₂/ha/year</span>
-              </div>
-            </div>
-            `}
-          </div>
-
-          <!-- PAGE 5: VALIDATORS INFORMATION -->
-          <div class="page page-break">
-            <h1>Validators Information</h1>
-            <p style="color: #B0B0B0; margin-bottom: 30px;">Athlas Verity AI System Validator Network & Consensus Data</p>
-            
-            <div class="section">
-              <h2>Validator Nodes & Contributions</h2>
-              <table>
-                <tr>
-                  <th>Validator ID</th>
-                  <th>Role</th>
-                  <th>Model Type</th>
-                  <th>Confidence</th>
-                </tr>
-                ${mockValidationResult.contributors
-                  .map(
-                    (contributor) => `
-                  <tr>
-                    <td style="font-size: 11px; word-break: break-all;">${contributor.id}</td>
-                    <td>${contributor.role}</td>
-                    <td>${contributor.model_type}</td>
-                    <td>${(contributor.confidence * 100).toFixed(1)}%</td>
-                  </tr>
-                `,
-                  )
-                  .join("")}
-              </table>
-            </div>
-
-            <div class="section">
-              <h2>Verification Authority & Proof-Chain</h2>
-              <div class="metric-row">
-                <span class="metric-label">Consensus Threshold</span>
-                <span class="metric-value">93.0%</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Validators Participated</span>
-                <span class="metric-value">${mockValidationResult.contributors.length}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Average Confidence</span>
-                <span class="metric-value">${((mockValidationResult.contributors.reduce((sum, c) => sum + c.confidence, 0) / mockValidationResult.contributors.length) * 100).toFixed(1)}%</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Additional Blue Carbon Pages if needed -->
-          ${isBlueCarbonProject ? `
-          <div class="page page-break">
-            <h1>Blue Carbon Verification Results</h1>
-            <p style="color: #B0B0B0; margin-bottom: 30px;">Comprehensive Blue Carbon Ecosystem Assessment</p>
-            
-            <div class="section">
-              <h2>Final Verified Reduction (International Standards)</h2>
-              <div style="background: rgba(74, 222, 128, 0.1); padding: 20px; border-radius: 6px; border-left: 6px solid #4ade80; margin: 15px 0;">
-                <div style="font-size: 32px; font-weight: 700; color: #4ade80;">${Math.round(blueCarbonResult?.final_verified_reduction_tco2 || 0).toLocaleString()} tCO₂e</div>
-                <div style="font-size: 12px; color: #B0B0B0; margin-top: 8px;">Final verified reduction following Verra VCS, IUCN Blue Carbon, and IPCC AR6 Tier 2 methodologies</div>
-              </div>
-            </div>
-
-            <div class="section">
-              <h2>Integrity Verification Score</h2>
-              <div class="grid">
-                <div class="grid-item">
-                  <div class="label">Integrity Score</div>
-                  <div class="score">${blueCarbonResult?.integrity_score || 85}/100</div>
-                </div>
-                <div class="grid-item">
-                  <div class="label">Verra Compliance</div>
-                  <div class="score">${blueCarbonResult?.verra_compliance_status || "Compliant"}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          ` : ''}
-
-          <!-- DISCLAIMER PAGE -->
-          <div class="page page-break">
-            <h1>Disclaimer & Data Integrity Notice</h1>
-            
-            <div class="section" style="background: rgba(255, 193, 7, 0.05); border: 1px solid rgba(255, 193, 7, 0.2); page-break-inside: avoid; break-inside: avoid;">
-              <h2 style="color: #FFD700; border-left-color: #FFD700;">Important Information</h2>
-              
-              <div style="color: #E0E0E0; line-height: 1.8; margin-top: 20px;">
-                <p style="margin-bottom: 15px;">
-                  <strong>Data Source & Accuracy:</strong><br/>
-                  The carbon reduction calculations, metrics, and verification results presented in this report are derived solely from data and documentation provided by the Carbon Project Developer or Carbon Asset Owner. The accuracy, completeness, and authenticity of all underlying data depend entirely on the information submitted during the verification process.
-                </p>
-
-                <p style="margin-bottom: 15px;">
-                  <strong>Calculation Methodology:</strong><br/>
-                  All carbon accounting calculations follow established IPCC (Intergovernmental Panel on Climate Change) methodologies and are computed based on the input parameters provided. These include Above Ground Biomass (AGB), carbon fractions, project area, baseline emissions, leakage factors, and buffer pool adjustments. The integrity of results is contingent upon the accuracy of these input values.
-                </p>
-
-                <p style="margin-bottom: 15px;">
-                  <strong>Validator Network Verification:</strong><br/>
-                  The Athlas Verity AI System decentralized validator network has reviewed and verified the submitted data against publicly available standards and protocols. However, this verification is computational in nature and does not constitute an audit or independent certification of the carbon asset or project claims.
-                </p>
-
-                <p style="margin-bottom: 15px;">
-                  <strong>Limitation of Liability:</strong><br/>
-                  Athlas Verity Platform and the AI validator network assume no liability for errors, omissions, or misstatements in the source data provided by project developers or asset owners. Users are solely responsible for the accuracy and legitimacy of all information submitted for verification.
-                </p>
-
-                <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(${primaryColorRgba}, 0.2); font-style: italic; color: #B0B0B0;">
-                  By accessing this verification report, you acknowledge that you have read, understood, and agree to be bound by the terms and limitations outlined in this disclaimer.
-                </p>
-
-                <div style="margin-top: 40px; padding-top: 30px; border-top: 2px solid rgba(${primaryColorRgba}, 0.2); text-align: center; font-size: 12px; color: #888;">
-                  <p style="margin-bottom: 8px; font-style: italic;">Generated on ${new Date().toLocaleString()}</p>
-                  <p style="margin-bottom: 8px; font-weight: 500; color: ${primaryColor};">Athlas Verity Platform - Powered by CarbonFi Labs System</p>
-                  <p style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(${primaryColorRgba}, 0.1); color: #666;">© 2025 Athlas Verity - Environmental Impact Verification Platform. All rights reserved.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </body>
-      </html>
-    `
-
-    const printWindow = window.open("", "", "width=800,height=600")
-    if (printWindow) {
-      printWindow.document.write(printContent)
-      printWindow.document.close()
-
-      setTimeout(async () => {
-        printWindow.print()
-
-        try {
-          const canvas = await html2canvas(printWindow.document.body)
-          const pdf = new jsPDF()
-          const imgData = canvas.toDataURL("image/png")
-          const imgWidth = 210
-          const pageHeight = 297
-          const imgHeight = (canvas.height * imgWidth) / canvas.width
-          let heightLeft = imgHeight
-
-          let position = 0
-          pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight)
-          heightLeft -= pageHeight
-
-          while (heightLeft >= 0) {
-            position = heightLeft - imgHeight
-            pdf.addPage()
-            pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight)
-            heightLeft -= pageHeight
-          }
-
-          const pdfBlob = pdf.output("blob")
-          const fileName = `${projectData?.projectName || "Validation-Report"}-${new Date().getTime()}.pdf`
-
-          const formData = new FormData()
-          formData.append("pdf", pdfBlob, fileName)
-          formData.append("fileName", fileName)
-          formData.append("projectName", projectData?.projectName || "Unknown Project")
-
-          const uploadResponse = await fetch("/api/drive/upload-pdf", {
-            method: "POST",
-            body: formData,
-          })
-
-          if (!uploadResponse.ok) {
-            try {
-              const responseText = await uploadResponse.text()
-              try {
-                const errorData = JSON.parse(responseText)
-                console.error("[v0] Google Drive upload failed with status:", uploadResponse.status)
-                console.error("[v0] Error details:", errorData)
-                alert(`Failed to upload PDF to Google Drive: ${errorData.details || "Unknown error"}`)
-              } catch {
-                console.error("[v0] Google Drive upload failed with status:", uploadResponse.status, responseText)
-                alert(`Failed to upload PDF to Google Drive: HTTP ${uploadResponse.status}`)
-              }
-            } catch (readError) {
-              console.error("[v0] Failed to read error response:", readError)
-              alert(`Failed to upload PDF to Google Drive: HTTP ${uploadResponse.status}`)
-            }
-            return
-          }
-
-          let uploadResult
-          try {
-            const responseText = await uploadResponse.text()
-            uploadResult = JSON.parse(responseText)
-          } catch (parseError) {
-            console.error("[v0] Failed to parse upload response as JSON:", parseError)
-            alert(`Error: Invalid response from server`)
-            return
-          }
-          if (uploadResult.success) {
-            console.log("[v0] PDF uploaded to Google Drive:", uploadResult.fileLink)
-            alert(`PDF successfully uploaded to Google Drive!\nFile: ${uploadResult.fileName}`)
-          } else {
-            console.error("[v0] Upload returned success=false:", uploadResult)
-            alert(`Failed to upload PDF: ${uploadResult.error}`)
-          }
-        } catch (uploadError) {
-          console.error("[v0] PDF upload to Google Drive failed:", uploadError)
-          alert(
-            `Error uploading PDF to Google Drive: ${uploadError instanceof Error ? uploadError.message : "Unknown error"}`,
-          )
-        }
-      }, 500)
-    }
-  }
-
-  // Return component render
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="max-w-7xl mx-auto px-6 py-12">
-        <Link 
-          href={isBlueCarbonProject ? "/verification/blue-carbon/create" : "/verification/green-carbon/create"}
-          className="flex items-center gap-2 text-accent hover:text-accent/80 mb-8"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Upload Another Dataset
-        </Link>
-
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-4xl font-bold">Validation Complete</h2>
-          {isBlueCarbonProject && !projectData?.projectName?.includes("Demo") && (
-            <span className="inline-block px-3 py-1 bg-cyan-500/20 text-cyan-600 text-sm font-medium rounded-full border border-cyan-500/30">
-              Blue Carbon
-            </span>
-          )}
-          {isBlueCarbonProject && projectData?.projectName?.includes("Demo") && (
-            <span className="inline-block px-3 py-1 bg-amber-500/20 text-amber-600 text-sm font-medium rounded-full border border-amber-500/30">
-              Demo Data
-            </span>
-          )}
+      <div className="container mx-auto py-10 px-4">
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-green-600 mb-2">Verification Results</h1>
+            <p className="text-gray-400">Your green carbon project has been successfully verified</p>
+          </div>
+          <Button variant="outline" onClick={() => router.push("/")} className="gap-2">
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
         </div>
-        <p className="text-muted-foreground mb-8">
-          {isBlueCarbonProject && projectData?.projectName?.includes("Demo")
-            ? "This is a demonstration of blue carbon verification results"
-            : "Your ecological dataset has been processed by the Athlas Verity AI System validators"}
-        </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-1">
-            <DatasetVisualization />
-          </div>
-
-          <div className="lg:col-span-1">
-            <IntegrityClassPanel validationResult={mockValidationResult} />
-          </div>
-
-          <div className="lg:col-span-1">
-            <ValidatorContributorsPanel contributors={mockValidationResult.contributors} />
-          </div>
+          <Card className="bg-card border-green-600/20">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-2">Final CO₂ Reduction</h3>
+              <p className="text-3xl font-bold text-green-600">{carbonCalculation.final_verified_reduction_tco2.toFixed(2)} tCO₂e</p>
+            </div>
+          </Card>
+          <Card className="bg-card border-blue-600/20">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-2">Verification Status</h3>
+              <p className="flex items-center gap-2 text-green-600"><CheckCircle className="w-5 h-5" />Verified</p>
+            </div>
+          </Card>
+          <Card className="bg-card border-purple-600/20">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-2">Integrity Class</h3>
+              <p className="text-2xl font-bold text-purple-600">{carbonInputs.integrity_class || "IC-A"}</p>
+            </div>
+          </Card>
         </div>
 
-        {isBlueCarbonProject && blueCarbonResult && (
-          <div className="mb-8">
-            <BlueCarbonResultsDisplay 
-              data={blueCarbonResult}
-              projectArea={carbonInputs.area_ha}
-              projectDuration={carbonInputs.duration_years}
-            />
-          </div>
-        )}
-
-        <Card className="bg-card border-border p-6">
-          <h3 className="text-xl font-semibold mb-4">Export Validation Package</h3>
-
-          <div className="bg-card border border-border rounded p-4 mb-4">
-            <p className="text-sm text-muted-foreground mb-2">Proof-Chain Hash:</p>
-            <div className="flex items-center gap-2">
-              <code className="text-sm bg-background px-3 py-2 rounded flex-1 overflow-auto text-accent">
-                {mockValidationResult.proof_chain}
-              </code>
-              <Button onClick={handleCopyProof} variant="outline" size="sm" className="border-border bg-transparent">
-                {copied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              </Button>
+        <Card className="mb-8">
+          <div className="p-6 border-b">
+            <h2 className="text-2xl font-bold mb-4">Carbon Calculation Breakdown</h2>
+            <div className="space-y-3">
+              <div className="flex justify-between"><span className="text-gray-400">Raw Carbon Stock:</span><span className="font-semibold">{carbonCalculation.raw_carbon_stock_tc.toFixed(2)} tC</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Converted CO₂:</span><span className="font-semibold">{carbonCalculation.converted_co2_tco2.toFixed(2)} tCO₂</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Baseline Emissions:</span><span className="font-semibold">{carbonCalculation.baseline_emissions_total_tco2.toFixed(2)} tCO₂</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Gross Reduction:</span><span className="font-semibold">{carbonCalculation.gross_reduction_tco2.toFixed(2)} tCO₂</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Leakage Adjustment ({carbonCalculation.leakage_adjustment_percent.toFixed(1)}%):</span><span className="font-semibold">-{carbonCalculation.leakage_reduction_tco2.toFixed(2)} tCO₂</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Buffer Pool ({carbonCalculation.buffer_pool_percent.toFixed(1)}%):</span><span className="font-semibold">-{carbonCalculation.buffer_reduction_tco2.toFixed(2)} tCO₂</span></div>
+              <div className="flex justify-between"><span className="text-gray-400">Net Reduction:</span><span className="font-semibold">{carbonCalculation.net_reduction_tco2.toFixed(2)} tCO₂</span></div>
+              <div className="flex justify-between border-t pt-3"><span className="text-lg font-semibold">Final Verified Reduction:</span><span className="text-2xl font-bold text-green-600">{carbonCalculation.final_verified_reduction_tco2.toFixed(2)} tCO₂e</span></div>
             </div>
           </div>
         </Card>
 
-        {/* Export Options */}
-        <Card className="bg-card border-border p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Download className="w-5 h-5 text-accent" />
-            Export Verification Report
-          </h3>
-          <p className="text-sm text-muted-foreground mb-6">
-            Download your complete verification report in multiple formats
-          </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <Card>
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Project Details</h3>
+              <div className="space-y-2 text-sm">
+                <p><span className="text-gray-400">Project:</span> {projectData?.projectName}</p>
+                <p><span className="text-gray-400">Location:</span> {projectData?.projectLocation}</p>
+                <p><span className="text-gray-400">Area:</span> {carbonInputs.area_ha.toFixed(2)} ha</p>
+                <p><span className="text-gray-400">Duration:</span> {carbonInputs.duration_years} years</p>
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Verification Scores</h3>
+              <div className="space-y-2 text-sm">
+                <p><span className="text-gray-400">Integrity Class:</span> {carbonInputs.integrity_class}</p>
+                <p><span className="text-gray-400">Validator Consensus:</span> {carbonInputs.validator_consensus}%</p>
+                <p><span className="text-gray-400">Data Consistency:</span> 89%</p>
+              </div>
+            </div>
+          </Card>
+        </div>
 
-          <div className="space-y-3">
-            <Button onClick={handleExportJSON} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-              <Download className="w-4 h-4 mr-2" />
-              Export Validation Package (JSON)
-            </Button>
-            <Button onClick={handleExportPDF} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-              <Download className="w-4 h-4 mr-2" />
-              Download Complete PDF Report
-            </Button>
-          </div>
-        </Card>
+        <div className="flex gap-4">
+          <Button onClick={handleExportPDF} className="gap-2 bg-green-600 hover:bg-green-700">
+            <Download className="w-4 h-4" />
+            Download Complete PDF Report
+          </Button>
+          <Button onClick={handleExportJSON} variant="outline" className="gap-2">
+            <Copy className="w-4 h-4" />
+            Export JSON
+          </Button>
+        </div>
       </div>
     </div>
   )
