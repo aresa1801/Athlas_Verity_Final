@@ -1074,9 +1074,6 @@ export default function ResultsPage() {
     </div>
   )
 }
-            <p style="color: #B0B0B0; margin-bottom: 30px;">Athlas Verity AI System Validation Metrics</p>
-
-            ${isBlueCarbonProject ? `
             <div class="section">
               <h2>Blue Carbon Ecosystem Parameters</h2>
               <div class="metric-row">

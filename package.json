@@ -3,10 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "build": "npm run type-check && npm run lint:check && next build",
     "dev": "next dev",
-    "lint": "eslint .",
-    "start": "next start"
+    "lint": "eslint . --fix",
+    "lint:check": "eslint . --max-warnings=0",
+    "type-check": "tsc --noEmit",
+    "start": "next start",
+    "prebuild": "npm run type-check && npm run lint:check",
+    "validate": "npm run type-check && npm run lint:check && next build"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
