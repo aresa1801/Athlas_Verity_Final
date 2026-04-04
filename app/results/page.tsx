@@ -814,7 +814,11 @@ export default function ResultsPage() {
         integrityClass: carbonInputs.integrity_class || "IC-A",
         auraScore: 91,
         authenticityScore: 87,
-        validatorConsensus: carbonInputs.validator_consensus || 93,
+        validatorConsensus: typeof carbonInputs.validator_consensus === 'number' 
+          ? carbonInputs.validator_consensus > 1 
+            ? carbonInputs.validator_consensus 
+            : Math.round(carbonInputs.validator_consensus * 100)
+          : 93,
         dataConsistencyScore: 89,
         
         // Carbon Asset Coordinates
@@ -843,16 +847,22 @@ export default function ResultsPage() {
           { id: 'miner_445', role: 'AI Domain Model', modelType: 'Geospatial Regression', confidence: 91 },
           { id: 'validator_567', role: 'Quality Validator', modelType: 'Consistency Analysis', confidence: 96 },
         ],
-        consensusThreshold: carbonInputs.validator_consensus || 93,
+        consensusThreshold: typeof carbonInputs.validator_consensus === 'number'
+          ? carbonInputs.validator_consensus > 1
+            ? carbonInputs.validator_consensus
+            : Math.round(carbonInputs.validator_consensus * 100)
+          : 93,
         averageConfidence: 92.3,
         
         // Verification Status
         verificationStatus: "Verified",
       }
 
-      // Navigate to preview page with data as URL parameter
-      const encodedData = encodeURIComponent(JSON.stringify(reportData))
-      router.push(`/validation-report-preview?data=${encodedData}`)
+      // Store data in sessionStorage and navigate
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('validationReportData', JSON.stringify(reportData))
+        router.push('/validation-report-preview')
+      }
       
     } catch (error) {
       console.error("[v0] Preview generation failed:", error)

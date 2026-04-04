@@ -63,10 +63,22 @@ export default function ValidationReportPreviewPage() {
 
   useEffect(() => {
     try {
-      const dataStr = searchParams.get('data')
-      if (dataStr) {
-        const data = JSON.parse(decodeURIComponent(dataStr))
-        setReportData(data)
+      // Try to get data from sessionStorage first
+      if (typeof window !== 'undefined') {
+        const dataStr = sessionStorage.getItem('validationReportData')
+        if (dataStr) {
+          const data = JSON.parse(dataStr)
+          setReportData(data)
+          // Clear after reading to prevent stale data
+          sessionStorage.removeItem('validationReportData')
+        } else {
+          // Fallback to URL parameter (for direct navigation)
+          const urlData = searchParams.get('data')
+          if (urlData) {
+            const data = JSON.parse(decodeURIComponent(urlData))
+            setReportData(data)
+          }
+        }
       }
     } catch (error) {
       console.error('[v0] Error parsing report data:', error)
