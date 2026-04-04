@@ -871,48 +871,6 @@ export default function ResultsPage() {
       alert("Error generating preview")
     }
   }
-        projectDuration: carbonInputs.duration_years || 10,
-        baselineEmissionsRate: carbonInputs.baseline_emission || 1.8,
-        
-        // Detailed Calculation Steps
-        rawCarbonStock: carbonCalculation.raw_carbon_stock_tc,
-        convertedCO2: carbonCalculation.converted_co2_tco2,
-        baselineEmissions: carbonCalculation.baseline_emissions_total_tco2,
-        grossReduction: carbonCalculation.gross_reduction_tco2,
-        leakageAdjustment: carbonCalculation.leakage_reduction_tco2,
-        leakagePercent: carbonCalculation.leakage_adjustment_percent,
-        bufferPoolDeduction: carbonCalculation.buffer_reduction_tco2,
-        bufferPoolPercent: carbonCalculation.buffer_pool_percent,
-        netReduction: carbonCalculation.net_reduction_tco2,
-        integrityClassAdjustment: carbonCalculation.integrity_class_adjustment_tco2,
-        integrityClassPercent: carbonCalculation.integrity_class_factor * 100,
-        
-        // Validators Information
-        validators: mockValidationResult.contributors.map((c) => ({
-          id: c.id,
-          role: c.role,
-          modelType: c.model_type,
-          confidence: c.confidence * 100,
-        })),
-        consensusThreshold: 93,
-        averageConfidence: 92.3,
-        
-        // Vegetation Classification
-        primaryForestType: projectData?.satelliteData?.features?.forest_type || "Tropical Rainforest",
-        vegetationClass: "Dense Forest",
-        ndvi: projectData?.satelliteData?.features?.ndvi || 0.75,
-        evi: projectData?.satelliteData?.features?.evi || 0.45,
-        gndvi: projectData?.satelliteData?.features?.gndvi || 0.48,
-        lai: projectData?.satelliteData?.features?.lai || 6.5,
-        canopyDensity: projectData?.satelliteData?.features?.canopy_density || 0.75,
-        averageTreeHeight: "25-35 meters",
-        crownCoverage: "85-95%",
-        vegetationHealthStatus: "Excellent",
-        
-        generatedDate: new Date(),
-      }
-
-  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
