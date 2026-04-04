@@ -98,30 +98,8 @@ const getThemeColors = (theme: ThemeType): ThemeColors => {
     tableHeaderText: [255, 255, 255],
     success: [102, 187, 106],
     accent: [76, 175, 80],
-  }
 }
 
-export function generateProfessionalPDF(data: ValidationReportData, theme: ThemeType = 'light') {
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'mm',
-    format: 'a4',
-  })
-
-  const pageWidth = pdf.internal.pageSize.getWidth()
-  const pageHeight = pdf.internal.pageSize.getHeight()
-  const margin = 15
-  const contentWidth = pageWidth - margin * 2
-  
-  const colors = getThemeColors(theme)
-  
-  let yPos = margin
-
-  const setFont = (size: number, weight: 'bold' | 'normal' = 'normal', color = colors.text) => {
-    pdf.setFontSize(size)
-    pdf.setFont(undefined, weight)
-    pdf.setTextColor(...color)
-  }
 
   const addText = (text: string, size: number = 11, weight: 'bold' | 'normal' = 'normal', color = colors.text) => {
     setFont(size, weight, color)
