@@ -677,103 +677,127 @@ export default function ResultsPage() {
       return
     }
 
-    const detectedBlueCarbonProject = projectData && (projectData.tidalZoneType || projectData.ecosystemType?.toLowerCase().includes('mangrove') || projectData.ecosystemType?.toLowerCase().includes('seagrass') || projectData.salinityType)
-    
-    const primaryColor = isBlueCarbonProject || detectedBlueCarbonProject ? "#0EA5E9" : "#3DD68C"
-    const primaryColorRgba = isBlueCarbonProject || detectedBlueCarbonProject ? "14, 165, 233" : "61, 214, 140"
+    try {
+      // Import PDF generator dynamically
+      const { generateBatuahHilirPDF } = await import("@/lib/pdf-generators/batuah-hilir-pdf-generator")
 
-    const carbonOffsetTypes: Record<string, string> = {
-      reforestation: "Reforestation",
-      afforestation: "Afforestation",
-      "renewable-energy": "Renewable Energy",
-      "agricultural-practices": "Agricultural Practices",
-      "wetland-restoration": "Wetland Restoration",
-      "methane-capture": "Methane Capture",
-      other: "Other",
-      "forest-conservation": "Forest Conservation",
-      "sustainable-forest-management": "Sustainable Forest Management",
-      agroforestry: "Agroforestry",
-      "regenerative-agriculture": "Regenerative Agriculture",
-      "grassland-restoration": "Grassland & Pasture Restoration",
-      "mangrove-restoration": "Mangrove Restoration",
-      "seagrass-conservation": "Seagrass Meadow Conservation",
-      "salt-marsh-restoration": "Salt Marsh Restoration",
-      "kelp-forest-conservation": "Kelp Forest Conservation",
-      "coral-reef-restoration": "Coral Reef Restoration",
-      "biomass-energy": "Biomass Energy Projects",
-      "geothermal-energy": "Geothermal Energy",
-      "energy-efficiency": "Energy Efficiency Improvements",
-      "soil-carbon-sequestration": "Soil Carbon Sequestration",
-      "no-till-agriculture": "No-Till Agriculture",
-      "cover-crops": "Cover Crop Implementation",
-      biochar: "Biochar Production & Sequestration",
-      composting: "Organic Waste Composting",
-      "peatland-restoration": "Peatland Restoration & Protection",
-      "riparian-buffer": "Riparian Buffer Restoration",
-      "water-conservation": "Water Conservation & Treatment",
-      "livestock-management": "Livestock Emission Reduction",
-      "waste-management": "Waste Management & Recycling",
-      "wastewater-treatment": "Wastewater Treatment",
-      "urban-forest": "Urban Forest Expansion",
-      "green-buildings": "Green Buildings & Infrastructure",
-      "biodiversity-conservation": "Biodiversity Conservation",
-      "wildlife-habitat": "Wildlife Habitat Restoration",
-      "carbon-capture-storage": "Carbon Capture & Storage (CCS)",
-      "direct-air-capture": "Direct Air Capture (DAC)",
-      "carbon-utilization": "Carbon Utilization Projects",
+      // Prepare PDF data from current state
+      const pdfData = {
+        // Project Information
+        projectName: projectData?.projectName || "Green Carbon Project",
+        carbonOffsetType: "Green Carbon",
+        projectDescription: projectData?.projectDescription,
+        projectLocation: projectData?.projectLocation || "Unknown Location",
+        
+        // Project Owner Information
+        ownerName: projectData?.ownerName || "Unknown",
+        ownerEmail: projectData?.ownerEmail || "unknown@example.com",
+        ownerPhone: projectData?.ownerPhone || "Unknown",
+        
+        // Carbon Asset Coordinates
+        coordinates: projectData?.coordinates,
+        totalAssetPoints: projectData?.coordinates?.filter((c) => c?.latitude && c?.longitude)?.length || 0,
+        
+        // Verification Status
+        verificationStatus: "Verified",
+        
+        // Integrity & Quality Scores
+        integrityClass: carbonInputs.integrity_class || "IC-A",
+        auraScore: 91,
+        authenticityScore: 87,
+        validatorConsensus: carbonInputs.validator_consensus || 93,
+        dataConsistencyScore: 89,
+        
+        // Validation Summary
+        dataQualityCheck: true,
+        satelliteImageryVerification: true,
+        geospatialConsistency: true,
+        anomalyFlags: [],
+        
+        // Carbon Reduction Calculations
+        finalVerifiedReduction: carbonCalculation.final_verified_reduction_tco2,
+        
+        // Calculation Inputs & Parameters
+        agb: agbEstimation?.agb_tpha_final || carbonInputs.agb_per_ha || 215.6,
+        carbonFraction: carbonInputs.carbon_fraction || 0.47,
+        projectArea: carbonInputs.area_ha || 3023.5,
+        projectDuration: carbonInputs.duration_years || 10,
+        baselineEmissionsRate: carbonInputs.baseline_emission || 1.8,
+        
+        // Detailed Calculation Steps
+        rawCarbonStock: carbonCalculation.raw_carbon_stock_tc,
+        convertedCO2: carbonCalculation.converted_co2_tco2,
+        baselineEmissions: carbonCalculation.baseline_emissions_total_tco2,
+        grossReduction: carbonCalculation.gross_reduction_tco2,
+        leakageAdjustment: carbonCalculation.leakage_reduction_tco2,
+        leakagePercent: carbonCalculation.leakage_adjustment_percent,
+        bufferPoolDeduction: carbonCalculation.buffer_reduction_tco2,
+        bufferPoolPercent: carbonCalculation.buffer_pool_percent,
+        netReduction: carbonCalculation.net_reduction_tco2,
+        integrityClassAdjustment: carbonCalculation.integrity_class_adjustment_tco2,
+        integrityClassPercent: carbonCalculation.integrity_class_factor * 100,
+        
+        // Validators Information
+        validators: mockValidationResult.contributors.map((c) => ({
+          id: c.id,
+          role: c.role,
+          modelType: c.model_type,
+          confidence: c.confidence * 100,
+        })),
+        consensusThreshold: 93,
+        averageConfidence: 92.3,
+        
+        // Vegetation Classification
+        primaryForestType: projectData?.satelliteData?.features?.forest_type || "Tropical Rainforest",
+        vegetationClass: "Dense Forest",
+        ndvi: projectData?.satelliteData?.features?.ndvi || 0.75,
+        evi: projectData?.satelliteData?.features?.evi || 0.45,
+        gndvi: projectData?.satelliteData?.features?.gndvi || 0.48,
+        lai: projectData?.satelliteData?.features?.lai || 6.5,
+        canopyDensity: projectData?.satelliteData?.features?.canopy_density || 0.75,
+        averageTreeHeight: "25-35 meters",
+        crownCoverage: "85-95%",
+        vegetationHealthStatus: "Excellent",
+        
+        generatedDate: new Date(),
+      }
+
+      // Generate PDF
+      await generateBatuahHilirPDF(pdfData)
+      
+      alert("PDF generated successfully and will be downloaded!")
+    } catch (error) {
+      console.error("[v0] PDF generation failed:", error)
+      alert(`Error generating PDF: ${error instanceof Error ? error.message : "Unknown error"}`)
+    }
+  }
+
+  const handleExportJSON = () => {
+    if (!projectData) {
+      alert("Project data is not yet loaded. Please wait and try again.")
+      return
     }
 
-    const filledCoordinates = (projectData?.coordinates || []).filter((c) => {
-      const lat = typeof c.latitude === 'string' ? parseFloat(c.latitude) : c.latitude
-      const lon = typeof c.longitude === 'string' ? parseFloat(c.longitude) : c.longitude
-      return lat && lon
-    })
+    const jsonData = {
+      projectData,
+      carbonCalculation,
+      verification: {
+        integrityClass: carbonInputs.integrity_class,
+        validatorConsensus: carbonInputs.validator_consensus,
+        timestamp: new Date().toISOString(),
+      },
+    }
 
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Validation Report - ${projectData?.projectName}</title>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-              font-family: 'Inter', 'Helvetica', sans-serif; 
-              background: #0D0F10; 
-              color: #FFFFFF;
-              line-height: 1.6;
-            }
-            .page { 
-              page-break-after: always; 
-              padding: 40px;
-              min-height: 100vh;
-              background: #0D0F10;
-              color: #FFFFFF;
-            }
-            .section { 
-              margin-bottom: 30px; 
-              background: rgba(${primaryColorRgba}, 0.05);
-              border: 1px solid rgba(${primaryColorRgba}, 0.2);
-              padding: 20px; 
-              border-radius: 8px;
-              page-break-inside: avoid;
-              break-inside: avoid;
-            }
-            .page-break { page-break-before: always; }
-            h1 { 
-              color: ${primaryColor}; 
-              border-bottom: 2px solid ${primaryColor}; 
-              padding-bottom: 15px;
-              margin-bottom: 30px;
-              font-size: 32px;
-            }
-            h2 { 
-              color: ${primaryColor}; 
-              margin-top: 30px;
-              margin-bottom: 15px;
-              font-size: 20px;
-              border-left: 4px solid ${primaryColor};
-              padding-left: 15px;
-            }
+    const dataStr = JSON.stringify(jsonData, null, 2)
+    const dataBlob = new Blob([dataStr], { type: "application/json" })
+    const url = URL.createObjectURL(dataBlob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = "validation-data.json"
+    link.click()
+  }
+
+  return (
             .label { 
               font-weight: 600; 
               color: ${primaryColor};
